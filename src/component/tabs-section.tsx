@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { ArrowRight, TrendingUp, Users, Award } from "lucide-react"
+import { ArrowRight, TrendingUp } from "lucide-react"
 
 const TabsSection = () => {
   const [activeTab, setActiveTab] = useState(0)

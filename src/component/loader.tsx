@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 const Loader = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +73,7 @@ const Loader = () => {
     }
   }, [currentSubtitleLetterIndex, subtitleLetters.length]);
 
-  const letterVariants = {
+  const letterVariants: Variants = {
     white: {
       color: "#ffffff",
       opacity: 0.5,
@@ -95,7 +95,7 @@ const Loader = () => {
     },
   };
 
-  const subtitleLetterVariants = {
+  const subtitleLetterVariants: Variants = {
     white: {
       color: "#F4E4BC",
       opacity: 0.5,
@@ -117,39 +117,6 @@ const Loader = () => {
     },
   };
 
-  const subtitleVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.8,
-        delay: 1.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const spinnerVariants = {
-    hidden: { opacity: 0, scale: 0.5 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.5,
-        delay: 2,
-        ease: "easeOut",
-      },
-    },
-    spinning: {
-      rotate: 360,
-      transition: {
-        duration: 1,
-        repeat: Infinity,
-        ease: "linear",
-      },
-    },
-  };
 
   return (
     <AnimatePresence>

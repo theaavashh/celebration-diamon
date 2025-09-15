@@ -2,7 +2,6 @@
 
 import React, { useState } from "react"
 import { ChevronLeft, ChevronRight, Star, ArrowRight } from "lucide-react"
-import Image from "next/image"
 
 const TestimonialsSection = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
@@ -47,7 +46,7 @@ const TestimonialsSection = () => {
           <div className="relative">
             {/* Purple Quote Marks */}
             <div className="absolute -top-4 -left-4 text-6xl lg:text-8xl text-purple-500 font-bold opacity-20">
-              "
+              &ldquo;
             </div>
 
             {/* Testimonial Content */}
@@ -89,12 +88,11 @@ const TestimonialsSection = () => {
             <div className="absolute top-0 right-0 w-32 h-32 lg:w-40 lg:h-40">
               <svg
                 viewBox="0 0 100 100"
-                className="w-full h-full"
+                className="w-full h-full text-black"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeDasharray="5,5"
-                className="text-black"
               >
                 <path d="M0,20 Q20,0 40,20 T80,20 Q90,30 80,40 T80,60 Q70,80 50,60 T20,60 Q10,50 20,40" />
               </svg>

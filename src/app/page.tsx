@@ -2,7 +2,6 @@ import Category from '@/component/category'
 import HeroSection from '@/component/hero-section'
 import MarqueeBanner from '@/component/marquee-banner'
 import SerenityGallery from '@/component/serenity-gallery'
-import Service from '@/component/service'
 import NewCollection from '@/component/new-collection'
 import CustomRing from '@/component/custom-ring'
 import FAQ from '@/component/faq'
@@ -11,18 +10,13 @@ import Chatbot from '@/component/chatbot'
 import React from 'react'
 import Image from 'next/image'
 
-import BasicExample from '@/component/limited-edition'
 import Section from '@/component/banner'
-import Aboutus from '@/component/aboutus'
 import BridgePlanning from '@/component/bridge-planning'
 import CultureCollection from '@/component/CulturalTriptych'
-import InstagramProducts from '@/component/instagram-layout'
-import ServiceInfo from '@/component/services'
 import HowItWorks from '@/component/how-it-works'
 import AboutUs from '@/component/about-us'
 import SpringArrivals from '@/component/spring-arrivals'
 import WeddingPlanning from '@/component/wedding-planning'
-import TabsSection from '@/component/tabs-section'
 import TestimonialsSection from '@/component/testimonials-section'
 import FeaturedCollection from '@/component/featured-collection'
 import SelfExpression from '@/component/self-expression'
@@ -139,7 +133,7 @@ const HomePage = () => {
                </div>
              </div>
              <p className="text-sm text-gray-700 mb-4 leading-relaxed">
-               Say 'I do' to our bespoke bridal services, available by appointment only.
+               Say &apos;I do&apos; to our bespoke bridal services, available by appointment only.
              </p>
              <a href="#" className="text-sm text-black underline hover:text-gray-600 transition-colors">
                Learn More

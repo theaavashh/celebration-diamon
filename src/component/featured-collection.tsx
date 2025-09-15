@@ -118,7 +118,7 @@ const FeaturedCollection = () => {
           {/* Grid Products - Right Side */}
           <div className="lg:col-span-5">
             <div className="grid grid-cols-2 gap-4 h-full">
-              {gridProducts.slice(0, 4).map((product, index) => (
+              {gridProducts.slice(0, 4).map((product) => (
                 <div key={product.id} className="group relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
                   <div className="aspect-square relative">
                     <Image

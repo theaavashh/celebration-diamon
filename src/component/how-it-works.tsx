@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { ChevronRight, Gem, Heart, Shield, Sparkles, Calendar, Palette, Award, Truck } from "lucide-react"
+import { ChevronRight, Gem, Heart, Shield, Sparkles } from "lucide-react"
 import Image from "next/image"
 
 const HowItWorks = () => {

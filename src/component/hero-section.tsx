@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Diamond, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function HeroSection() {
 
