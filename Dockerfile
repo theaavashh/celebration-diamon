@@ -1,36 +1,52 @@
-# Use the official Node.js 18 image as the base image
-FROM node:18-alpine
+# Multi-stage Docker build for Next.js application
+# Build: docker build -t celebration-diamond .
+# Run: docker run -p 3000:3000 celebration-diamond
 
-# Set the working directory inside the container
+# Stage 1: Build the application
+FROM node:18-alpine AS builder
+
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production
 
-# Copy the rest of the application code
+# Copy source code
 COPY . .
 
-# Build the Next.js application
+# Build the application
 RUN npm run build
 
-# Expose the port that the app runs on
+# Stage 2: Production image
+FROM node:18-alpine AS runner
+
+# Set working directory
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application from builder stage
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Set correct permissions
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Expose port
 EXPOSE 3000
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
-
-# Create a non-root user to run the app
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-
-# Change ownership of the app directory to the nextjs user
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+ENV HOSTNAME="0.0.0.0"
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
 

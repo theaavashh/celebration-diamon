@@ -1,8 +1,9 @@
 "use client"
 
 import Link from 'next/link';
+import Image from 'next/image';
 import React, { useState } from 'react';
-import { FaFacebookF, FaInstagram, FaTiktok, FaChevronDown, FaChevronUp, FaArrowRight } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaArrowRight } from 'react-icons/fa';
 
 const Footer = () => {
   const [expandedSections, setExpandedSections] = useState({
@@ -112,34 +113,76 @@ const Footer = () => {
         </div>
         
         {/* Social Media Icons */}
-        <div className="flex gap-4 text-xl">
-          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
-            <FaFacebookF />
+        <div className="flex gap-4">
+          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+            <Image
+              src="/facebook-logo.png"
+              alt="Facebook"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
           </a>
-          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
-            <FaInstagram />
+          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+            <Image
+              src="/instagram-logo.png"
+              alt="Instagram"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
           </a>
-          <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
-            <FaTiktok />
+          <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+            <Image
+              src="/tiktok-logo.png"
+              alt="TikTok"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
           </a>
         </div>
       </section>
 
       {/* Full Width Section Below */}
       <section className="w-full border-gray-400 pt-6 text-sm flex flex-col lg:flex-row justify-between items-center gap-4 border-t-2">
-        <h3 className="text-3xl font-extrabold uppercase jimthompson">Celebration Diamond</h3>
+        <Image
+          src="/celebration-diamond-logo.png"
+          alt="Celebration Diamond Logo"
+          width={200}
+          height={60}
+          className="object-contain"
+        />
 
         <div className="flex flex-col lg:items-end gap-3 w-full lg:w-auto">
           {/* Social Media Icons - Hidden on mobile, visible on lg+ */}
-          <div className="hidden lg:flex gap-4 text-xl">
-            <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
-              <FaFacebookF />
+          <div className="hidden lg:flex gap-1">
+            <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+              <Image
+                src="/facebook-logo.webp"
+                alt="Facebook"
+                width={100}
+                height={100}
+                className="object-cover"
+              />
             </Link>
-            <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
-              <FaInstagram />
+            <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+              <Image
+                src="/instagram-logo.png"
+                alt="Instagram"
+                width={100}
+                height={100}
+                className="object-contain"
+              />
             </Link>
-            <Link href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
-              <FaTiktok />
+            <Link href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+              <Image
+                src="/tiktok-logo.png"
+                alt="TikTok"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
             </Link>
           </div>
 

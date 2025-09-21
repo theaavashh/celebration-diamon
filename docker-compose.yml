@@ -1,0 +1,55 @@
+# Docker Compose configuration for Celebration Diamond application
+# Run: docker-compose up -d
+# Stop: docker-compose down
+# Logs: docker-compose logs -f
+
+version: '3.8'
+
+services:
+  # Next.js Application
+  app:
+    build: .
+    container_name: celebration-diamond-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - celebration-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: celebration-diamond-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # For SSL certificates
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - celebration-network
+
+  # Optional: Redis for caching (uncomment if needed)
+  # redis:
+  #   image: redis:alpine
+  #   container_name: celebration-diamond-redis
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
+  #   networks:
+  #     - celebration-network
+
+networks:
+  celebration-network:
+    driver: bridge
+
+volumes:
+  # Optional: Persistent data volumes
+  # redis_data:
+  #   driver: local

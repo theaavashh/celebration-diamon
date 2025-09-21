@@ -65,63 +65,73 @@ export default function Header() {
         transition={{ duration: 0.3, ease: "easeInOut" }}
       >
         <TopBanner />
-        <div className="container pt-0 md:pt-0 mx-auto w-full bg-white">
-          {/* Top Row */}
-          <div className="flex items-center justify-between py-5 px-5 pr-10 flex-wrap md:flex-nowrap">
-            <span className="min-w-[120px] hidden md:inline-flex gap-4 items-center">
-              <Phone className="w-5 h-5" /> 9709196495  
-            </span>
-
-            <div className="flex-1 flex justify-start md:justify-center">
-              <Link href="/" className="flex flex-col items-center text-black">
-                <span className="text-2xl md:text-3xl font-bold font-serif tracking-wide jimthompson ">
-                  Celebration
-                </span>
-                <span className="text-sm md:text-lg font-serif">Diamond Studio</span>
+        <div className="pt-0 md:pt-0 w-[100vw] mx-10">
+          {/* Main Header Row */}
+          <div className="flex justify-between py-6 px-5 pr-10">
+            {/* Logo on the left - takes full height */}
+            <div className="flex items-center justify-center h-10 mt-5">
+              <Link href="/" className="flex items-center justify-center">
+                <Image
+                  src="/celeb.jpg"
+                  alt="Celebration Diamond Logo"
+                  width={180}
+                  height={40}
+                  className="object-contain"
+                />
               </Link>
             </div>
 
-            <div className="flex items-center space-x-4 min-w-[120px] justify-end">
-              <button
-                onClick={() => setShowSearch(true)}
-                className="flex items-center gap-2 text-black hover:text-gray-600"
-              >
-                <Search className="w-5 h-5" />
-                <span className="hidden sm:inline">Search</span>
-              </button>
+            {/* Right section - divided into two rows */}
+            <div className="flex flex-col h-20">
+              {/* First row - Search, Bag, Phone */}
+              <div className="flex items-center space-x-3 justify-end h-10">
+                <button
+                  onClick={() => setShowSearch(true)}
+                  className="flex items-center gap-2 text-black hover:text-gray-600 px-3 py-1"
+                >
+                  <Search className="w-5 h-5" />
+                  <span className="hidden sm:inline">Search</span>
+                </button>
 
-              <div className="flex items-center gap-2">
-                <Handbag className="w-5 h-5 text-black hover:text-gray-600" />
-                <span className="hidden sm:inline">Bag</span>
+                <div className="flex items-center gap-2 px-3 py-1">
+                  <Handbag className="w-5 h-5 text-black hover:text-gray-600" />
+                  <span className="hidden sm:inline">Bag</span>
+                </div>
+                |
+
+
+                <span className="hidden md:inline-flex gap-2 items-center px-3 py-1">
+                  <Phone className="w-5 h-5" />  +9779709196495 (Nepal)
+                </span>
+
+                <button
+                  className="md:hidden text-black hover:text-gray-600"
+                  onClick={() => setMobileMenuOpen(true)}
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
               </div>
 
-              <button
-                className="md:hidden text-black hover:text-gray-600"
-                onClick={() => setMobileMenuOpen(true)}
-                aria-label="Open menu"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
+              {/* Second row - Navigation - Centered exactly in middle */}
+              <nav className="hidden md:flex mt-5 pl-32 items-start justify-start space-x-7  h-10 w-[90vw]">
+                {NAV_ITEMS.map(({ name, href, icon: Icon }) => (
+                  <Link
+                    key={name}
+                    href={href}
+                    className={`flex items-center space-x-2 font-normal jimthompson transition-colors hover:text-amber-300 px-4 py-2 ${
+                      pathname === href
+                        ? "text-amber-400 border-b-2 border-amber-400 pb-1"
+                        : "text-black"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-xl">{name}</span>
+                  </Link>
+                ))}
+              </nav>
             </div>
           </div>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center justify-center space-x-12 pb-4 text-2xl">
-            {NAV_ITEMS.map(({ name, href, icon: Icon }) => (
-              <Link
-                key={name}
-                href={href}
-                className={`flex items-center space-x-2 text-lg font-normal jimthompson transition-colors hover:text-amber-300 ${
-                  pathname === href
-                    ? "text-amber-400 border-b-2 border-amber-400 pb-1"
-                    : "text-black"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{name}</span>
-              </Link>
-            ))}
-          </nav>
 
           {/* Mobile Sidebar */}
           <AnimatePresence>

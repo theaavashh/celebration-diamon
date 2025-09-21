@@ -5,14 +5,14 @@ import { ArrowRight } from "lucide-react";
 export default function HeroSection() {
 
   return (
-    <section className="relative pt-0 sm:pt-2 w-full min-h-[85vh] flex flex-col justify-center items-center overflow-hidden bg-gradient-to-br from-white via-gray-50 to-amber-50/30">
+    <section className="relative pt-0 w-full min-h-[90vh] flex flex-col justify-center items-center overflow-hidden bg-gradient-to-br from-white via-gray-50 to-amber-50/30">
      
 
       {/* === Main Content with Grid Layout === */}
-      <div className="relative z-10 w-full px-3 sm:px-4 md:px-6 lg:px-8 pt-28 sm:pt-2 md:pt-0 pb-4 sm:pb-6 md:pb-8">
+      <div className="relative z-10 w-full px-3 sm:px-4 md:px-6 lg:px-8 pt-20 sm:pt-0 md:pt-0 pb-4 sm:pb-6 md:pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8 lg:gap-16 xl:gap-20 items-center max-w-7xl mx-auto">
           {/* Left Side - Text Content */}
-          <div className="text-center lg:text-left order-1 px-2 sm:px-0 -mt-8 sm:-mt-12 md:-mt-16 lg:-mt-5 lg:col-span-7">
+          <div className="text-center lg:text-left order-1 px-2 sm:px-0  lg:col-span-7">
             <h2 className="hero-main-text text-3xl sm:text-4xl md:text-4xl lg:text-5xl jimthompson font-extrabold text-gray-800 mb-1 sm:mb-2 md:mb-3 lg:mb-4 italic leading-tight text-center lg:text-left">
               <span className="italic font-normal">Introducing,</span> Nepal&apos;s 1st and<br />
               <span className="italic font-extrabold jimthompson">Finest Diamond Studio</span>
@@ -64,14 +64,40 @@ export default function HeroSection() {
             {/* Connect with Experts */}
             <div className="flex items-center gap-4">
               <div className="flex -space-x-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white">
-                  A
+                {/* Expert A - Mr. Subash Verma */}
+                <div className="relative group">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white cursor-pointer hover:scale-110 transition-transform duration-200">
+                    A
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
+                    Mr. Subash Verma
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white">
-                  B
+                
+                {/* Expert B - Mr. Amit Shrestha */}
+                <div className="relative group">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white cursor-pointer hover:scale-110 transition-transform duration-200">
+                    B
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
+                    Mr. Amit Shrestha
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white">
-                  C
+                
+                {/* Expert C - Mrs. Deepa Shahi */}
+                <div className="relative group">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white cursor-pointer hover:scale-110 transition-transform duration-200">
+                    C
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
+                    Mrs. Deepa Shahi
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

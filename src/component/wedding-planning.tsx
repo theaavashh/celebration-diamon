@@ -54,9 +54,9 @@ const WeddingPlanning = () => {
           </div>
 
           {/* Right Section - Features Grid */}
-          <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ">
+          <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <div key={index} className="group relative bg-white p-2 shadow-3xl hover:shadow-md transition-all duration-300 p-4 border-2 border-black" style={{ borderColor: '#000000' }}>
+              <div key={index} className="group relative bg-white p-4 shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg">
                 {/* Title */}
                 <h3 className="text-lg font-semibold text-black mb-2 group-hover:text-gray-700 transition-colors duration-300">
                   {feature.title}

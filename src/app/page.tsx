@@ -6,7 +6,7 @@ import NewCollection from '@/component/new-collection'
 import CustomRing from '@/component/custom-ring'
 import FAQ from '@/component/faq'
 import DiamondCertification from '@/component/diamond-certification'
-import Chatbot from '@/component/chatbot'
+import WhatsAppButton from '@/component/WhatsAppButton'
 import React from 'react'
 import Image from 'next/image'
 
@@ -15,37 +15,22 @@ import BridgePlanning from '@/component/bridge-planning'
 import CultureCollection from '@/component/CulturalTriptych'
 import HowItWorks from '@/component/how-it-works'
 import AboutUs from '@/component/about-us'
-import SpringArrivals from '@/component/spring-arrivals'
 import WeddingPlanning from '@/component/wedding-planning'
 import TestimonialsSection from '@/component/testimonials-section'
-import FeaturedCollection from '@/component/featured-collection'
 import SelfExpression from '@/component/self-expression'
+import VisitStore from '@/component/visit-store'
 
 const HomePage = () => {
   return (
    <>
    <HeroSection/>
    <MarqueeBanner/>
-   
- 
-   
-     <Category/>
-    
+    <Category/>
      <NewCollection/>
-
      <AboutUs/>
-
-     <FeaturedCollection/>
-
-     <SpringArrivals/>
-
      <WeddingPlanning/>
-
-    
-
-    
-
      <SelfExpression/>
+     <VisitStore/>
 
     
 
@@ -72,15 +57,16 @@ const HomePage = () => {
    {/* <Aboutus/> */}
  
 
-     <CustomRing />
+    
      
      <BridgePlanning/>
-     
-
-     
-     <DiamondCertification />
 
      <CultureCollection/>
+     
+
+     
+   
+
 
      {/* Three Cards Section */}
       <section className="w-full py-12 sm:py-16 md:py-20 px-8 sm:px-12 md:px-20 lg:px-24 bg-white">
@@ -143,12 +129,14 @@ const HomePage = () => {
         </div> 
       </section> 
 
+      <CustomRing />
+      <DiamondCertification />
 
      <HowItWorks/>
      <FAQ />
      <TestimonialsSection/>
      <SerenityGallery/> 
-     <Chatbot />
+     <WhatsAppButton />
    </>
   )
 }

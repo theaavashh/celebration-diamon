@@ -4,7 +4,7 @@ import React from "react"
 
 const AboutUs = () => {
   return (
-    <section className="w-full pt-16 sm:pt-16 md:pt-16 px-8 sm:px-12 md:px-20 lg:px-24 bg-gray-50">
+    <section className="w-full pt-16 pb-10 sm:pt-16 md:pt-16 px-8 sm:px-12 md:px-20 lg:px-24 bg-gray-50">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
           {/* Left Column - Small Heading */}
