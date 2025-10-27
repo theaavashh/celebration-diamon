@@ -1,6 +1,6 @@
 import Category from '@/component/category'
 import HeroSection from '@/component/hero-section'
-import MarqueeBanner from '@/component/marquee-banner'
+import PromotionalBanner from '@/component/promotional-banner'
 import SerenityGallery from '@/component/serenity-gallery'
 import NewCollection from '@/component/new-collection'
 import CustomRing from '@/component/custom-ring'
@@ -24,7 +24,7 @@ const HomePage = () => {
   return (
    <>
    <HeroSection/>
-   <MarqueeBanner/>
+   <PromotionalBanner/>
     <Category/>
      <NewCollection/>
      <AboutUs/>

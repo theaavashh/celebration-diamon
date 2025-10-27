@@ -9,10 +9,12 @@
 
 @font-face {
   font-family: 'JimThompson';
-  src: url('../../public/font/JimThompson_Roman.ttf') format('truetype');
+  src: url('/font/title-regular.f7f2da3f7d1f78b3f788.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
 }
+
+
 
 @font-face {
   font-family: 'AkzidenzGroteskPro';

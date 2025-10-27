@@ -156,7 +156,7 @@ const Footer = () => {
 
         <div className="flex flex-col lg:items-end gap-3 w-full lg:w-auto">
           {/* Social Media Icons - Hidden on mobile, visible on lg+ */}
-          <div className="hidden lg:flex gap-1">
+          <div className="hidden lg:flex gap-1https://www.facebook.com/">
             <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
               <Image
                 src="/facebook-logo.webp"

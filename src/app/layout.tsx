@@ -5,6 +5,9 @@ import Header from "@/component/header";
 import Footer from "@/component/footer";
 import Loader from "@/component/loader";
 import SocialMediaIcons from "@/component/SocialMediaIcons";
+import PopupModal from "@/component/PopupModal";
+import PromotionalBanner from "@/component/promotional-banner";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,14 +37,15 @@ export default function RootLayout({
           suppressHydrationWarning={true}
       >
         <Loader />
-         <Header/>
-        
+        <Header/>
+      
           <main>
             {children}
           </main>
 
           <Footer/>
           <SocialMediaIcons />
+          <PopupModal />
        
       </body>
     </html>

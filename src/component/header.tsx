@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideProps } from "lucide-react";
 import {
   X,
   Store,
@@ -11,7 +12,6 @@ import {
   Gem,
   CircleDollarSign,
   Star,
-  LucideIcon,
   Search,
   Handbag,
   Menu,
@@ -21,7 +21,9 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import TopBanner from "./top-banner";
 
-const NAV_ITEMS: { name: string; href: string; icon: LucideIcon }[] = [
+type IconComponent = React.FC<LucideProps>;
+
+const NAV_ITEMS: { name: string; href: string; icon: IconComponent }[] = [
   { name: "All Jewellery", href: "/products", icon: Store },
   { name: "Necklace", href: "/products/necklace", icon: Diamond },
   { name: "Bracelet", href: "/products/bracelet", icon: CircleDollarSign },
@@ -76,7 +78,7 @@ export default function Header() {
                   alt="Celebration Diamond Logo"
                   width={180}
                   height={40}
-                  className="object-contain"
+                  className="object-contain w-20 sm:w-32 md:w-[180px]"
                 />
               </Link>
             </div>
@@ -109,7 +111,7 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(true)}
                   aria-label="Open menu"
                 >
-                  <Menu className="w-6 h-6" />
+                  <Menu className="w-6 h-6 mr-5" />
                 </button>
               </div>
 
@@ -143,7 +145,7 @@ export default function Header() {
                 exit={{ opacity: 0 }}
               >
                 <div
-                  className="fixed inset-0 bg-black bg-opacity-30"
+                  className="fixed inset-0 bg-black/30"
                   onClick={() => setMobileMenuOpen(false)}
                 />
 
@@ -161,14 +163,13 @@ export default function Header() {
                       <Link
                         key={name}
                         href={href}
-                        className="flex items-center justify-between py-2 px-1 text-lg font-medium text-black"
+                        className="flex items-center justify-center py-2 px-1 text-lg font-medium text-black"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <span className="flex items-center gap-2">
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-5 h-5 mr-2" />
                           {name}
                         </span>
-                        <span className="text-xl">›</span>
                       </Link>
                     ))}
                   </nav>
