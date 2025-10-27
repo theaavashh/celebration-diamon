@@ -1,0 +1,1 @@
+let o=0;const a=()=>o+=90,d=()=>{const e=document.getElementById("photo"),t=document.getElementById("rotateImage");e==null||t==null||t.addEventListener("click",()=>{const n=a();e.style.transform=`rotate(${n}deg)`},!1)};window.addEventListener("DOMContentLoaded",d,!1);
