@@ -1,0 +1,453 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String    @id @default(cuid())
+  fullname  String
+  username  String    @unique
+  email     String    @unique
+  password  String
+  role      String    @default("admin")
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  adminRoles AdminRole[]
+}
+
+model Role {
+  id          String    @id @default(cuid())
+  name        String    @unique // e.g., "admin", "manager", "editor", "viewer"
+  description String?
+  permissions String?   // JSON string of permissions
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  adminRoles  AdminRole[]
+
+  @@map("roles")
+}
+
+model AdminRole {
+  id        String   @id @default(cuid())
+  adminId   String
+  roleId    String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([adminId, roleId])
+  @@map("admin_roles")
+}
+
+model Banner {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?
+  text            String
+  linkText        String?
+  linkUrl         String?
+  backgroundColor String?   @default("#ffffff")
+  textColor       String?   @default("#000000")
+  isActive        Boolean   @default(true)
+  priority        Int       @default(0)
+  startDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("banners")
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  productCode       String   @unique // CD-001, etc.
+  name              String
+  description       String
+  briefDescription  String?  // Short description for listings
+  fullDescription   String?  // Full detailed description (HTML content)
+  category          String   // Ring, Necklace, etc.
+  subCategory       String?  // Ladies/Casual, etc.
+  price             Float
+  imageUrl          String?
+  stock             Int      @default(0)
+  isActive          Boolean  @default(true)
+  
+  // Jewelry specific fields
+  goldWeight        String?  // 4 gms approx
+  diamondDetails    String?  // -
+  diamondQuantity   Int?     // number of diamonds
+  diamondSize       String?  // size of diamonds
+  diamondWeight     String?  // weight of diamonds
+  diamondQuality    String?  // quality of diamonds
+  otherGemstones    String?  // other gemstones
+  orderDuration     String?  // 7 days to make
+  
+  // Additional fields
+  metalType         String?  // 14k, 18k, etc.
+  stoneType         String?  // Diamond, Ruby, etc.
+  settingType       String?  // Prong, Bezel, etc.
+  size              String?  // Ring size, etc.
+  color             String?  // Gold color
+  finish            String?  // Polished, Matte, etc.
+  
+  // Distribution channels
+  digitalBrowser    Boolean  @default(false)
+  website           Boolean  @default(false)
+  distributor       Boolean  @default(false)
+  
+  // Cultural field
+  culture           String?  // Newari, Brahmin/Chhetri, Tamang, etc.
+  
+  // SEO fields
+  seoTitle          String?  // Meta title
+  seoDescription    String?  // Meta description
+  seoKeywords       String?  // Meta keywords
+  seoSlug           String?  // URL slug
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  savedProducts     SavedProduct[]
+  quoteRequests     QuoteRequest[]
+  reviews           Review[]
+
+  @@map("products")
+}
+
+model QuoteRequest {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  name      String
+  email     String
+  phone     String?
+  message   String
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quote_requests")
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String   // Simple user identifier (could be session ID or user ID)
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  savedProducts SavedProduct[]
+
+  @@map("collections")
+}
+
+model SavedProduct {
+  id           String     @id @default(cuid())
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id])
+  savedAt      DateTime   @default(now())
+
+  @@unique([productId, collectionId])
+  @@map("saved_products")
+}
+
+model Hero {
+  id          String   @id @default(cuid())
+  heading     String
+  subHeading  String?
+  description String?
+  ctaTitle    String?
+  ctaLink     String?
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("hero")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  title     String
+  imageUrl  String?
+  link      String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String?
+  link        String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
+}
+
+model Quote {
+  id          String   @id @default(cuid())
+  text        String   // The quote text
+  author      String?  // Optional author name
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("quotes")
+}
+
+model WeddingPlanner {
+  id              String   @id @default(cuid())
+  title           String   // "YOURS WEDDING JEWELRY PLANNER"
+  description     String   // Main description text
+  ctaText         String   // "SCHEDULE CONSULTATION"
+  ctaLink         String?  // Link for the CTA button
+  imageUrl        String?  // Background/featured image
+  badgeText       String?  // "BRIDE PLANNING"
+  badgeSubtext    String?  // "Expert Service"
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("wedding_planners")
+}
+
+model Culture {
+  id              String   @id @default(cuid())
+  name            String   // "Newari", "Bhutanese", "Tamang"
+  title           String   // "Explore Our Culture Collection"
+  subtitle        String   // "Discover the rich traditions..."
+  description     String   // Culture description
+  ctaText         String   // "EXPLORE →"
+  ctaLink         String?  // Link for the CTA button
+  imageUrl        String?  // Culture image
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("cultures")
+}
+
+model RingCustomization {
+  id              String   @id @default(cuid())
+  title           String   // "CREATE YOUR RING ONLINE"
+  description     String   // Main description text
+  ctaText         String   // "START DESIGNING"
+  ctaLink         String?  // Link for the CTA button
+  processImageUrl String?  // Process diagram image
+  example1Title   String?  // "Ornate Band Design"
+  example1Desc    String?  // "V-shaped with leaf carvings"
+  example1ImageUrl String? // Example 1 image
+  example2Title   String?  // "Salt & Pepper Diamond"
+  example2Desc    String?  // "Unique speckled gemstone"
+  example2ImageUrl String? // Example 2 image
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("ring_customizations")
+}
+
+model DiamondCertification {
+  id              String   @id @default(cuid())
+  title           String   // "DIAMOND CERTIFICATION"
+  description     String   // Main description text
+  fullContent     String?  // Rich text HTML content
+  ctaText         String   // "SHOP CERTIFIED COLLECTION"
+  ctaLink         String?  // Link for the CTA button
+  imageUrl        String?  // Diamond image
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("diamond_certifications")
+}
+
+model CelebrationProcess {
+  id              String   @id @default(cuid())
+  title           String   // "The Celebration Diamond process is in the details"
+  description     String?  // Optional description
+  imageUrl        String?  // Person with jewelry image
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  steps           CelebrationProcessStep[]
+
+  @@map("celebration_processes")
+}
+
+model CelebrationProcessStep {
+  id                    String   @id @default(cuid())
+  celebrationProcessId  String
+  title                 String   // "Jewelry Selection", "Book Appointment", etc.
+  description           String   // Step description
+  icon                  String   // Icon name (diamond, star, shield, heart)
+  order                 Int      // Step order (1, 2, 3, 4)
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  celebrationProcess    CelebrationProcess @relation(fields: [celebrationProcessId], references: [id], onDelete: Cascade)
+
+  @@map("celebration_process_steps")
+}
+
+model FAQ {
+  id              String   @id @default(cuid())
+  question        String   // The FAQ question
+  answer          String   // The FAQ answer
+  category        String?  // Optional category (e.g., "General", "Shipping", "Custom")
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("faqs")
+}
+
+model Gallery {
+  id              String   @id @default(cuid())
+  title           String   // "Gallery"
+  subtitle        String   // "Discover the art of mindful living..."
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  galleryItems    GalleryItem[]
+
+  @@map("galleries")
+}
+
+model GalleryItem {
+  id              String   @id @default(cuid())
+  galleryId       String
+  title           String?  // Optional title - "Moments of Tranquility", "Natural Elegance", "Personal Wellness"
+  imageUrl        String?  // URL for image or video
+  fileName        String?  // Uploaded file name (image or video)
+  originalName    String?  // Original file name when uploaded
+  fileType        String?  // "image" or "video"
+  fileSize        Int?     // File size in bytes
+  mimeType        String?  // MIME type (image/jpeg, video/mp4, etc.)
+  filePath        String?  // Path to the uploaded file
+  description     String?  // Optional description
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  gallery         Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@map("gallery_items")
+}
+
+model PopupImage {
+  id              String   @id @default(cuid())
+  fileName        String   // Uploaded file name
+  originalName    String   // Original file name when uploaded
+  filePath        String   // Path to the uploaded file
+  mimeType        String   // MIME type (image/jpeg, image/png, etc.)
+  fileSize        Int      // File size in bytes
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("popup_images")
+}
+
+model TopBanner {
+  id            String   @id @default(cuid())
+  text          String   // Banner text content
+  displayOrder  Int      @default(0) // Order of display
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("top_banners")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerName String
+  rating    Int      // 1-5 stars
+  comment   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reviews")
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  productId       String?
+  productName     String?
+  name            String
+  email           String
+  phone           String
+  culture         String?
+  appointmentType String   // 'online' or 'instore'
+  preferredDate   String
+  preferredTime   String
+  additionalNotes String?
+  status          String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("appointments")
+}
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  clientName  String
+  clientTitle String?
+  company     String?
+  content     String
+  rating      Int?     // 1-5 stars
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("testimonials")
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model TestimonialSection {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonial_sections")
+}
+
+
