@@ -97,21 +97,33 @@ function DashboardContent() {
   const fetchDashboardStats = async () => {
     setIsLoadingStats(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/dashboard/stats`, {
+        credentials: 'include', // Include cookies for authentication
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
       
       if (response.ok) {
         const data = await response.json();
         setDashboardStats(data.data);
+      } else if (response.status === 401) {
+        console.error('Authentication failed. Session may be expired or invalid.');
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
-        console.error('Failed to fetch dashboard stats');
+        console.error('Failed to fetch dashboard stats, status:', response.status);
+        toast.error(`Failed to fetch dashboard stats: ${response.status === 403 ? 'Access denied' : 'Server error'}`);
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      toast.error('Network error. Please check your connection.');
     } finally {
       setIsLoadingStats(false);
     }
@@ -121,21 +133,33 @@ function DashboardContent() {
   const fetchSeoReport = async () => {
     setIsLoadingSeo(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/seo/report`, {
+        credentials: 'include', // Include cookies for authentication
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
       
       if (response.ok) {
         const data = await response.json();
         setSeoReport(data.data);
+      } else if (response.status === 401) {
+        console.error('Authentication failed. Session may be expired or invalid.');
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
-        console.error('Failed to fetch SEO report');
+        console.error('Failed to fetch SEO report, status:', response.status);
+        // Don't show toast for SEO report failures as it's not critical
       }
     } catch (error) {
       console.error('Error fetching SEO report:', error);
+      // Don't show toast for SEO report failures as it's not critical
     } finally {
       setIsLoadingSeo(false);
     }
@@ -162,6 +186,46 @@ function DashboardContent() {
     } finally {
       setIsLoadingBanners(false);
     }
+  };
+
+  // Helper function to strip HTML and get text content
+  const stripHtml = (html: string): string => {
+    if (!html) return '';
+    // Create a temporary element to extract text content
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return (tmp.textContent || tmp.innerText || '').trim();
+  };
+
+  // Helper function to check if content is empty after stripping HTML
+  const stripHtmlAndCheckEmpty = (html: string): boolean => {
+    return stripHtml(html).length === 0;
+  };
+
+  // Helper function to validate title length (1-100 characters)
+  // We strip HTML before sending, so validate the plain text length
+  const validateTitle = (html: string): string | null => {
+    const text = stripHtml(html);
+    if (text.length === 0) {
+      return 'Banner Title is required';
+    }
+    if (text.length > 100) {
+      return 'Title must be between 1 and 100 characters';
+    }
+    return null;
+  };
+
+  // Helper function to validate text length (1-200 characters)
+  // We strip HTML before sending, so validate the plain text length
+  const validateText = (html: string): string | null => {
+    const text = stripHtml(html);
+    if (text.length === 0) {
+      return 'Banner text is required';
+    }
+    if (text.length > 200) {
+      return 'Banner text must be between 1 and 200 characters';
+    }
+    return null;
   };
 
   // Handle form field changes
@@ -200,14 +264,34 @@ function DashboardContent() {
   const handleEditBanner = async () => {
     if (!editingBanner) return;
 
+    // Validate form before submission
+    const titleError = validateTitle(bannerForm.title);
+    if (titleError) {
+      toast.error(titleError);
+      return;
+    }
+    const textError = validateText(bannerForm.text);
+    if (textError) {
+      toast.error(textError);
+      return;
+    }
+
     try {
+      // Strip HTML from title and text before sending to backend
+      // This ensures validation works correctly and we store plain text
+      const bannerDataToSend = {
+        ...bannerForm,
+        title: stripHtml(bannerForm.title),
+        text: stripHtml(bannerForm.text)
+      };
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${editingBanner.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(bannerForm),
+        body: JSON.stringify(bannerDataToSend),
       });
 
       if (response.ok) {
@@ -216,7 +300,21 @@ function DashboardContent() {
         setEditingBanner(null);
         fetchBanners(); // Refresh the list
       } else {
-        toast.error('Failed to update banner');
+        const errorText = await response.text();
+        let errorMessage = 'Failed to update banner';
+        try {
+          const errorJson = JSON.parse(errorText);
+          // Show specific validation errors if available
+          if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
+            const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
+            errorMessage = validationErrors;
+          } else {
+            errorMessage = errorJson.message || errorMessage;
+          }
+        } catch (e) {
+          console.error('Could not parse error response as JSON');
+        }
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error updating banner:', error);
@@ -235,24 +333,68 @@ function DashboardContent() {
     if (!bannerToDelete) return;
 
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      console.log('Deleting banner:', { id: bannerToDelete.id, hasToken: !!token });
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete.id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
+
+      console.log('Delete response status:', response.status);
 
       if (response.ok) {
         toast.success('Banner deleted successfully!');
         setShowDeleteConfirm(false);
         setBannerToDelete(null);
         fetchBanners(); // Refresh the list
+      } else if (response.status === 401) {
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Invalid token' };
+        }
+        console.error('Authentication failed:', { status: response.status, errorData, responseText });
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
-        toast.error('Failed to delete banner');
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Failed to delete banner' };
+        }
+        const errorMessage = errorData.message || errorData.error || `Failed to delete banner: ${response.status} ${response.statusText}`;
+        console.error('Failed to delete banner:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          errorData, 
+          responseText,
+          url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete.id}`,
+          bannerId: bannerToDelete.id
+        });
+        toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Error deleting banner:', error);
-      toast.error('Error deleting banner');
+      const errorMessage = error instanceof Error ? error.message : 'Network error or unexpected error occurred';
+      console.error('Error deleting banner:', { 
+        error, 
+        message: errorMessage,
+        url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete?.id}`,
+        bannerId: bannerToDelete?.id
+      });
+      toast.error(`Failed to delete banner: ${errorMessage}`);
     }
   };
 
@@ -820,8 +962,6 @@ function DashboardContent() {
                           handleFormChange('title', value);
                           handleFormChange('text', value); // Set text same as title
                         }}
-                        placeholder="e.g., Free Delivery on orders over NPR.10000. Don't miss discount."
-                        className="border border-gray-300 rounded-lg"
                       />
                       <p className="text-xs text-gray-500 mt-1">Use the rich text editor to format your banner content with custom styling</p>
                     </div>
@@ -885,20 +1025,47 @@ function DashboardContent() {
                   </button>
                   <button
                     onClick={editingBanner ? handleEditBanner : async () => {
+                      // Validate form before submission
+                      const titleError = validateTitle(bannerForm.title);
+                      if (titleError) {
+                        toast.error(titleError);
+                        return;
+                      }
+                      const textError = validateText(bannerForm.text);
+                      if (textError) {
+                        toast.error(textError);
+                        return;
+                      }
+
                       try {
                         const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners`;
-                        const token = localStorage.getItem('token');
+                        const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+                        
+                        // Strip HTML from title and text before sending to backend
+                        // This ensures validation works correctly and we store plain text
+                        const bannerDataToSend = {
+                          ...bannerForm,
+                          title: stripHtml(bannerForm.title),
+                          text: stripHtml(bannerForm.text)
+                        };
+                        
                         console.log('Creating banner at:', apiUrl);
                         console.log('Token available:', !!token);
-                        console.log('Banner form data:', bannerForm);
+                        console.log('Banner form data:', bannerDataToSend);
+                        
+                        const headers: HeadersInit = {
+                          'Content-Type': 'application/json',
+                        };
+                        
+                        if (token) {
+                          headers['Authorization'] = `Bearer ${token}`;
+                        }
                         
                         const response = await fetch(apiUrl, {
                           method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                          },
-                          body: JSON.stringify(bannerForm)
+                          credentials: 'include',
+                          headers,
+                          body: JSON.stringify(bannerDataToSend)
                         });
 
                         if (response.ok) {
@@ -915,6 +1082,34 @@ function DashboardContent() {
                           });
                           // Refresh banner list
                           fetchBanners();
+                        } else if (response.status === 401) {
+                          const errorText = await response.text();
+                          let errorJson: any = {};
+                          try {
+                            errorJson = JSON.parse(errorText);
+                          } catch (e) {
+                            errorJson = { message: errorText || 'Invalid token' };
+                          }
+                          
+                          console.error('Authentication failed:', { status: response.status, errorJson, errorText });
+                          
+                          // Clear tokens
+                          localStorage.removeItem('token');
+                          localStorage.removeItem('adminToken');
+                          
+                          // Show error and redirect
+                          const errorMsg = errorJson.message || 'Invalid token';
+                          if (errorMsg.includes('Invalid token') || errorMsg.includes('expired')) {
+                            toast.error('Your session has expired. Please log in again.');
+                          } else {
+                            toast.error(errorMsg);
+                          }
+                          
+                          setTimeout(() => {
+                            if (typeof window !== 'undefined') {
+                              window.location.href = '/login';
+                            }
+                          }, 1500);
                         } else {
                           const errorText = await response.text();
                           console.error('Error creating banner, status:', response.status);
@@ -922,7 +1117,13 @@ function DashboardContent() {
                           let errorMessage = 'Failed to create banner';
                           try {
                             const errorJson = JSON.parse(errorText);
-                            errorMessage = errorJson.message || errorMessage;
+                            // Show specific validation errors if available
+                            if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
+                              const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
+                              errorMessage = validationErrors;
+                            } else {
+                              errorMessage = errorJson.message || errorMessage;
+                            }
                             console.error('Error creating banner:', errorJson);
                           } catch (e) {
                             console.error('Could not parse error response as JSON');

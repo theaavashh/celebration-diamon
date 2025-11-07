@@ -1,8 +1,13 @@
 import express from 'express';
+import { getDashboardStats } from '../controllers/dashboardController';
+import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-// Get dashboard data
+// Get dashboard statistics (protected)
+router.get('/stats', authMiddleware, getDashboardStats);
+
+// Get dashboard data (legacy endpoint)
 router.get('/', async (_req, res) => {
   try {
     res.json({
@@ -23,6 +28,9 @@ router.get('/', async (_req, res) => {
 });
 
 export default router;
+
+
+
 
 
 

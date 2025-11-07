@@ -1,95 +1,86 @@
 "use client"
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { X } from "lucide-react";
 
-const newArrivals = [
-  {
-    icon: "/ring.png",
-    label: "Diamond Solitaire Ring",
-    price: "€1,250",
-    colors: "2 colours",
-    sizes: null,
-    isNew: false,
-    category: "Ring",
-  },
-  {
-    icon: "/necklace.jpeg",
-    label: "Pearl Choker Necklace",
-    price: "€890",
-    colors: "1 colour",
-    sizes: null,
-    isNew: false,
-    category: "Necklace",
-  },
-  {
-    icon: "/bracelet.jpeg",
-    label: "Gold Chain Bracelet",
-    price: "€650",
-    colors: "3 colours",
-    sizes: "XS S M L XL",
-    isNew: true,
-    category: "Bracelet",
-  },
-  {
-    icon: "/earring.jpeg",
-    label: "Sapphire Stud Earrings",
-    price: "€450",
-    colors: "1 colour",
-    sizes: null,
-    isNew: false,
-    category: "Earrings",
-  },
-  {
-    icon: "/ring.png",
-    label: "Wedding Band Ring",
-    price: "€850",
-    colors: "1 colour",
-    sizes: null,
-    isNew: false,
-    category: "Ring",
-  },
-  {
-    icon: "/necklace.jpeg",
-    label: "Diamond Pendant Necklace",
-    price: "€1,100",
-    colors: "2 colours",
-    sizes: null,
-    isNew: false,
-    category: "Necklace",
-  },
-  {
-    icon: "/bracelet.jpeg",
-    label: "Silver Bangle Bracelet",
-    price: "€380",
-    colors: "1 colour",
-    sizes: "S M L",
-    isNew: false,
-    category: "Bracelet",
-  },
-  {
-    icon: "/earring.jpeg",
-    label: "Gold Hoop Earrings",
-    price: "€320",
-    colors: "1 colour",
-    sizes: null,
-    isNew: false,
-    category: "Earrings",
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  imageUrl: string | null;
+  description: string;
+  createdAt: string;
+}
+
+interface ProductItem {
+  id: string;
+  icon: string;
+  label: string;
+  price: string;
+  colors: string | null;
+  sizes: string | null;
+  isNew: boolean;
+  category: string;
+}
 
 const NewCollection = () => {
-  const [activeCategory] = useState("Ring");
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<typeof newArrivals[0] | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const imageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const filteredProducts = newArrivals.filter(item => item.category === activeCategory);
+  // Fetch recent products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('http://localhost:5000/api/products?limit=4&page=1');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Get top 4 most recent products, sorted by createdAt
+            const recentProducts = data.data
+              .filter((p: Product) => (p as any).isActive !== false)
+              .sort((a: Product, b: Product) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              )
+              .slice(0, 4)
+              .map((product: Product) => ({
+                id: product.id,
+                icon: product.imageUrl?.startsWith('http') 
+                  ? product.imageUrl 
+                  : product.imageUrl 
+                    ? `http://localhost:5000${product.imageUrl}` 
+                    : `/${product.category.toLowerCase()}.jpeg`,
+                label: product.name,
+                price: product.price ? `$${product.price.toFixed(2)}` : 'Price on request',
+                colors: null,
+                sizes: null,
+                isNew: true, // Mark recent products as new
+                category: product.category
+              }));
+            setProducts(recentProducts);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, index: number) => {
+    fetchProducts();
+  }, []);
+
+  const filteredProducts = products;
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement | HTMLAnchorElement>, index: number) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -101,7 +92,7 @@ const NewCollection = () => {
     setHoveredIndex(null);
   };
 
-  const handleImageClick = (product: typeof newArrivals[0]) => {
+  const handleImageClick = (product: ProductItem) => {
     setSelectedProduct(product);
     setModalOpen(true);
   };
@@ -110,6 +101,29 @@ const NewCollection = () => {
     setModalOpen(false);
     setSelectedProduct(null);
   };
+
+  if (isLoading) {
+    return (
+      <section className="w-full pt-2 sm:pt-3 md:pt-4 pb-8 px-4 sm:px-6 md:px-16">
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-4xl font-bold jimthompson text-gray-800">NEW ARRIVALS</h2>
+        </div>
+        <div className="flex gap-4 sm:gap-6 md:gap-8 overflow-x-auto overflow-y-hidden pb-4 scroll-smooth no-scrollbar">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[450px] lg:w-[500px]">
+              <div className="w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] bg-gray-200 animate-pulse rounded-lg mb-3 sm:mb-4" />
+              <div className="h-4 bg-gray-200 animate-pulse rounded w-3/4 mb-2" />
+              <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (filteredProducts.length === 0) {
+    return null;
+  }
 
   return (
     <section className="w-full pt-2 sm:pt-3 md:pt-4 pb-8 px-4 sm:px-6 md:px-16 ">
@@ -135,13 +149,13 @@ const NewCollection = () => {
             )}
 
             {/* Image Container with Hover Detail View */}
-            <div 
-              ref={(el) => { imageRefs.current[idx] = el; }}
-              className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] overflow-hidden mb-3 sm:mb-4 rounded-lg bg-gray-100 group cursor-pointer"
-              onMouseMove={(e) => handleMouseMove(e, idx)}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => handleImageClick(item)}
-            >
+            <div className="relative">
+              <Link 
+                href={`/products/${item.category.toLowerCase()}/${item.id}`}
+                className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] overflow-hidden mb-3 sm:mb-4 rounded-lg bg-gray-100 group cursor-pointer block"
+                onMouseMove={(e) => handleMouseMove(e, idx)}
+                onMouseLeave={handleMouseLeave}
+              >
               {/* Main Image */}
               <Image
                 src={item.icon}
@@ -155,9 +169,9 @@ const NewCollection = () => {
               
               {/* Hover Detail View - appears on the right side */}
               {hoveredIndex === idx && (
-                <div 
-                  className="absolute -right-4 top-0 w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 bg-white rounded-2xl shadow-2xl border-4 border-white overflow-hidden z-20 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 cursor-pointer"
-                  onClick={() => handleImageClick(item)}
+                <Link 
+                  href={`/products/${item.category.toLowerCase()}/${item.id}`}
+                  className="absolute -right-4 top-0 w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 bg-white rounded-2xl shadow-2xl border-4 border-white overflow-hidden z-20 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 cursor-pointer block"
                 >
                   <Image
                     src={item.icon}
@@ -173,7 +187,7 @@ const NewCollection = () => {
                   <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
                     Click to View
                   </div>
-                </div>
+                </Link>
               )}
               
               {/* Hover overlay with zoom icon */}
@@ -184,6 +198,7 @@ const NewCollection = () => {
                   </svg>
                 </div>
               </div>
+            </Link>
             </div>
 
             {/* Product Info */}
@@ -196,9 +211,11 @@ const NewCollection = () => {
               )}
               
               {/* Title */}
-              <h3 className="text-xs sm:text-sm font-medium text-gray-900 leading-tight">
-                {item.label}
-              </h3>
+              <Link href={`/products/${item.category.toLowerCase()}/${item.id}`}>
+                <h3 className="text-xs sm:text-sm font-medium text-gray-900 leading-tight hover:text-gray-600 transition-colors cursor-pointer">
+                  {item.label}
+                </h3>
+              </Link>
               
              
               
@@ -275,11 +292,18 @@ const NewCollection = () => {
 
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-4 pt-6">
-                    <button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-4 px-8 rounded-lg transition-all duration-300 hover:scale-105">
-                      Add to Cart
-                    </button>
-                    <button className="flex-1 border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-semibold py-4 px-8 rounded-lg transition-all duration-300 hover:bg-gray-50">
+                    <Link 
+                      href={selectedProduct ? `/products/${selectedProduct.category.toLowerCase()}/${selectedProduct.id}` : '#'}
+                      onClick={closeModal}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-4 px-8 rounded-lg transition-all duration-300 hover:scale-105 text-center"
+                    >
                       View Details
+                    </Link>
+                    <button 
+                      onClick={closeModal}
+                      className="flex-1 border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-semibold py-4 px-8 rounded-lg transition-all duration-300 hover:bg-gray-50"
+                    >
+                      Close
                     </button>
                   </div>
                 </div>

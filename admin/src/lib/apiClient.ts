@@ -9,6 +9,7 @@ const createApiClient = (): AxiosInstance => {
   const client = axios.create({
     baseURL: API_BASE_URL,
     timeout: 30000, // 30 seconds
+    withCredentials: true, // Important: send cookies with requests
     headers: {
       'Content-Type': 'application/json',
     },
@@ -17,14 +18,15 @@ const createApiClient = (): AxiosInstance => {
   // Request interceptor
   client.interceptors.request.use(
     (config) => {
-      // Add authentication token if available
+      // Use cookies for authentication (httpOnly cookies are sent automatically)
+      // Set credentials to include cookies in all requests
       if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token');
-        if (token) {
+        config.withCredentials = true;
+        
+        // Also add Bearer token if available (for compatibility)
+        const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+        if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
-          console.log('🔑 Adding auth token to request:', token.substring(0, 20) + '...');
-        } else {
-          console.warn('⚠️ No auth token found in localStorage');
         }
       }
 
@@ -68,9 +70,10 @@ const createApiClient = (): AxiosInstance => {
         
         switch (status) {
           case 401:
-            // Unauthorized - redirect to login
+            // Unauthorized - clear tokens and redirect to login page
             if (typeof window !== 'undefined') {
               localStorage.removeItem('token');
+              localStorage.removeItem('adminToken');
               window.location.href = '/login';
             }
             break;

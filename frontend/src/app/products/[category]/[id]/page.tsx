@@ -22,7 +22,8 @@ interface Product {
   isSale?: boolean;
   metalType?: string;
   goldWeight?: string;
-  diamondQuantity?: string;
+  diamondDetails?: string;
+  diamondQuantity?: number | string;
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
@@ -36,6 +37,13 @@ export default function ProductDetailPage() {
   const category = params.category as string;
   const id = params.id as string;
 
+  // Helper function to safely display values
+  const displayValue = (value: any): string => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'string' && value.trim() === '') return 'N/A';
+    return String(value);
+  };
+
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -45,7 +53,6 @@ export default function ProductDetailPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
-  const [isProductDetailsOpen, setIsProductDetailsOpen] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     customerName: '',
     rating: 5,
@@ -71,11 +78,12 @@ export default function ProductDetailPage() {
         
         if (data.success && data.data) {
           const product = data.data;
+          console.log('Product data from API:', product); // Debug log
           setProduct({
             id: product.id,
             name: product.name,
             category: product.category,
-            subcategory: product.category.toLowerCase(),
+            subcategory: product.subCategory || product.subcategory || '',
             price: product.price,
             originalPrice: product.originalPrice,
             image: product.imageUrl?.startsWith('http') 
@@ -92,6 +100,7 @@ export default function ProductDetailPage() {
             isSale: product.isSale || false,
             metalType: product.metalType,
             goldWeight: product.goldWeight,
+            diamondDetails: product.diamondDetails,
             diamondQuantity: product.diamondQuantity,
             diamondSize: product.diamondSize,
             diamondWeight: product.diamondWeight,
@@ -447,68 +456,67 @@ export default function ProductDetailPage() {
                 <p className="text-lg text-gray-600 leading-relaxed">{product.description}</p>
               </div>
 
-              {/* Product Details Accordion */}
+              {/* Product Details - Always Open */}
               <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setIsProductDetailsOpen(!isProductDetailsOpen)}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
+                <div className="w-full flex items-center justify-between p-4 bg-gray-50">
                   <h3 className="text-lg font-semibold text-gray-900 jimthompson">Product Details</h3>
-                  {isProductDetailsOpen ? (
-                    <ChevronUp className="w-5 h-5 text-gray-600" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-600" />
-                  )}
-                </button>
-                {isProductDetailsOpen && (
-                  <div className="p-6 bg-white space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Category</span>
-                        <p className="text-base font-semibold text-gray-900">{category.charAt(0).toUpperCase() + category.slice(1)}</p>
-                      </div>
+                </div>
+                <div className="p-6 bg-white space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600 block mb-1">Category</span>
+                      <p className="text-base font-semibold text-gray-900">{category.charAt(0).toUpperCase() + category.slice(1)}</p>
+                    </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Sub Category</span>
-                        <p className="text-base font-semibold text-gray-900">{product.subcategory || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.subcategory)}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <span className="text-sm font-medium text-gray-600 block mb-1">Metal Type</span>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.metalType)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Gold Weight</span>
-                        <p className="text-base font-semibold text-gray-900">{product.goldWeight || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.goldWeight)}</p>
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Details</span>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondDetails)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Quantity</span>
-                        <p className="text-base font-semibold text-gray-900">{product.diamondQuantity || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondQuantity)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Size</span>
-                        <p className="text-base font-semibold text-gray-900">{product.diamondSize || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondSize)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Weight</span>
-                        <p className="text-base font-semibold text-gray-900">{product.diamondWeight || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondWeight)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Quality</span>
-                        <p className="text-base font-semibold text-gray-900">{product.diamondQuality || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondQuality)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Other Gemstones</span>
-                        <p className="text-base font-semibold text-gray-900">{product.otherGemstones || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.otherGemstones)}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <span className="text-sm font-medium text-gray-600 block mb-1">Order Duration</span>
-                        <p className="text-base font-semibold text-gray-900">{product.orderDuration || 'N/A'}</p>
+                        <p className="text-base font-semibold text-gray-900">{displayValue(product.orderDuration)}</p>
                       </div>
-                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Product Description Accordion */}
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <button
+                  type="button"
                   onClick={() => setIsDescriptionOpen(!isDescriptionOpen)}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <h3 className="text-lg font-semibold text-gray-900 jimthompson">Description</h3>
                   {isDescriptionOpen ? (

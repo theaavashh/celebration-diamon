@@ -60,7 +60,7 @@ interface Banner {
   updatedAt: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
 
 export default function TopBannerPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -68,6 +68,9 @@ export default function TopBannerPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [bannerToDelete, setBannerToDelete] = useState<Banner | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const {
     register,
@@ -87,17 +90,59 @@ export default function TopBannerPage() {
   // Fetch banners
   const fetchBanners = async () => {
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      console.log('Fetching banners with token:', token ? 'Token present' : 'No token');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/banners/admin/all`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+        credentials: 'include',
+        headers,
       });
+
+      console.log('Banner fetch response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
         setBanners(data.data || []);
+      } else if (response.status === 401) {
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Invalid token' };
+        }
+        console.error('Authentication failed:', { status: response.status, errorData, responseText });
+        
+        // Clear tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        
+        // Show specific error message
+        const errorMsg = errorData.message || 'Invalid token';
+        if (errorMsg.includes('Invalid token') || errorMsg.includes('expired')) {
+          toast.error('Your session has expired. Please log in again.');
+        } else {
+          toast.error(errorMsg);
+        }
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        }, 1500);
       } else {
-        toast.error('Failed to fetch banners');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch banners:', errorData);
+        toast.error(errorData.message || 'Failed to fetch banners');
       }
     } catch (error) {
       console.error('Error fetching banners:', error);
@@ -120,24 +165,70 @@ export default function TopBannerPage() {
         : `${API_BASE_URL}/banners`;
       
       const method = editingBanner ? 'PUT' : 'POST';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      
+      console.log('Submitting banner:', { method, url, hasToken: !!token });
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
+        credentials: 'include',
+        headers,
         body: JSON.stringify(data),
       });
+
+      console.log('Banner submit response status:', response.status);
 
       if (response.ok) {
         const result = await response.json();
         toast.success(editingBanner ? 'Banner updated successfully' : 'Banner created successfully');
         await fetchBanners();
         handleCloseForm();
+      } else if (response.status === 401) {
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Invalid token' };
+        }
+        console.error('Authentication failed on submit:', { status: response.status, errorData, responseText });
+        
+        // Clear tokens
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        
+        // Show specific error message
+        const errorMsg = errorData.message || 'Invalid token';
+        if (errorMsg.includes('Invalid token') || errorMsg.includes('expired')) {
+          toast.error('Your session has expired. Please log in again.');
+        } else {
+          toast.error(errorMsg);
+        }
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        }, 1500);
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to save banner');
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Failed to save banner' };
+        }
+        console.error('Banner save error:', { status: response.status, errorData, responseText });
+        toast.error(errorData.message || 'Failed to save banner');
       }
     } catch (error) {
       console.error('Error saving banner:', error);
@@ -164,37 +255,98 @@ export default function TopBannerPage() {
     setIsFormOpen(true);
   };
 
-  // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
+  // Handle delete click - open modal
+  const handleDelete = (banner: Banner) => {
+    setBannerToDelete(banner);
+    setDeleteConfirmText('');
+    setShowDeleteModal(true);
+  };
+
+  // Confirm delete
+  const confirmDelete = async () => {
+    if (!bannerToDelete) return;
+
+    // Validate that the user typed the correct banner title
+    if (deleteConfirmText !== bannerToDelete.title) {
+      toast.error('Banner title does not match. Please type the exact title to confirm deletion.');
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/banners/${id}`, {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      console.log('Deleting banner:', { id: bannerToDelete.id, hasToken: !!token });
+      
+      const response = await fetch(`${API_BASE_URL}/banners/${bannerToDelete.id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
       });
+
+      console.log('Delete response status:', response.status);
 
       if (response.ok) {
         toast.success('Banner deleted successfully');
         await fetchBanners();
+        setShowDeleteModal(false);
+        setBannerToDelete(null);
+        setDeleteConfirmText('');
+      } else if (response.status === 401) {
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Invalid token' };
+        }
+        console.error('Authentication failed:', { status: response.status, errorData, responseText });
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
-        toast.error('Failed to delete banner');
+        const responseText = await response.text();
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          errorData = { message: responseText || 'Failed to delete banner' };
+        }
+        const errorMessage = errorData.message || errorData.error || `Failed to delete banner: ${response.status} ${response.statusText}`;
+        console.error('Failed to delete banner:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          errorData, 
+          responseText,
+          url: `${API_BASE_URL}/banners/${bannerToDelete.id}`,
+          bannerId: bannerToDelete.id
+        });
+        toast.error(errorMessage);
       }
     } catch (error) {
-      console.error('Error deleting banner:', error);
-      toast.error('Failed to delete banner');
+      const errorMessage = error instanceof Error ? error.message : 'Network error or unexpected error occurred';
+      console.error('Error deleting banner:', { 
+        error, 
+        message: errorMessage,
+        url: `${API_BASE_URL}/banners/${bannerToDelete?.id}`,
+        bannerId: bannerToDelete?.id
+      });
+      toast.error(`Failed to delete banner: ${errorMessage}`);
     }
   };
 
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${API_BASE_URL}/banners/${id}/toggle`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
       });
 
@@ -202,6 +354,14 @@ export default function TopBannerPage() {
         const result = await response.json();
         toast.success(result.message);
         await fetchBanners();
+      } else if (response.status === 401) {
+        console.error('Authentication failed. Session may be expired or invalid.');
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
         toast.error('Failed to toggle banner status');
       }
@@ -357,7 +517,7 @@ export default function TopBannerPage() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(banner.id)}
+                          onClick={() => handleDelete(banner)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                           title="Delete"
                         >
@@ -625,6 +785,81 @@ export default function TopBannerPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && bannerToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Delete Banner</h2>
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setBannerToDelete(null);
+                      setDeleteConfirmText('');
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="mb-6">
+                  <p className="text-gray-600 mb-4">
+                    Are you sure you want to delete this banner? This action cannot be undone.
+                  </p>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Type <strong>"{bannerToDelete.title}"</strong> to confirm:
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-black"
+                      placeholder={bannerToDelete.title}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setBannerToDelete(null);
+                      setDeleteConfirmText('');
+                    }}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={deleteConfirmText !== bannerToDelete.title}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Banner
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
     </DashboardLayout>
   );

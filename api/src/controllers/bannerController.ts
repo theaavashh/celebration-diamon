@@ -262,21 +262,35 @@ export const deleteBanner = async (req: Request<{ id: string }>, res: Response<A
   try {
     const { id } = req.params;
 
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Banner ID is required'
+      });
+    }
+
+    console.log('Attempting to delete banner with ID:', id);
+
     // Check if banner exists
     const existingBanner = await prisma.banner.findUnique({
       where: { id }
     });
 
     if (!existingBanner) {
+      console.log('Banner not found with ID:', id);
       return res.status(404).json({
         success: false,
         message: 'Banner not found'
       });
     }
 
+    console.log('Banner found, deleting:', existingBanner.title);
+
     await prisma.banner.delete({
       where: { id }
     });
+
+    console.log('Banner deleted successfully:', id);
 
     res.json({
       success: true,
@@ -284,10 +298,27 @@ export const deleteBanner = async (req: Request<{ id: string }>, res: Response<A
     });
   } catch (error) {
     console.error('Error deleting banner:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const isDevelopment = process.env['NODE_ENV'] === 'development';
+    
+    // Check for Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as any;
+      console.error('Prisma error code:', prismaError.code);
+      
+      if (prismaError.code === 'P2025') {
+        return res.status(404).json({
+          success: false,
+          message: 'Banner not found',
+          error: isDevelopment ? errorMessage : undefined
+        });
+      }
+    }
+
     res.status(500).json({
       success: false,
       message: 'Failed to delete banner',
-      error: process.env['NODE_ENV'] === 'development' ? (error as Error).message : undefined
+      error: isDevelopment ? errorMessage : undefined
     });
   }
 };

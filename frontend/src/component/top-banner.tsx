@@ -21,6 +21,21 @@ const TopBanner = () => {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper function to strip HTML tags and get plain text
+  const stripHtml = (html: string): string => {
+    if (!html) return '';
+    // Use regex to remove HTML tags (works in both client and server)
+    return html
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+      .replace(/&amp;/g, '&') // Replace &amp; with &
+      .replace(/&lt;/g, '<') // Replace &lt; with <
+      .replace(/&gt;/g, '>') // Replace &gt; with >
+      .replace(/&quot;/g, '"') // Replace &quot; with "
+      .replace(/&#39;/g, "'") // Replace &#39; with '
+      .trim();
+  };
+
   // Fetch banners from API
   useEffect(() => {
     const fetchBanners = async () => {
@@ -116,7 +131,7 @@ const TopBanner = () => {
           transition={{ duration: 0.8, ease: "easeInOut" }}
           className="text-xs sm:text-sm md:text-md lg:text-xl font-semibold px-2 text-center"
         >
-          {banners[index]?.text || ''}
+          {banners[index]?.text ? stripHtml(banners[index].text) : ''}
         </motion.span>
       </AnimatePresence>
     </motion.div>
