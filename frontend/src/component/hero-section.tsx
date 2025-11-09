@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { FaArrowRight } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { HeroSkeletonLoader } from "./skeleton-loader";
 
 interface HeroSection {
@@ -61,105 +62,237 @@ export default function HeroSection() {
     return <HeroSkeletonLoader />;
   }
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut" as const,
+      },
+    },
+  };
+
+  const imageVariants = {
+    hidden: { opacity: 0, scale: 0.95, x: 30 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      x: 0,
+      transition: {
+        duration: 0.8,
+        ease: "easeOut" as const,
+      },
+    },
+  };
+
   // Show error state or fallback to default content
   if (error || !heroData) {
     return (
-      <section className="relative pt-0 w-full min-h-[90vh] flex flex-col justify-center items-center overflow-hidden bg-gradient-to-br from-white via-gray-50 to-amber-50/30">
-        <div className="relative z-10 w-full px-3 sm:px-4 md:px-6 lg:px-8 pt-20 sm:pt-0 md:pt-0 pb-4 sm:pb-6 md:pb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8 lg:gap-16 xl:gap-20 items-center max-w-7xl mx-auto">
+      <section className="relative w-full h-screen flex items-center justify-center overflow-hidden bg-white">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-[0.02]">
+          <div className="absolute inset-0" style={{
+            backgroundImageee: `radial-gradient(circle at 2px 2px, #000 1px, transparent 0)`,
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+
+        <div className="relative z-10 w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-10 lg:pb-12">
+          <motion.div
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 2xl:gap-20 items-center max-w-7xl mx-auto h-full"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {/* Left Side - Text Content */}
-            <div className="text-center lg:text-left order-1 px-2 sm:px-0 lg:col-span-7">
-              <h2 className="hero-main-text text-3xl sm:text-4xl md:text-4xl lg:text-5xl jimthompson font-extrabold text-gray-800 mb-1 sm:mb-2 md:mb-3 lg:mb-4 italic leading-tight text-center lg:text-left">
-                <span className="italic font-normal">Introducing,</span> Nepal&apos;s 1st and<br />
-                <span className="italic font-extrabold jimthompson">Finest Diamond Studio</span>
-              </h2>
-              <h1 className="text-base sm:text-lg md:text-xl lg:text-3xl xl:text-3xl jimthompson font-bold leading-tight text-gray-900 mb-2 sm:mb-3 md:mb-4 tracking-wide mt-6 sm:mt-8 lg:mt-10 text-center lg:text-left w-full lg:w-auto">
-                We craft <span className="italic font-medium jimthompson">luxury</span> diamonds <br className="hidden" />
-                <span className="hidden sm:inline"> </span>jewellery for worldwide
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base lg:text-lg font-semibold text-gray-600 mb-4 sm:mb-6 md:mb-8 max-w-xs md:max-w-sm leading-relaxed mt-3 sm:mt-4 lg:mt-5 text-center lg:text-left mx-auto lg:mx-0">
+            <motion.div
+              className="text-center lg:text-left space-y-4 lg:space-y-5"
+              variants={itemVariants}
+            >
+              <motion.h2
+                className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-6xl jimthompson font-normal text-gray-900 leading-[1.1] tracking-tight"
+                variants={itemVariants}
+              >
+                <span className="font-normal italic">Introducing,</span>{" "}
+                <span className="font-bold">Nepal&apos;s 1st</span> and{" "}
+                <br className="hidden sm:block" />
+                <span className="font-bold">Finest Diamond Studio</span>
+              </motion.h2>
+
+              <motion.h3
+                className="text-base sm:text-lg md:text-xl lg:text-2xl jimthompson font-normal text-gray-800 leading-relaxed"
+                variants={itemVariants}
+              >
+                We craft <span className="italic">luxury</span> diamonds{" "}
+                <br className="hidden sm:block" />
+                jewellery for worldwide
+              </motion.h3>
+
+              <motion.p
+                className="text-xs sm:text-sm md:text-base text-gray-600 leading-relaxed max-w-lg mx-auto lg:mx-0"
+                variants={itemVariants}
+              >
                 Discover, design, and celebrate with masterpieces that reflect your story.
-              </p>
+              </motion.p>
 
-              {/* === CTA Button === */}
-              <div className="flex justify-center lg:justify-start">
+              {/* CTA Button */}
+              <motion.div
+                className="flex justify-center lg:justify-start pt-1"
+                variants={itemVariants}
+              >
                 <Link href="/products">
-                  <button className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 rounded-full text-xs sm:text-sm md:text-base font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 group hover:scale-105 active:scale-95">
+                  <motion.button
+                    className="group relative inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 rounded-full text-sm font-semibold text-white overflow-hidden"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {/* Gradient background */}
+                    <span className="absolute inset-0 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500"></span>
+                    {/* Hover effect */}
+                    <span className="absolute inset-0 bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                    {/* Content */}
+                    <span className="relative z-10 flex items-center gap-2">
                     Discover Collection
-                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                  </button>
+                      <FaArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    </span>
+                    {/* Shadow */}
+                    <span className="absolute inset-0 rounded-full shadow-lg shadow-amber-500/50 group-hover:shadow-xl group-hover:shadow-amber-500/60 transition-shadow duration-300"></span>
+                  </motion.button>
                 </Link>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
-            {/* Right Side - Default Image */}
-            <div className="order-2 lg:order-2 lg:col-span-5">
-              <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-3xl 2xl:max-w-4xl mx-auto lg:mx-0 mt-4 sm:mt-6 md:mt-8 lg:-top-12 xl:-top-16">
-                <div className="group relative overflow-hidden transition-all duration-500 ">
-                  <div className="aspect-[3/4] sm:aspect-[4/3] lg:aspect-[4/3] w-full relative">
+            {/* Right Side - Image */}
+            <motion.div
+              className="relative w-full lg:max-w-sm xl:max-w-md mx-auto lg:mx-0 flex justify-end"
+              variants={imageVariants}
+            >
+              <div className="relative aspect-[3/4] w-full max-w-[350px] lg:max-w-[400px] overflow-hidden rounded-xl lg:rounded-2xl shadow-2xl">
+                <motion.div
+                  className="absolute inset-0"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                >
                     <Image
                       src="/model.jpeg"
                       alt="Elegant woman in red dress with jewelry"
                       fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="(max-width: 640px) 90vw, (max-width: 768px) 80vw, (max-width: 1024px) 60vw, (max-width: 1280px) 50vw, 45vw"
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    priority
                     />
-                  </div>
-                </div>
+                </motion.div>
+                {/* Subtle overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none"></div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="relative pt-0 w-full min-h-[90vh] flex flex-col justify-center items-center overflow-hidden bg-gradient-to-br from-white via-gray-50 to-amber-50/30">
+    <section className="relative w-full h-screen flex pt-16 overflow-hidden bg-white">
      
 
-      {/* === Main Content with Grid Layout === */}
-      <div className="relative z-10 w-full px-3 sm:px-4 md:px-6 lg:px-8 pt-20 sm:pt-0 md:pt-0 pb-4 sm:pb-6 md:pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8 lg:gap-16 xl:gap-20 items-center max-w-7xl mx-auto">
+      <div className="relative z-10 w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pt-4 md:pt-6  pb-8 md:pb-10 lg:pb-12">
+        <motion.div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 2xl:gap-20  max-w-7xl mx-auto h-full"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {/* Left Side - Text Content */}
-          <div className="text-center lg:text-left order-1 px-2 sm:px-0  lg:col-span-7">
-            <h2 className="hero-main-text text-3xl sm:text-4xl md:text-4xl lg:text-5xl jimthompson font-extrabold text-gray-800 mb-1 sm:mb-2 md:mb-3 lg:mb-4 italic leading-tight text-center lg:text-left">
+          <motion.div
+            className="text-center lg:text-left "
+            variants={itemVariants}
+          >
+            <motion.h2
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-6xl jimthompson font-normal text-gray-900 leading-[1.3] tracking-tight"
+              variants={itemVariants}
+            >
               <div dangerouslySetInnerHTML={{ __html: heroData.heading }} />
-            </h2>
+            </motion.h2>
+
             {heroData.subHeading && (
-              <h1 className="text-base sm:text-lg md:text-xl lg:text-3xl xl:text-3xl jimthompson font-bold leading-tight text-gray-900 mb-2 sm:mb-3 md:mb-4 tracking-wide mt-6 sm:mt-8 lg:mt-10 text-center lg:text-left w-full lg:w-auto">
+              <motion.h3
+                className="text-base sm:text-lg md:text-xl lg:text-2xl jimthompson font-normal text-gray-800 leading-relaxed"
+                variants={itemVariants}
+              >
                 <div dangerouslySetInnerHTML={{ __html: heroData.subHeading }} />
-              </h1>
+              </motion.h3>
             )}
+
             {heroData.description && (
-              <div className="text-xs sm:text-sm md:text-base lg:text-lg font-semibold text-gray-600 mb-4 sm:mb-6 md:mb-8 max-w-xs md:max-w-sm leading-relaxed mt-3 sm:mt-4 lg:mt-5 text-center lg:text-left mx-auto lg:mx-0">
+              <motion.p
+                className="text-xs sm:text-sm md:text-base text-gray-600 leading-relaxed max-w-lg mx-auto lg:mx-0"
+                variants={itemVariants}
+              >
                 <div dangerouslySetInnerHTML={{ __html: heroData.description }} />
-              </div>
+              </motion.p>
             )}
 
-            {/* === CTA Button === */}
-            <div className="flex justify-center lg:justify-start">
+            {/* CTA Button */}
+            <motion.div
+              className="flex justify-center lg:justify-start pt-1"
+              variants={itemVariants}
+            >
               <Link href={heroData.ctaLink || "/products"}>
-                <button className="inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-4 md:py-5 rounded-full text-xs sm:text-sm md:text-base font-semibold bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 group hover:scale-105 active:scale-95">
+                <motion.button
+                  className="group relative inline-flex items-center gap-2 px-6 md:px-8 py-3 md:py-4 rounded-full text-sm font-semibold text-white overflow-hidden"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {/* Gradient background */}
+                  <span className="absolute inset-0 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500"></span>
+                  {/* Hover effect */}
+                  <span className="absolute inset-0 bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                  {/* Content */}
+                  <span className="relative z-10 flex items-center gap-2">
                   {heroData.ctaTitle || "Discover Collection"}
-                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                </button>
+                    <FaArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </span>
+                  {/* Shadow */}
+                  <span className="absolute inset-0 rounded-full shadow-lg shadow-amber-500/50 group-hover:shadow-xl group-hover:shadow-amber-500/60 transition-shadow duration-300"></span>
+                </motion.button>
               </Link>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-          {/* Right Side - Hero Image */}
-          <div className="order-2 lg:order-2 lg:col-span-5">
-            <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-2xl xl:max-w-3xl 2xl:max-w-4xl mx-auto lg:mx-0 mt-4 sm:mt-6 md:mt-8 lg:-top-12 xl:-top-16">
-              <div className="group relative overflow-hidden transition-all duration-500 ">
-                <div className="aspect-[3/4] sm:aspect-[4/3] lg:aspect-[4/3] w-full relative">
+          {/* Right Side - Image */}
+          <motion.div
+            className="relative w-full lg:max-w-sm xl:max-w-md mx-auto lg:mx-0 flex justify-end -mt-10"
+            variants={imageVariants}
+          >
+            <div className="relative aspect-[3/4] w-full max-w-[350px] lg:max-w-[800px] overflow-hidden rounded-xl lg:rounded-2xl shadow-2xl">
+              <motion.div
+                className="absolute inset-0"
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              >
                   {heroData.imageUrl ? (
                     <Image
                       src={`http://localhost:5000${heroData.imageUrl}`}
                       alt={heroData.heading.replace(/<[^>]*>/g, '') || "Hero image"}
                       fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="(max-width: 640px) 90vw, (max-width: 768px) 80vw, (max-width: 1024px) 60vw, (max-width: 1280px) 50vw, 45vw"
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    priority
                       onError={(e) => {
                         console.log('Hero image failed to load, using fallback');
                         e.currentTarget.src = '/model.jpeg';
@@ -170,96 +303,17 @@ export default function HeroSection() {
                       src="/model.jpeg"
                       alt="Elegant woman in red dress with jewelry"
                       fill
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      sizes="(max-width: 640px) 90vw, (max-width: 768px) 80vw, (max-width: 1024px) 60vw, (max-width: 1280px) 50vw, 45vw"
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    priority
                     />
                   )}
-                </div>
-              </div>
+              </motion.div>
+              {/* Subtle overlay gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none"></div>
             </div>
-          </div>
-        </div>
-      </div>
-
-
-
-      {/* === Bottom Section - Three Elements in Same Line === */}
-      <div className="absolute bottom-4 sm:bottom-6 lg:bottom-8 left-3 sm:left-4 md:left-6 lg:left-8 right-3 sm:right-4 md:right-6 lg:right-8 z-10 hidden lg:block">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-3 gap-6 items-center">
-            {/* Connect with Experts */}
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-2">
-                {/* Expert A - Mr. Subash Verma */}
-                <div className="relative group">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white cursor-pointer hover:scale-110 transition-transform duration-200">
-                    A
-                  </div>
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
-                    Mr. Subash Verma
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                  </div>
-                </div>
-                
-                {/* Expert B - Mr. Amit Shrestha */}
-                <div className="relative group">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white cursor-pointer hover:scale-110 transition-transform duration-200">
-                    B
-                  </div>
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
-                    Mr. Amit Shrestha
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                  </div>
-                </div>
-                
-                {/* Expert C - Mrs. Deepa Shahi */}
-                <div className="relative group">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm border-2 border-white cursor-pointer hover:scale-110 transition-transform duration-200">
-                    C
-                  </div>
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-20">
-                    Mrs. Deepa Shahi
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-gray-800">Connect our experts</span>
-                <ArrowRight className="w-4 h-4 text-amber-500" />
-              </div>
-            </div>
-
-            {/* Center Description */}
-            <div className="text-center">
-              <p className="text-xs sm:text-sm font-medium text-gray-700 leading-relaxed akzidenz-grotesk">
-                We build, optimize, and scale diamond experiences that inspire and elevate every occasion.
-              </p>
-            </div>
-
-            {/* Client Reviews */}
-            <div className="text-center">
-              <div className="flex justify-center gap-1 mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-4 h-4 text-yellow-400">
-                    ★
-                  </div>
-                ))}
-              </div>
-              <div className="text-sm font-semibold text-gray-800">
-                5000+ Client reviews
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* === Decorative Elements === */}
-      <div className="absolute bottom-0 right-0 z-0 flex gap-2 p-4 hidden lg:flex">
-        <div className="w-4 h-4 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full" />
-        <div className="w-4 h-4 bg-gradient-to-br from-amber-300 to-amber-400 rounded-full" />
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );

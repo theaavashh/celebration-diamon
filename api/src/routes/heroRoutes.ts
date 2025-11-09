@@ -56,10 +56,12 @@ const heroValidation = [
 
 // Public routes
 router.get('/', getAllHeroSections);
-router.get('/:id', getHeroSectionById);
 
-// Admin routes (protected)
+// Admin routes (protected) - must come before /:id route
 router.get('/admin/all', authMiddleware, getAdminHeroSections);
+
+// Public routes (must come after specific routes)
+router.get('/:id', getHeroSectionById);
 router.post('/', authMiddleware, uploadHeroImage, heroValidation, createHeroSection);
 router.put('/:id', authMiddleware, uploadHeroImage, heroValidation, updateHeroSection);
 router.delete('/:id', authMiddleware, deleteHeroSection);

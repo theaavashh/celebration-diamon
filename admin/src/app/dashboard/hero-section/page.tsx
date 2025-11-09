@@ -34,12 +34,13 @@ export default function HeroSectionPage() {
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch hero sections
   const fetchHeroSections = async () => {
     setIsLoading(true);
     try {
-      const response = await apiService.get<HeroSection[]>('/api/hero/admin/all');
+      const response = await apiService.get<HeroSection[]>('/hero/admin/all');
       console.log('Fetched hero sections:', response.data);
       setHeroSections(response.data || []);
     } catch (error) {
@@ -123,16 +124,58 @@ export default function HeroSectionPage() {
     setIsModalOpen(true);
   };
 
+  // Helper function to strip HTML tags and get plain text
+  const stripHtmlTags = (html: string): string => {
+    if (typeof window === 'undefined') return html;
+    const tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
+  // Check if heading has content (for button disabled state)
+  const hasHeadingContent = () => {
+    if (!heroForm.heading) return false;
+    const headingText = stripHtmlTags(heroForm.heading).trim();
+    return headingText.length > 0;
+  };
+
   // Handle create/edit hero section
   const handleSubmit = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    
     try {
+      setIsSubmitting(true);
+      
+      // Validate required fields - strip HTML to check if there's actual content
+      const headingText = stripHtmlTags(heroForm.heading || '').trim();
+      if (!headingText) {
+        toast.error('Heading is required. Please enter a heading for your hero section.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validate CTA link format if provided
+      let ctaLink = heroForm.ctaLink || '';
+      if (ctaLink.trim()) {
+        ctaLink = ctaLink.trim();
+        // Remove trailing period if user added one
+        if (ctaLink.endsWith('.')) {
+          ctaLink = ctaLink.slice(0, -1);
+        }
+        if (!ctaLink.startsWith('/')) {
+          toast.error('CTA Link must start with / (e.g., /products)');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('heading', heroForm.heading);
-      formData.append('subHeading', heroForm.subHeading);
-      formData.append('description', heroForm.description);
-      formData.append('ctaTitle', heroForm.ctaTitle);
-      formData.append('ctaLink', heroForm.ctaLink);
+      formData.append('subHeading', heroForm.subHeading || '');
+      formData.append('description', heroForm.description || '');
+      formData.append('ctaTitle', heroForm.ctaTitle || '');
+      formData.append('ctaLink', ctaLink);
       formData.append('isActive', heroForm.isActive.toString());
       
       if (selectedImage) {
@@ -140,12 +183,12 @@ export default function HeroSectionPage() {
       }
       
       if (editingHero) {
-        await apiService.put<HeroSection>(`/api/hero/${editingHero.id}`, formData, {
+        await apiService.put<HeroSection>(`/hero/${editingHero.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         toast.success('Hero section updated successfully!');
       } else {
-        await apiService.post<HeroSection>('/api/hero', formData, {
+        await apiService.post<HeroSection>('/hero', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         toast.success('Hero section created successfully!');
@@ -154,9 +197,46 @@ export default function HeroSectionPage() {
       fetchHeroSections();
       setIsModalOpen(false);
       setEditingHero(null);
-    } catch (error) {
+      // Reset form
+      setHeroForm({
+        heading: '',
+        subHeading: '',
+        description: '',
+        ctaTitle: '',
+        ctaLink: '',
+        isActive: true
+      });
+      setSelectedImage(null);
+      setPreviewImage(null);
+    } catch (error: any) {
       console.error('Error saving hero section:', error);
-      toast.error('Failed to save hero section');
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+      
+      // Extract error message from response
+      let errorMessage = 'Failed to save hero section';
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Check for validation errors
+      if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const validationErrors = error.response.data.errors
+          .map((err: any) => err.msg || err.message || err)
+          .join(', ');
+        errorMessage = validationErrors || errorMessage;
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -165,7 +245,7 @@ export default function HeroSectionPage() {
     if (!confirm('Are you sure you want to delete this hero section?')) return;
 
     try {
-      await apiService.delete(`/api/hero/${id}`);
+      await apiService.delete(`/hero/${id}`);
       toast.success('Hero section deleted successfully!');
       fetchHeroSections();
     } catch (error) {
@@ -177,7 +257,7 @@ export default function HeroSectionPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
-      await apiService.patch<HeroSection>(`/api/hero/${id}/toggle`);
+      await apiService.patch<HeroSection>(`/hero/${id}/toggle`);
       toast.success('Hero section status updated!');
       fetchHeroSections();
     } catch (error) {
@@ -323,14 +403,15 @@ export default function HeroSectionPage() {
                 {/* Heading */}
                 <div>
                   <label className="block text-sm font-medium text-black mb-2">
-                    Heading *
+                    Heading * <span className="text-red-500">(Required)</span>
                   </label>
                   <RichTextEditor
                     value={heroForm.heading}
                     onChange={(value) => handleFormChange('heading', value)}
-                    placeholder="Enter the main hero heading"
-                    className="border border-gray-300 rounded-lg"
                   />
+                  {!hasHeadingContent() && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a heading for your hero section</p>
+                  )}
                 </div>
 
                 {/* Sub-heading */}
@@ -355,8 +436,6 @@ export default function HeroSectionPage() {
                   <RichTextEditor
                     value={heroForm.description}
                     onChange={(value) => handleFormChange('description', value)}
-                    placeholder="Enter hero description"
-                    className="border border-gray-300 rounded-lg"
                   />
                 </div>
 
@@ -382,9 +461,10 @@ export default function HeroSectionPage() {
                       type="text"
                       value={heroForm.ctaLink}
                       onChange={(e) => handleFormChange('ctaLink', e.target.value)}
-                      placeholder="/products, /about, /contact, etc."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
+                      placeholder="/products or /about (single path only)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-gray-400"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Enter a single path like /products or /about</p>
                   </div>
                 </div>
 
@@ -445,10 +525,20 @@ export default function HeroSectionPage() {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={!heroForm.heading.trim()}
+                  disabled={!hasHeadingContent() || isSubmitting}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {editingHero ? 'Update Hero Section' : 'Create Hero Section'}
+                  {isSubmitting ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {editingHero ? 'Updating...' : 'Creating...'}
+                    </span>
+                  ) : (
+                    editingHero ? 'Update Hero Section' : 'Create Hero Section'
+                  )}
                 </button>
               </div>
             </div>

@@ -43,7 +43,9 @@ import {
   Award,
   Heart,
   Key,
-  ChevronUp
+  ChevronUp,
+  Store,
+  FileCheck
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -109,6 +111,11 @@ export default function DashboardLayout({
       const path = window.location.pathname;
       if (path.includes('/dashboard/categories') || 
           path.includes('/dashboard/services') || 
+          path.includes('/dashboard/stores') ||
+        path.includes('/dashboard/terms') ||
+        path.includes('/dashboard/privacy-policy') ||
+        path.includes('/dashboard/help-center') ||
+        path.includes('/dashboard/return-policy') ||
           path.includes('/dashboard/quotes') || 
           path.includes('/dashboard/wedding-planners') ||
           path.includes('/dashboard/cultures') ||
@@ -143,6 +150,16 @@ export default function DashboardLayout({
         router.push('/dashboard/categories');
       } else if (itemId === 'services') {
         router.push('/dashboard/services');
+      } else if (itemId === 'stores') {
+        router.push('/dashboard/stores');
+      } else if (itemId === 'terms') {
+        router.push('/dashboard/terms');
+      } else if (itemId === 'privacy-policy') {
+        router.push('/dashboard/privacy-policy');
+      } else if (itemId === 'help-center') {
+        router.push('/dashboard/help-center');
+      } else if (itemId === 'return-policy') {
+        router.push('/dashboard/return-policy');
       } else if (itemId === 'quotes') {
         router.push('/dashboard/quotes');
       } else if (itemId === 'wedding-planners') {
@@ -321,6 +338,11 @@ export default function DashboardLayout({
         { id: "categories", label: "Categories", icon: SliderIcon },
         { id: "testimonials", label: "Testimonials", icon: MessageSquare },
         { id: "services", label: "Services", icon: Utensils },
+        { id: "stores", label: "Stores", icon: Store },
+        { id: "terms", label: "Terms & Conditions", icon: FileCheck },
+        { id: "privacy-policy", label: "Privacy Policy", icon: FileCheck },
+        { id: "help-center", label: "Help Center", icon: FileCheck },
+        { id: "return-policy", label: "Return Policy", icon: FileCheck },
         { id: "quotes", label: "Quotes", icon: MessageSquare },
         { id: "wedding-planners", label: "Wedding Planners", icon: Gift },
         { id: "cultures", label: "Culture Collection", icon: Star },

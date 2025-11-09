@@ -50,7 +50,7 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess }: ProductFormProps) {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [productForm, setProductForm] = useState({
     productCode: '',
     name: '',
@@ -202,13 +202,18 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     try {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/products`;
       
-      // Try to get token from context or localStorage as fallback
-      const authToken = token || localStorage.getItem('token') || localStorage.getItem('adminToken');
-      
-      if (!authToken) {
+      // Check if user is authenticated
+      if (!isAuthenticated) {
         toast.error('Authentication required. Please log in again.');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        setIsSubmitting(false);
         return;
       }
+      
+      // Try to get token from localStorage as fallback (for API calls that need Bearer token)
+      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
       // Create FormData for file upload
       const formData = new FormData();
@@ -223,7 +228,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       }
       formData.append('category', productForm.category);
       formData.append('subCategory', productForm.subCategory);
-      formData.append('price', productForm.price);
+      // Only append price if it has a value (make it optional)
+      if (productForm.price && productForm.price.trim() !== '') {
+        formData.append('price', productForm.price);
+      }
       formData.append('stock', productForm.stock);
       formData.append('isActive', productForm.isActive.toString());
       formData.append('goldWeight', productForm.goldWeight);
@@ -265,8 +273,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       
       const response = await fetch(editingProduct ? `${apiUrl}/${editingProduct.id}` : apiUrl, {
         method: editingProduct ? 'PUT' : 'POST',
+        credentials: 'include', // Include cookies for authentication
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
         },
         body: formData
       });
@@ -276,6 +285,14 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         onSuccess();
         onClose();
         resetForm();
+      } else if (response.status === 401) {
+        console.error('Authentication failed. Session may be expired or invalid.');
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
         const errorText = await response.text();
         console.error('Error saving product, status:', response.status);
@@ -283,7 +300,13 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         let errorMessage = 'Failed to save product';
         try {
           const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorMessage;
+          // Show specific validation errors if available
+          if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
+            const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
+            errorMessage = validationErrors;
+          } else {
+            errorMessage = errorJson.message || errorMessage;
+          }
         } catch (e) {
           console.error('Could not parse error response as JSON');
         }
@@ -421,7 +444,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price *
+                  Price
                 </label>
                 <input
                   type="number"
@@ -430,7 +453,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   onChange={(e) => handleFormChange('price', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
                   placeholder="0.00"
-                  required
                     />
               </div>
                 </div>

@@ -56,20 +56,17 @@ export default function AdminLogin() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    console.log('Login form submitted:', data);
     setIsLoading(true);
     
     try {
-      console.log('Calling login function...');
       const success = await login(data.email, data.password);
-      console.log('Login result:', success);
       
       if (success) {
-        toast.success("Login successful! Redirecting to dashboard...");
+        toast.success("Login successful");
         // Redirect to dashboard after a short delay
         setTimeout(() => {
           router.push("/dashboard");
-        }, 1500);
+        }, 2000);
       }
       
     } catch (error) {
@@ -85,8 +82,10 @@ export default function AdminLogin() {
     
     try {
       // Call the API to reset password
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/admin/forgot-password`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -437,25 +436,27 @@ export default function AdminLogin() {
 
       {/* Toast Container */}
       <Toaster
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
-          duration: 2000,
+          duration: 3000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: '#ffffff',
+            color: '#1f2937',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
           },
           success: {
-            duration: 1500,
+            duration: 3000,
             iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+              primary: '#10b981',
+              secondary: '#ffffff',
             },
           },
           error: {
-            duration: 2000,
+            duration: 3000,
             iconTheme: {
               primary: '#ef4444',
-              secondary: '#fff',
+              secondary: '#ffffff',
             },
           },
         }}

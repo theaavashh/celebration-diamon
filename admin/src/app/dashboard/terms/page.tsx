@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import RichTextEditor from '@/components/RichTextEditor';
+import { getApiBaseUrl } from '@/lib/api';
 import { Save, Eye, EyeOff, Plus, Edit, Trash2, X } from 'lucide-react';
 
 interface TermsAndConditions {
@@ -31,7 +32,7 @@ export default function TermsPage() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/admin/all`, {
+      const response = await fetch(`${getApiBaseUrl()}/terms/admin/all`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
@@ -107,9 +108,10 @@ export default function TermsPage() {
 
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const apiBaseUrl = getApiBaseUrl();
       const url = editingTerms
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/admin/${editingTerms.id}`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/admin`;
+        ? `${apiBaseUrl}/terms/admin/${editingTerms.id}`
+        : `${apiBaseUrl}/terms/admin`;
 
       const method = editingTerms ? 'PUT' : 'POST';
 
@@ -153,7 +155,7 @@ export default function TermsPage() {
 
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/admin/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/terms/admin/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -188,7 +190,7 @@ export default function TermsPage() {
       if (!termsItem) return;
 
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/admin/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/terms/admin/${id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {

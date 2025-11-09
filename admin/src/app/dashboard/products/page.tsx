@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,7 +40,7 @@ interface Product {
 }
 
 export default function ProductsPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   // Helper function to get correct API URL
   const getApiUrl = (endpoint: string) => {
@@ -97,12 +97,14 @@ export default function ProductsPage() {
   // Handle delete product
   const handleDelete = async (id: string) => {
     try {
-      const authToken = token || localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
       const response = await fetch(getApiUrl(`/products/${id}`), {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
         }
       });
 
@@ -110,6 +112,13 @@ export default function ProductsPage() {
         toast.success('Product deleted successfully!');
         fetchProducts();
         setDeleteConfirm({ isOpen: false, product: null }); // Close modal
+      } else if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
         toast.error('Failed to delete product');
       }
@@ -188,7 +197,7 @@ export default function ProductsPage() {
 
   // Handle bulk delete confirmation
   const confirmBulkDelete = async () => {
-    const authToken = token || localStorage.getItem('token') || localStorage.getItem('adminToken');
+    const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
     
     try {
       for (const id of selectedProducts) {
@@ -213,18 +222,27 @@ export default function ProductsPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
-      const authToken = token || localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
       const response = await fetch(getApiUrl(`/products/${id}/toggle`), {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
         }
       });
 
       if (response.ok) {
         toast.success('Product status updated!');
         fetchProducts();
+      } else if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
         toast.error('Failed to update product status');
       }
@@ -258,24 +276,48 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      // Try to get token from context or localStorage as fallback
-      const authToken = token || localStorage.getItem('token') || localStorage.getItem('adminToken');
+      // Check if user is authenticated
+      if (!isAuthenticated) {
+        console.error('User is not authenticated');
+        toast.error('Authentication required. Please log in again.');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Try to get token from localStorage as fallback (for API calls that need Bearer token)
+      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
       const response = await fetch(getApiUrl('/products/admin/all'), {
+        credentials: 'include', // Include cookies for authentication
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
         }
       });
       
       if (response.ok) {
-      const data = await response.json();
+        const data = await response.json();
         console.log('Fetched products:', data.data);
         setAllProducts(data.data || []);
+      } else if (response.status === 401) {
+        console.error('Authentication failed. Session may be expired or invalid.');
+        toast.error('Session expired. Please log in again.');
+        // Clear tokens and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       } else {
         console.error('Failed to fetch products, status:', response.status);
+        toast.error(`Failed to fetch products: ${response.status === 403 ? 'Access denied' : 'Server error'}`);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      toast.error('Network error. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
@@ -485,9 +527,9 @@ export default function ProductsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentProducts.map((product) => (
-                    <>
+                    <React.Fragment key={product.id}>
                       {/* Main Info Row */}
-                      <tr key={product.id} className="hover:bg-gray-50">
+                      <tr className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <input
                             type="checkbox"
@@ -533,7 +575,7 @@ export default function ProductsPage() {
                         </td>
                       </tr>
                       {/* Secondary Info Row */}
-                      <tr key={`${product.id}-secondary`} className="hover:bg-gray-50 bg-gray-50">
+                      <tr className="hover:bg-gray-50 bg-gray-50">
                         <td colSpan={3} className="px-6 py-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
@@ -738,7 +780,7 @@ export default function ProductsPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
               </table>

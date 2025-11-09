@@ -46,16 +46,29 @@ const categoryTitles: { [key: string]: string } = {
 };
 
 const categoryMapping: { [key: string]: string } = {
+  // Plural forms
   rings: 'Ring',
   necklaces: 'Necklace',
   bracelets: 'Bracelet',
   earrings: 'Earring',
   pendants: 'Pendant',
+  // Singular forms
   ring: 'Ring',
   necklace: 'Necklace',
   bracelet: 'Bracelet',
   earring: 'Earring',
   pendant: 'Pendant',
+  // Case variations (normalized in code, but keeping for safety)
+  Ring: 'Ring',
+  Rings: 'Ring',
+  Necklace: 'Necklace',
+  Necklaces: 'Necklace',
+  Bracelet: 'Bracelet',
+  Bracelets: 'Bracelet',
+  Earring: 'Earring',
+  Earrings: 'Earring',
+  Pendant: 'Pendant',
+  Pendants: 'Pendant',
 };
 
 const categoryDescriptions: { [key: string]: string } = {
@@ -68,7 +81,8 @@ const categoryDescriptions: { [key: string]: string } = {
 
 export default function CategoryPage() {
   const params = useParams();
-  const category = params.category as string;
+  const categoryParam = params?.category as string | undefined;
+  const category = categoryParam || '';
   const displayName = categoryTitles[category] || `${category.charAt(0).toUpperCase() + category.slice(1)}`;
   const displayDescription = categoryDescriptions[category] || `Browse our collection of ${displayName.toLowerCase()}`;
 
@@ -96,20 +110,93 @@ export default function CategoryPage() {
 
   // Fetch products from API
   useEffect(() => {
+    if (!category) {
+      console.warn('No category parameter found');
+      setIsLoading(false);
+      return;
+    }
+
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
+        // Normalize category to lowercase for mapping lookup
+        const normalizedCategory = category.toLowerCase();
         // Map frontend category to API category
-        const apiCategory = categoryMapping[category] || category;
-        const response = await fetch(`http://localhost:5000/api/products?category=${apiCategory}`);
+        const apiCategory = categoryMapping[normalizedCategory] || categoryMapping[category] || category;
+        console.log('=== PRODUCT FETCH DEBUG ===');
+        console.log('Raw category from URL:', category);
+        console.log('Normalized category:', normalizedCategory);
+        console.log('Mapped API category:', apiCategory);
+        
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const apiUrl = `${apiBaseUrl}/products?category=${encodeURIComponent(apiCategory)}&limit=100`;
+        console.log('API URL:', apiUrl);
+        
+        let response;
+        try {
+          response = await fetch(apiUrl);
+        } catch (fetchError) {
+          console.error('=== FETCH ERROR ===');
+          console.error('Failed to connect to API:', fetchError);
+          console.error(`Make sure the API server is running on ${apiBaseUrl}`);
+          setProducts([]);
+          return;
+        }
+        
+        if (!response.ok) {
+          console.error('=== API RESPONSE ERROR ===');
+          console.error('Status:', response.status, response.statusText);
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          setProducts([]);
+          return;
+        }
+        
         const data = await response.json();
+        console.log('=== API RESPONSE ===');
+        console.log('Full response:', data);
         
-        console.log('API Response:', data);
-        
-        if (data.success && data.data) {
-          console.log('Products fetched:', data.data);
+        if (data.success) {
+          const productsData = data.data || [];
+          console.log('Products fetched:', productsData);
+          console.log('Number of products:', productsData.length);
+          
+          // Filter only active products (in case API doesn't filter)
+          const activeProducts = productsData.filter((product: any) => product.isActive !== false);
+          console.log('Active products:', activeProducts);
+          console.log('Active products count:', activeProducts.length);
+          
+          if (activeProducts.length === 0) {
+            console.warn('No active products found for category:', apiCategory);
+            // Try fetching all products to see what categories exist
+            try {
+              const allResponse = await fetch(`${apiBaseUrl}/products?limit=100`);
+              if (allResponse.ok) {
+                const allData = await allResponse.json();
+                if (allData.success && allData.data) {
+                  console.log('All products in database:', allData.data.map((p: any) => ({ 
+                    name: p.name, 
+                    category: p.category, 
+                    isActive: p.isActive 
+                  })));
+                  // Check if there are any products with the expected category
+                  const matchingProducts = allData.data.filter((p: any) => 
+                    p.category && p.category.toLowerCase() === apiCategory.toLowerCase()
+                  );
+                  console.log(`Products with category "${apiCategory}":`, matchingProducts.map((p: any) => ({
+                    name: p.name,
+                    category: p.category,
+                    isActive: p.isActive
+                  })));
+                }
+              }
+            } catch (err) {
+              console.error('Error fetching all products:', err);
+            }
+          }
+          
           // Map API data to local Product interface
-          const mappedProducts = data.data.map((product: any) => ({
+          const mappedProducts = activeProducts.map((product: any) => ({
             id: product.id,
             name: product.name,
             category: product.category,
@@ -119,7 +206,7 @@ export default function CategoryPage() {
             image: product.imageUrl?.startsWith('http') 
               ? product.imageUrl 
               : product.imageUrl 
-                ? `http://localhost:5000${product.imageUrl}` 
+                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${product.imageUrl}` 
                 : `/${category}.jpeg`,
             rating: 4.5,
             reviews: 0,
@@ -144,8 +231,24 @@ export default function CategoryPage() {
           console.log('Mapped products:', mappedProducts);
           setProducts(mappedProducts);
         } else {
-          console.log('No products found in API response:', data);
+          console.error('=== API RESPONSE ERROR ===');
+          console.error('API returned success: false');
+          console.error('Response data:', data);
           setProducts([]);
+          
+          // Try fetching all products to debug
+          try {
+            const allProductsResponse = await fetch(`${apiBaseUrl}/products?limit=100`);
+            if (allProductsResponse.ok) {
+              const allProductsData = await allProductsResponse.json();
+              console.log('All products (for debugging):', allProductsData);
+              if (allProductsData.success && allProductsData.data) {
+                console.log('Available categories:', [...new Set(allProductsData.data.map((p: any) => p.category))]);
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching all products for debugging:', err);
+          }
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -313,13 +416,17 @@ export default function CategoryPage() {
           ))}
         </div>
 
-        {sortedProducts.length === 0 && (
+        {sortedProducts.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4">
               <Search className="w-16 h-16 mx-auto" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2 jimthompson">No products found</h3>
-            <p className="text-gray-600">Try adjusting your filters or search terms</p>
+            <p className="text-gray-600 mb-4">Try adjusting your filters or search terms</p>
+            <div className="text-sm text-gray-500 mt-4">
+              <p>Debug info: Category "{category}" mapped to "{categoryMapping[category] || category}"</p>
+              <p className="mt-2">Check browser console (F12) for detailed API response logs</p>
+            </div>
           </div>
         )}
       </div>

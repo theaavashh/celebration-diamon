@@ -41,7 +41,8 @@ const TopBanner = () => {
     const fetchBanners = async () => {
       try {
         console.log('Fetching banners from API...');
-        const response = await fetch('http://localhost:5000/api/banners?active_only=true');
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/banners?active_only=true`);
         if (response.ok) {
           const data = await response.json();
           console.log('API Response:', data);

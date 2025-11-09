@@ -4,32 +4,31 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideProps } from "lucide-react";
 import {
-  X,
-  Store,
-  Diamond,
-  Gem,
-  CircleDollarSign,
-  Star,
-  Search,
-  Handbag,
-  Menu,
-  Phone,
-} from "lucide-react";
+  FaSearch,
+  FaShoppingBag,
+  FaPhone,
+  FaStore,
+  FaGem,
+  FaDollarSign,
+  FaStar,
+  FaBars,
+  FaTimes,
+} from "react-icons/fa";
+import { GiDiamondRing, GiPearlNecklace, GiDropEarrings } from "react-icons/gi";
 import { motion, AnimatePresence } from "framer-motion";
 
 import TopBanner from "./top-banner";
 
-type IconComponent = React.FC<LucideProps>;
+type IconComponent = React.ComponentType<{ className?: string }>;
 
 const NAV_ITEMS: { name: string; href: string; icon: IconComponent }[] = [
-  { name: "All Jewellery", href: "/products", icon: Store },
-  { name: "Necklace", href: "/products/necklace", icon: Diamond },
-  { name: "Bracelet", href: "/products/bracelet", icon: CircleDollarSign },
-  { name: "Earrings", href: "/products/earrings", icon: Star },
-  { name: "Rings", href: "/products/rings", icon: Gem },
-  { name: "Pendant", href: "/products/pendant", icon: Diamond },
+  { name: "All Jewellery", href: "/products", icon: FaStore },
+  { name: "Necklace", href: "/products/necklace", icon: GiPearlNecklace },
+  { name: "Bracelet", href: "/products/bracelet", icon: FaDollarSign },
+  { name: "Earrings", href: "/products/earrings", icon: GiDropEarrings },
+  { name: "Rings", href: "/products/rings", icon: GiDiamondRing },
+  { name: "Pendant", href: "/products/pendant", icon: FaGem },
 ];
 
 export default function Header() {
@@ -91,19 +90,19 @@ export default function Header() {
                   onClick={() => setShowSearch(true)}
                   className="flex items-center gap-2 text-black hover:text-gray-600 px-3 py-1"
                 >
-                  <Search className="w-5 h-5" />
+                  <FaSearch className="w-5 h-5" />
                   <span className="hidden sm:inline">Search</span>
                 </button>
 
                 <div className="flex items-center gap-2 px-3 py-1">
-                  <Handbag className="w-5 h-5 text-black hover:text-gray-600" />
+                  <FaShoppingBag className="w-5 h-5 text-black hover:text-gray-600" />
                   <span className="hidden sm:inline">Bag</span>
                 </div>
                 |
 
 
                 <span className="hidden md:inline-flex gap-2 items-center px-3 py-1">
-                  <Phone className="w-5 h-5" />  +9779709196495 (Nepal)
+                  <FaPhone className="w-5 h-5" />  +9779709196495 (Nepal)
                 </span>
 
                 <button
@@ -111,7 +110,7 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(true)}
                   aria-label="Open menu"
                 >
-                  <Menu className="w-6 h-6 mr-5" />
+                  <FaBars className="w-6 h-6 mr-5" />
                 </button>
               </div>
 
@@ -155,7 +154,7 @@ export default function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                     aria-label="Close menu"
                   >
-                    <X className="h-5 w-5 mr-2" /> CLOSE
+                    <FaTimes className="h-5 w-5 mr-2" /> CLOSE
                   </button>
 
                   <nav className="flex flex-col gap-2 mb-8">

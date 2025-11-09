@@ -1,10 +1,13 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { setupQuoteWebSocket } from './websocket/quoteWebSocket';
 
 // Import routes
 import bannerRoutes from './routes/bannerRoutes';
@@ -32,6 +35,13 @@ import seoRoutes from './routes/seoRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import roleRoutes from './routes/roleRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
+import retailerRoutes from './routes/retailerRoutes';
+import aboutUsRoutes from './routes/aboutUsRoutes';
+import storeRoutes from './routes/storeRoutes';
+import termsRoutes from './routes/termsRoutes';
+import privacyPolicyRoutes from './routes/privacyPolicyRoutes';
+import helpCenterRoutes from './routes/helpCenterRoutes';
+import returnPolicyRoutes from './routes/returnPolicyRoutes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -44,14 +54,18 @@ const app = express();
 const PORT = process.env['PORT'] || 5000;
 
 // CORS configuration - must come before other middleware
+const corsOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : [
+      'http://localhost:3000', 
+      'http://localhost:3001', 
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:3004'
+    ];
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://localhost:3001', 
-    'http://localhost:3002',
-    'http://localhost:3003',
-    'http://localhost:3004'
-  ],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
@@ -71,6 +85,9 @@ const limiter = rateLimit({
   }
 });
 app.use('/api/', limiter);
+
+// Cookie parser middleware (must come before routes)
+app.use(cookieParser());
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -125,6 +142,13 @@ app.use('/api/seo', seoRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/retailers', retailerRoutes);
+app.use('/api/about-us', aboutUsRoutes);
+app.use('/api/stores', storeRoutes);
+app.use('/api/terms', termsRoutes);
+app.use('/api/privacy-policy', privacyPolicyRoutes);
+app.use('/api/help-center', helpCenterRoutes);
+app.use('/api/return-policy', returnPolicyRoutes);
 
 // Root endpoint
 app.get('/', (_req, res) => {
@@ -145,14 +169,19 @@ app.get('/', (_req, res) => {
 app.use(notFound);
 app.use(errorHandler);
 
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Setup WebSocket
+setupQuoteWebSocket(httpServer);
+
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env['NODE_ENV']}`);
-  console.log(`🌐 CORS enabled for: http://localhost:3000, http://localhost:3001, http://localhost:3002, http://localhost:3003, http://localhost:3004`);
+  console.log(`🌐 CORS enabled for: ${corsOrigins.join(', ')}`);
+  console.log(`🔌 WebSocket server initialized`);
   console.log(`📝 Available routes:`);
   console.log(`   - /api/admins`);
   console.log(`   - /api/roles`);
 });
-
-export default app;

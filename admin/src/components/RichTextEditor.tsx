@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -14,7 +14,7 @@ import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode } from '@lexical/link';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import { LexicalEditor, $getSelection, $isRangeSelection } from 'lexical';
+import { LexicalEditor, EditorState, $getSelection, $isRangeSelection } from 'lexical';
 import { $getRoot, $insertNodes } from 'lexical';
 import { $isHeadingNode, $createHeadingNode } from '@lexical/rich-text';
 import { $isListNode, $createListNode, $createListItemNode, INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from '@lexical/list';
@@ -64,9 +64,9 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
     );
   }
 
-  const handleChange = (editorState: LexicalEditor) => {
-    editorState.getEditorState().read(() => {
-      const htmlString = $generateHtmlFromNodes(editorState, null);
+  const handleChange = (editorState: EditorState, editor: LexicalEditor) => {
+    editorState.read(() => {
+      const htmlString = $generateHtmlFromNodes(editor, null);
       onChange(htmlString);
     });
   };
@@ -95,7 +95,7 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         <div className="relative bg-white">
           <RichTextPlugin
             contentEditable={
-              <ContentEditable className="min-h-[200px] px-3 py-2 outline-none text-black" style={{ color: 'black' }} />
+              <ContentEditable className="min-h-[200px] px-3 py-2 outline-none text-black" style={{ color: '#000000' }} />
             }
             placeholder={
               <div className="absolute top-2 left-3 text-gray-400 pointer-events-none">
@@ -134,20 +134,33 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
   );
 }
 
-// Plugin to initialize HTML content
+// Plugin to initialize HTML content (only once on mount)
 function InitialContentPlugin({ html }: { html: string }) {
   const [editor] = useLexicalComposerContext();
+  const isInitializedRef = useRef(false);
   
   useEffect(() => {
-    if (html && html.trim() !== '') {
-      editor.update(() => {
-        const parser = new DOMParser();
-        const dom = parser.parseFromString(html, 'text/html');
-        const nodes = $generateNodesFromDOM(editor, dom);
-        $getRoot().clear();
-        $getRoot().select();
-        $insertNodes(nodes);
-      }, { discrete: true });
+    // Only initialize once when the editor is first mounted and empty
+    if (!isInitializedRef.current) {
+      editor.getEditorState().read(() => {
+        const root = $getRoot();
+        const isEmpty = root.isEmpty();
+        
+        if (isEmpty && html && html.trim() !== '') {
+          editor.update(() => {
+            const parser = new DOMParser();
+            const dom = parser.parseFromString(html, 'text/html');
+            const nodes = $generateNodesFromDOM(editor, dom);
+            const root = $getRoot();
+            root.clear();
+            root.append(...nodes);
+          }, { discrete: true });
+          isInitializedRef.current = true;
+        } else if (isEmpty) {
+          // Mark as initialized even if empty to prevent re-initialization
+          isInitializedRef.current = true;
+        }
+      });
     }
   }, [editor, html]);
 

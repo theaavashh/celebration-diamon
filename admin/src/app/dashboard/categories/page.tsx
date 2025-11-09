@@ -32,10 +32,13 @@ export default function CategoriesPage() {
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/admin/all`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/categories/admin/all`, {
+        method: 'GET',
+        credentials: 'include', // Send cookies
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Content-Type': 'application/json',
+        },
       });
       
       if (response.ok) {
@@ -109,8 +112,8 @@ export default function CategoriesPage() {
   // Handle create/edit category
   const handleSubmit = async () => {
     try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories`;
-      const token = localStorage.getItem('token');
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const apiUrl = `${API_BASE_URL}/api/categories`;
       
       // Create FormData for file upload
       const formData = new FormData();
@@ -124,9 +127,7 @@ export default function CategoriesPage() {
       
       const response = await fetch(editingCategory ? `${apiUrl}/${editingCategory.id}` : apiUrl, {
         method: editingCategory ? 'PUT' : 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        credentials: 'include', // Send cookies
         body: formData
       });
 
@@ -159,11 +160,13 @@ export default function CategoriesPage() {
     if (!confirm('Are you sure you want to delete this category?')) return;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/${id}`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
         method: 'DELETE',
+        credentials: 'include', // Send cookies
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
@@ -181,11 +184,13 @@ export default function CategoriesPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/${id}/toggle`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/categories/${id}/toggle`, {
         method: 'PATCH',
+        credentials: 'include', // Send cookies
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {

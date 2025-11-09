@@ -1,12 +1,78 @@
 "use client"
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+interface Store {
+  id: string;
+  title: string;
+  location: string;
+  phone: string | null;
+  email: string | null;
+  hours: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  description: string | null;
+  mediaType: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const StoresPage = () => {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<{ remove: () => void } | null>(null)
+  const [stores, setStores] = useState<Store[]>([]);
+  const [currentStoreIndex, setCurrentStoreIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const storeLocation = {
+  // Fetch stores from API
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        setIsLoading(true);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/stores`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Filter active stores and sort by sortOrder
+            const activeStores = data.data
+              .filter((store: Store) => store.isActive)
+              .sort((a: Store, b: Store) => a.sortOrder - b.sortOrder);
+            setStores(activeStores);
+          }
+        } else {
+          setError('Failed to fetch stores');
+        }
+      } catch (error) {
+        console.error('Error fetching stores:', error);
+        setError('Failed to fetch stores');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStores();
+  }, []);
+
+  // Get current store or use default
+  const currentStore = stores.length > 0 ? stores[currentStoreIndex] : null;
+  
+  const storeLocation = currentStore ? {
+    name: currentStore.title,
+    address: currentStore.location,
+    coordinates: {
+      lat: currentStore.latitude || 27.7172,
+      lng: currentStore.longitude || 85.3240
+    },
+    phone: currentStore.phone || "+977-9808080808",
+    email: currentStore.email || "info@celebrationdiamondstudio.com",
+    hours: currentStore.hours || "Mon-Sat: 10:00 AM - 7:00 PM, Sun: 11:00 AM - 5:00 PM"
+  } : {
     name: "Celebration Diamond Studio",
     address: "Baneshwor, Kathmandu, Nepal",
     coordinates: {
@@ -19,6 +85,8 @@ const StoresPage = () => {
   }
 
   useEffect(() => {
+    if (!currentStore || !storeLocation.coordinates.lat || !storeLocation.coordinates.lng) return;
+
     // Load Leaflet CSS
     const link = document.createElement('link')
     link.rel = 'stylesheet'
@@ -34,7 +102,13 @@ const StoresPage = () => {
     script.crossOrigin = ''
     
     script.onload = () => {
-      if (mapRef.current && !mapInstanceRef.current) {
+      if (mapRef.current) {
+        // Remove existing map if it exists
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove()
+          mapInstanceRef.current = null
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const L = (window as any).L
         
@@ -77,19 +151,21 @@ const StoresPage = () => {
         }).addTo(mapInstanceRef.current)
 
         // Add popup with store info
+        const popupContent = `
+          <div style="padding: 10px;">
+            <h3 style="margin: 0 0 8px 0; font-weight: 600; color: #1f2937;">${storeLocation.name}</h3>
+            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;">📍 ${storeLocation.address}</p>
+            ${storeLocation.phone ? `<p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;">📞 ${storeLocation.phone}</p>` : ''}
+            ${storeLocation.hours ? `<p style="margin: 0; color: #6b7280; font-size: 14px;">🕒 ${storeLocation.hours}</p>` : ''}
+          </div>
+        `;
+
         L.popup({
           maxWidth: 300,
           className: 'store-popup'
         })
         .setLatLng([storeLocation.coordinates.lat, storeLocation.coordinates.lng])
-        .setContent(`
-          <div style="padding: 10px;">
-            <h3 style="margin: 0 0 8px 0; font-weight: 600; color: #1f2937;">${storeLocation.name}</h3>
-            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;">📍 ${storeLocation.address}</p>
-            <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;">📞 ${storeLocation.phone}</p>
-            <p style="margin: 0; color: #6b7280; font-size: 14px;">🕒 ${storeLocation.hours}</p>
-          </div>
-        `)
+        .setContent(popupContent)
         .addTo(mapInstanceRef.current)
       }
     }
@@ -108,31 +184,73 @@ const StoresPage = () => {
       if (existingScript) existingScript.remove()
       if (existingLink) existingLink.remove()
     }
-  }, [storeLocation.address, storeLocation.coordinates.lat, storeLocation.coordinates.lng, storeLocation.hours, storeLocation.name, storeLocation.phone])
+  }, [currentStore, storeLocation.coordinates.lat, storeLocation.coordinates.lng, storeLocation.name, storeLocation.address, storeLocation.phone, storeLocation.hours])
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading stores...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
-    
-
       {/* Main Content */}
       <main className="container mt-5 mx-auto px-4 py-12 max-w-6xl">
         {/* Page Title */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">STORES</h1>
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            Step into our store and immerse yourself in a world of timeless elegance and quality craftsmanship. 
-            Experience our collection of fine jewelry and diamond certification services in person.
+            {currentStore?.description || "Step into our store and immerse yourself in a world of timeless elegance and quality craftsmanship. Experience our collection of fine jewelry and diamond certification services in person."}
           </p>
         </div>
 
+        {/* Store Selector (if multiple stores) */}
+        {stores.length > 1 && (
+          <div className="flex justify-center mb-8">
+            <div className="flex gap-2">
+              {stores.map((store, index) => (
+                <button
+                  key={store.id}
+                  onClick={() => setCurrentStoreIndex(index)}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    index === currentStoreIndex
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {store.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Store Information */}
-        <div className="grid lg:grid-cols-2 gap-12 mb-16">
-          {/* Store Details */}
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                {storeLocation.name}
-              </h2>
+        {currentStore ? (
+          <div className="grid lg:grid-cols-2 gap-12 mb-16">
+            {/* Store Details */}
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                  {storeLocation.name}
+                </h2>
               <div className="space-y-4 text-gray-700">
                 <div className="flex items-start space-x-3">
                   <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,35 +263,41 @@ const StoresPage = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <div>
-                    <p className="font-medium">Phone</p>
-                    <p>{storeLocation.phone}</p>
+                {storeLocation.phone && (
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <div>
+                      <p className="font-medium">Phone</p>
+                      <p>{storeLocation.phone}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <p className="font-medium">Email</p>
-                    <p>{storeLocation.email}</p>
+                {storeLocation.email && (
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <div>
+                      <p className="font-medium">Email</p>
+                      <p>{storeLocation.email}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <p className="font-medium">Opening Hours</p>
-                    <p>{storeLocation.hours}</p>
+                {storeLocation.hours && (
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="font-medium">Opening Hours</p>
+                      <p>{storeLocation.hours}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -207,18 +331,22 @@ const StoresPage = () => {
                 Book an appointment for a personalized consultation with our diamond experts.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <a
-                  href={`tel:${storeLocation.phone}`}
-                  className="inline-flex items-center justify-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200"
-                >
-                  Call Now
-                </a>
-                <a
-                  href={`mailto:${storeLocation.email}`}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                >
-                  Email Us
-                </a>
+                {storeLocation.phone && (
+                  <a
+                    href={`tel:${storeLocation.phone}`}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200"
+                  >
+                    Call Now
+                  </a>
+                )}
+                {storeLocation.email && (
+                  <a
+                    href={`mailto:${storeLocation.email}`}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    Email Us
+                  </a>
+                )}
               </div>
             </div>
           </div>
@@ -256,6 +384,11 @@ const StoresPage = () => {
             </div>
           </div>
         </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-600">No stores available</p>
+          </div>
+        )}
 
         {/* Additional Information */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
@@ -316,4 +449,4 @@ const StoresPage = () => {
   )
 }
 
-export default StoresPage 
+export default StoresPage;

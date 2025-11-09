@@ -24,7 +24,8 @@ export default function Category() {
     const fetchCategories = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('http://localhost:5000/api/categories');
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/categories`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -88,7 +89,7 @@ export default function Category() {
                       <Image
                         src={category.imageUrl.startsWith('http') 
                           ? category.imageUrl 
-                          : `http://localhost:5000${category.imageUrl}`}
+                          : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${category.imageUrl}`}
                         alt={category.title}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-300"

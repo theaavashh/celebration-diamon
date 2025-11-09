@@ -103,12 +103,22 @@ router.post('/login', loginValidation, async (req: Request<{}, ApiResponse<{ adm
     // Return admin data (without password)
     const { password: _, ...adminData } = admin;
 
+    // Set httpOnly cookie for secure token storage
+    const isProduction = process.env['NODE_ENV'] === 'production';
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: isProduction, // Only send over HTTPS in production
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
     res.json({
       success: true,
       message: 'Login successful',
       data: {
         admin: adminData,
-        token
+        // Don't send token in response body for security
       }
     });
   } catch (error) {
@@ -245,19 +255,173 @@ router.post('/change-password', async (req: Request<{}, ApiResponse<{ message: s
   }
 });
 
-// Get current admin profile
+// Retailer Admin Registration with Full Details
+const retailerAdminValidation = [
+  body('fullname')
+    .trim()
+    .notEmpty()
+    .withMessage('Full name is required')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Full name must be between 2 and 100 characters'),
+  body('username')
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be between 3 and 30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+  body('shopName')
+    .trim()
+    .notEmpty()
+    .withMessage('Shop name is required'),
+  body('panVatNo')
+    .trim()
+    .notEmpty()
+    .withMessage('PAN/VAT number is required'),
+  body('phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Phone number is required'),
+  body('address')
+    .trim()
+    .notEmpty()
+    .withMessage('Address is required'),
+  body('city')
+    .trim()
+    .notEmpty()
+    .withMessage('City is required'),
+  body('state')
+    .trim()
+    .notEmpty()
+    .withMessage('State is required'),
+  body('zipCode')
+    .trim()
+    .notEmpty()
+    .withMessage('ZIP code is required'),
+  body('country')
+    .trim()
+    .notEmpty()
+    .withMessage('Country is required'),
+];
+
+// Create Retailer (for retailer portal users/agents)
+router.post('/retailer/create', retailerAdminValidation, async (req: Request, res: Response) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { 
+      fullname, 
+      username, 
+      email, 
+      password, 
+      shopName,
+      panVatNo,
+      phone,
+      address,
+      city,
+      state,
+      zipCode,
+      country,
+      status = 'active'
+    } = req.body;
+
+    // Check if retailer already exists
+    const existingRetailer = await prisma.retailer.findFirst({
+      where: {
+        OR: [
+          { email: email.toLowerCase() },
+          { username }
+        ]
+      }
+    });
+
+    if (existingRetailer) {
+      return res.status(400).json({
+        success: false,
+        message: 'Retailer with this email or username already exists'
+      });
+    }
+
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create retailer (user/agent who will access retailer portal)
+    const retailer = await prisma.retailer.create({
+      data: {
+        name: fullname,
+        username,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        shopName,
+        panVatNo,
+        phone,
+        address,
+        city,
+        state,
+        zipCode,
+        country,
+        status: status || 'active',
+        totalOrders: 0,
+        totalRevenue: 0,
+        lastLogin: null
+      }
+    });
+
+    // Return retailer data (without password)
+    const { password: _, ...retailerData } = retailer;
+
+    res.status(201).json({
+      success: true,
+      message: 'Retailer created successfully',
+      data: {
+        retailer: retailerData
+      }
+    });
+  } catch (error) {
+    console.error('Retailer creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during retailer creation'
+    });
+  }
+});
+
+// Get current admin profile (from cookie)
 router.get('/me', async (req: Request, res: Response<ApiResponse<Partial<Admin>>>) => {
   try {
-    const authHeader = req.header('Authorization');
+    // Try to get token from cookie first (preferred method)
+    let token = req.cookies?.authToken;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Fallback to Authorization header for backward compatibility
+    if (!token) {
+      const authHeader = req.header('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
       });
     }
 
-    const token = authHeader.substring(7);
     const secret = process.env['JWT_SECRET'];
     if (!secret) {
       return res.status(500).json({
@@ -265,11 +429,21 @@ router.get('/me', async (req: Request, res: Response<ApiResponse<Partial<Admin>>
         message: 'Server configuration error'
       });
     }
+
     const decoded = jwt.verify(token, secret) as JWTPayload;
     
     const admin = await prisma.admin.findUnique({
       where: { id: decoded.id },
-      select: { id: true, fullname: true, username: true, email: true, role: true, isActive: true, createdAt: true }
+      select: { 
+        id: true, 
+        fullname: true, 
+        username: true, 
+        email: true, 
+        role: true, 
+        isActive: true, 
+        createdAt: true,
+        updatedAt: true
+      }
     });
 
     if (!admin) {
@@ -279,15 +453,47 @@ router.get('/me', async (req: Request, res: Response<ApiResponse<Partial<Admin>>
       });
     }
 
+    if (!admin.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+
     res.json({
       success: true,
       data: admin
     });
   } catch (error) {
     console.error('Get profile error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid or expired token'
+    });
+  }
+});
+
+// Logout endpoint
+router.post('/logout', async (req: Request, res: Response<ApiResponse<{ message: string }>>) => {
+  try {
+    // Clear the auth cookie
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+      data: { message: 'Logged out successfully' }
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error during logout'
     });
   }
 });

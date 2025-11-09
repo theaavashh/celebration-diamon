@@ -195,7 +195,7 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         fullDescription: fullDescription || null,
         category,
         subCategory,
-        price: Number(price),
+        price: price && price !== '' ? Number(price) : 0,
         stock: Number(stock) || 0,
         isActive: isActive === 'true' || isActive === true,
         imageUrl,
@@ -261,7 +261,8 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
     
     // Convert numeric fields
     if (updateData.price !== undefined) {
-      updateData.price = Number(updateData.price);
+      // If price is empty string, set to 0, otherwise convert to number
+      updateData.price = updateData.price === '' || updateData.price === null ? 0 : Number(updateData.price);
     }
     if (updateData.stock !== undefined) {
       updateData.stock = Number(updateData.stock);

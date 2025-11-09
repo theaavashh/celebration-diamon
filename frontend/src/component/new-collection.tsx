@@ -40,7 +40,8 @@ const NewCollection = () => {
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('http://localhost:5000/api/products?limit=4&page=1');
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/products?limit=4&page=1`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -56,7 +57,7 @@ const NewCollection = () => {
                 icon: product.imageUrl?.startsWith('http') 
                   ? product.imageUrl 
                   : product.imageUrl 
-                    ? `http://localhost:5000${product.imageUrl}` 
+                    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${product.imageUrl}` 
                     : `/${product.category.toLowerCase()}.jpeg`,
                 label: product.name,
                 price: product.price ? `$${product.price.toFixed(2)}` : 'Price on request',

@@ -1,6 +1,14 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { Request } from 'express';
+
+// Helper function to ensure directory exists
+const ensureDirectoryExists = (dirPath: string) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
 
 // Configure storage
 const storage = multer.diskStorage({
@@ -19,9 +27,17 @@ const storage = multer.diskStorage({
       destination = 'uploads/services/';
     } else if (fieldName === 'image' && (req.path.includes('/testimonials') || req.originalUrl.includes('/testimonials'))) {
       destination = 'uploads/testimonials/';
+    } else if (fieldName === 'image' && (req.path.includes('/about-us') || req.originalUrl.includes('/about-us'))) {
+      destination = 'uploads/about-us/';
+    } else if (fieldName === 'image' && (req.path.includes('/stores') || req.originalUrl.includes('/stores'))) {
+      destination = 'uploads/stores/';
     } else {
       destination = 'uploads/';
     }
+    
+    // Ensure directory exists before saving
+    ensureDirectoryExists(destination);
+    
     cb(null, destination);
   },
   filename: (req: Request, file: Express.Multer.File, cb) => {
@@ -50,6 +66,5 @@ const upload = multer({
   }
 });
 
-export const uploadHeroImage = upload.single('image');
-
 export default upload;
+export const uploadHeroImage = upload.single('image');

@@ -5,16 +5,16 @@ import { AuthenticatedRequest, JWTPayload, ApiResponse } from '../types';
 
 export const authMiddleware = async (req: AuthenticatedRequest, res: Response<ApiResponse>, next: NextFunction) => {
   try {
-    const authHeader = req.header('Authorization');
+    // Try to get token from cookie first (preferred method)
+    let token = req.cookies?.authToken;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access denied. No token provided.'
-      });
+    // Fallback to Authorization header for backward compatibility
+    if (!token) {
+      const authHeader = req.header('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      }
     }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     if (!token) {
       return res.status(401).json({

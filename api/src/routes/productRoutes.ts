@@ -46,6 +46,7 @@ const productValidation = [
     .withMessage('Category must be between 1 and 100 characters'),
   
   body('price')
+    .optional()
     .isNumeric()
     .withMessage('Price must be a number')
     .isFloat({ min: 0 })

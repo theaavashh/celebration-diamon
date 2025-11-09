@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -8,22 +8,20 @@ interface User {
   id: string;
   email: string;
   username: string;
-  firstName?: string;
-  lastName?: string;
+  fullname?: string;
   role: string;
   isActive: boolean;
-  emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,106 +38,162 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Base URL without /api - we'll add /api to each endpoint
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const isAuthenticated = !!user && !!token;
+  const isAuthenticated = !!user;
 
-  useEffect(() => {
-    // Check for existing authentication on mount
-    const storedToken = localStorage.getItem('adminToken') || localStorage.getItem('token');
-    const storedUser = localStorage.getItem('adminUser');
+  // Fetch current user from server (validates cookie)
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        method: 'GET',
+        credentials: 'include', // Important: sends cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminUser');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setUser(result.data);
+          return true;
+        }
       }
+      return false;
+    } catch (error) {
+      return false;
     }
-    
-    setIsLoading(false);
   }, []);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      setIsLoading(true);
+      await fetchCurrentUser();
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, [fetchCurrentUser]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('AuthContext: Starting login process...', { email });
+      setIsLoading(true);
+
+      const loginUrl = `${API_BASE_URL}/api/auth/login`;
       
-      const response = await fetch(`http://localhost:5000/api/auth/login`, {
+      const response = await fetch(loginUrl, {
         method: 'POST',
+        credentials: 'include', // Important: receives and sends cookies
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
       });
 
-      console.log('AuthContext: Response received', { 
-        status: response.status, 
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
       if (!response.ok) {
-        let errorMessage = 'Login failed';
-        try {
-          const errorData = await response.json();
-          console.error('AuthContext: Login failed', errorData);
-          errorMessage = errorData.message || errorMessage;
-        } catch (parseError) {
-          const errorText = await response.text();
-          console.error('AuthContext: Failed to parse error response', { 
-            status: response.status, 
-            statusText: response.statusText,
-            text: errorText 
-          });
-          errorMessage = response.statusText || errorMessage;
+        const statusMessages: Record<number, string> = {
+          401: 'Invalid email or password',
+          400: 'Invalid request. Please check your input.',
+          403: 'Access denied. Account may be deactivated.',
+          404: 'Login endpoint not found. Please check if the server is running.',
+          500: 'Server error. Please try again later.',
+        };
+
+        let errorMessage = statusMessages[response.status] || 'Login failed';
+        
+        // For 404, provide more helpful message
+        if (response.status === 404) {
+          errorMessage = `Login endpoint not found. Please ensure the API server is running at ${API_BASE_URL}`;
         }
-        throw new Error(errorMessage);
+
+        // Try to get error message from response
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            if (errorData?.message) {
+              errorMessage = errorData.message;
+            }
+          }
+        } catch {
+          // Use default error message
+        }
+
+        // Always show user-friendly message for 401
+        if (response.status === 401) {
+          errorMessage = 'Invalid email or password';
+        }
+
+        toast.error(errorMessage);
+        setIsLoading(false);
+        return false;
       }
 
       const result = await response.json();
-      console.log('AuthContext: Login successful', result);
-      
-      // Store authentication data
-      localStorage.setItem('token', result.data.token);
-      localStorage.setItem('adminToken', result.data.token);
-      localStorage.setItem('adminUser', JSON.stringify(result.data.admin));
-      
-      setToken(result.data.token);
-      setUser(result.data.admin);
-      
-      return true;
-    } catch (error) {
-      console.error('AuthContext: Login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+
+      if (result.success && result.data) {
+        // Backend should set httpOnly cookie, we only store user data in state
+        setUser(result.data.admin);
+        setIsLoading(false);
+        return true;
+      }
+
+      toast.error('Login failed. Please try again.');
+      setIsLoading(false);
+      return false;
+    } catch (error: any) {
+      setIsLoading(false);
+
+      // Handle network errors
+      if (error?.name === 'TypeError' && error?.message?.includes('fetch')) {
+        toast.error('Network error. Please check if the server is running.');
+        return false;
+      }
+
+      toast.error('Login failed. Please try again.');
       return false;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    setToken(null);
-    setUser(null);
-    toast.success('Logged out successfully');
-    router.push('/');
+  const logout = async (): Promise<void> => {
+    try {
+      // Call logout endpoint to clear server-side session
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      // Continue with logout even if API call fails
+    } finally {
+      // Clear client-side state
+      setUser(null);
+      toast.success('Logged out successfully');
+      router.push('/');
+    }
+  };
+
+  const refreshUser = async (): Promise<void> => {
+    await fetchCurrentUser();
   };
 
   const value: AuthContextType = {
     user,
-    token,
     login,
     logout,
     isLoading,
     isAuthenticated,
+    refreshUser,
   };
 
   return (

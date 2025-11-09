@@ -73,7 +73,9 @@ export default function ProductDetailPage() {
     const fetchProduct = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`http://localhost:5000/api/products/${id}`);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiBaseUrl}/products/${id}`);
         const data = await response.json();
         
         if (data.success && data.data) {
@@ -89,7 +91,7 @@ export default function ProductDetailPage() {
             image: product.imageUrl?.startsWith('http') 
               ? product.imageUrl 
               : product.imageUrl 
-                ? `http://localhost:5000${product.imageUrl}` 
+                ? `${apiUrl}${product.imageUrl}` 
                 : `/${category}.jpeg`,
             rating: 4.5,
             reviews: 0,
@@ -118,7 +120,9 @@ export default function ProductDetailPage() {
 
     const fetchRecommendedProducts = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/products?limit=4`);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiBaseUrl}/products?limit=4`);
         const data = await response.json();
         
         if (data.success && data.data) {
@@ -135,7 +139,7 @@ export default function ProductDetailPage() {
               image: product.imageUrl?.startsWith('http') 
                 ? product.imageUrl 
                 : product.imageUrl 
-                  ? `http://localhost:5000${product.imageUrl}` 
+                  ? `${apiUrl}${product.imageUrl}` 
                   : `/${product.category}.jpeg`,
               rating: 4.5,
               reviews: 0,
@@ -167,7 +171,8 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/reviews/product/${id}`);
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/reviews/product/${id}`);
         const data = await response.json();
         
         if (data.success && data.data) {
@@ -224,7 +229,8 @@ export default function ProductDetailPage() {
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/reviews/', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${apiBaseUrl}/reviews/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -243,7 +249,7 @@ export default function ProductDetailPage() {
         setShowReviewModal(false);
         setReviewForm({ customerName: '', rating: 5, comment: '' });
         // Refresh reviews
-        const reviewsResponse = await fetch(`http://localhost:5000/api/reviews/product/${id}`);
+        const reviewsResponse = await fetch(`${apiBaseUrl}/reviews/product/${id}`);
         const reviewsData = await reviewsResponse.json();
         if (reviewsData.success) {
           setReviews(reviewsData.data);
@@ -276,7 +282,8 @@ export default function ProductDetailPage() {
   const handleCartSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/appointments', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${apiBaseUrl}/appointments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
