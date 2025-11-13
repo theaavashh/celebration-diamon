@@ -80,6 +80,7 @@ router.put('/:id',
 
 router.delete('/:id', authMiddleware, deleteFAQ);
 router.patch('/:id/toggle', authMiddleware, toggleFAQStatus);
+router.patch('/:id/toggle-status', authMiddleware, toggleFAQStatus);
 
 export default router;
 

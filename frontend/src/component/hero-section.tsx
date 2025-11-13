@@ -6,6 +6,7 @@ import { FaArrowRight } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { HeroSkeletonLoader } from "./skeleton-loader";
+import { getApiBaseUrl, getImageUrl } from "@/lib/api";
 
 interface HeroSection {
   id: string;
@@ -30,7 +31,7 @@ export default function HeroSection() {
       try {
         console.log('Fetching hero section from API...');
         setIsLoading(true);
-        const response = await fetch('http://localhost:5000/api/hero');
+        const response = await fetch(`${getApiBaseUrl()}/hero`);
         if (response.ok) {
           const data = await response.json();
           console.log('Hero section API response:', data);
@@ -105,10 +106,13 @@ export default function HeroSection() {
       <section className="relative w-full h-screen flex items-center justify-center overflow-hidden bg-white">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
-          <div className="absolute inset-0" style={{
-            backgroundImageee: `radial-gradient(circle at 2px 2px, #000 1px, transparent 0)`,
-            backgroundSize: '40px 40px'
-          }}></div>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `radial-gradient(circle at 2px 2px, #000 1px, transparent 0)`,
+              backgroundSize: "40px 40px",
+            }}
+          ></div>
         </div>
 
         <div className="relative z-10 w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pt-4 md:pt-6 lg:pt-8 pb-8 md:pb-10 lg:pb-12">
@@ -225,26 +229,23 @@ export default function HeroSection() {
             <motion.h2
               className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-6xl jimthompson font-normal text-gray-900 leading-[1.3] tracking-tight"
               variants={itemVariants}
-            >
-              <div dangerouslySetInnerHTML={{ __html: heroData.heading }} />
-            </motion.h2>
+              dangerouslySetInnerHTML={{ __html: heroData.heading }}
+            />
 
             {heroData.subHeading && (
               <motion.h3
                 className="text-base sm:text-lg md:text-xl lg:text-2xl jimthompson font-normal text-gray-800 leading-relaxed"
                 variants={itemVariants}
-              >
-                <div dangerouslySetInnerHTML={{ __html: heroData.subHeading }} />
-              </motion.h3>
+                dangerouslySetInnerHTML={{ __html: heroData.subHeading }}
+              />
             )}
 
             {heroData.description && (
               <motion.p
                 className="text-xs sm:text-sm md:text-base text-gray-600 leading-relaxed max-w-lg mx-auto lg:mx-0"
                 variants={itemVariants}
-              >
-                <div dangerouslySetInnerHTML={{ __html: heroData.description }} />
-              </motion.p>
+                dangerouslySetInnerHTML={{ __html: heroData.description }}
+              />
             )}
 
             {/* CTA Button */}
@@ -287,7 +288,7 @@ export default function HeroSection() {
               >
                   {heroData.imageUrl ? (
                     <Image
-                      src={`http://localhost:5000${heroData.imageUrl}`}
+                      src={getImageUrl(heroData.imageUrl)}
                       alt={heroData.heading.replace(/<[^>]*>/g, '') || "Hero image"}
                       fill
                     className="object-cover"

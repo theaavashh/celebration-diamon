@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopBannerSkeletonLoader } from './skeleton-loader';
+import { getApiBaseUrl } from "@/lib/api";
 
 interface Banner {
   id: string;
@@ -41,8 +42,7 @@ const TopBanner = () => {
     const fetchBanners = async () => {
       try {
         console.log('Fetching banners from API...');
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${apiBaseUrl}/banners?active_only=true`);
+        const response = await fetch(`${getApiBaseUrl()}/banners?active_only=true`);
         if (response.ok) {
           const data = await response.json();
           console.log('API Response:', data);

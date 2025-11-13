@@ -1,26 +1,30 @@
 "use client";
 import React, { useEffect, useState } from 'react'
+import { getApiBaseUrl } from '@/lib/api';
 
 const Section = () => {
   const [homepageContent, setHomepageContent] = useState<{ title: string; description: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/content/homepage")
-      .then(res => res.json())
-      .then(data => {
+    const fetchHomepageContent = async () => {
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/content/homepage`);
+        const data = await response.json();
         if (data.success && data.content) {
           setHomepageContent({
             title: data.content.title,
             description: data.content.description
           });
         }
-        setLoading(false);
-      })
-      .catch(error => {
+      } catch (error) {
         console.error("Failed to fetch homepage content:", error);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchHomepageContent();
   }, []);
 
   if (loading) {

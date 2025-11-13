@@ -4,7 +4,6 @@ import "./globals.css";
 import Header from "@/component/header";
 import Footer from "@/component/footer";
 import Loader from "@/component/loader";
-import SocialMediaIcons from "@/component/SocialMediaIcons";
 import PopupModal from "@/component/PopupModal";
 import PromotionalBanner from "@/component/promotional-banner";
 
@@ -44,7 +43,6 @@ export default function RootLayout({
           </main>
 
           <Footer/>
-          <SocialMediaIcons />
           <PopupModal />
        
       </body>

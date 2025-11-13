@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { z } from 'zod';
+import { getApiBaseUrl, getImageUrl } from '@/lib/api';
 
 // Type definitions
 interface GalleryItem {
@@ -107,11 +108,11 @@ export default function GalleryForm({
       
       if (gallery.galleryItems && gallery.galleryItems.length > 0) {
         setGalleryItems(gallery.galleryItems.map((item: GalleryItem) => ({
-          title: item.title,
-          imageUrl: item.imageUrl,
+          title: item.title ?? '',
+          imageUrl: item.imageUrl ? getImageUrl(item.imageUrl) : '',
           imageFile: null,
-          description: item.description || null,
-          sortOrder: item.sortOrder,
+          description: item.description ?? '',
+          sortOrder: item.sortOrder ?? 0,
           isActive: item.isActive
         })));
       }
@@ -161,7 +162,7 @@ export default function GalleryForm({
 
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
 
-    const response = await fetch('http://localhost:5000/api/galleries/upload-image', {
+    const response = await fetch(`${getApiBaseUrl()}/galleries/upload-image`, {
       method: 'POST',
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -209,13 +210,19 @@ export default function GalleryForm({
           // If there's a file to upload, upload it first
           if (item.imageFile) {
             imageUrl = await uploadImage(item.imageFile);
+          } else if (imageUrl.startsWith('http')) {
+            try {
+              imageUrl = new URL(imageUrl).pathname || imageUrl;
+            } catch {
+              // ignore URL parsing errors and keep original
+            }
           }
           
           return {
             title: item.title.trim(),
             imageUrl: imageUrl,
             description: item.description?.trim() || null,
-            sortOrder: item.sortOrder || index + 1,
+            sortOrder: (item.sortOrder ?? index + 1) || index + 1,
             isActive: item.isActive
           };
         })
@@ -462,7 +469,7 @@ export default function GalleryForm({
                     </label>
                     <input
                       type="file"
-                      accept="image/*,video/*"
+                      accept="image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         handleFileUpload(index, file);
@@ -476,7 +483,7 @@ export default function GalleryForm({
                       <p className="mt-1 text-sm text-red-600">{getFieldError(`galleryItems.${index}.imageUrl`)}</p>
                     )}
                     <p className="mt-1 text-sm text-gray-500">
-                      Supported formats: Images (JPG, PNG, GIF, WebP) or Videos (MP4, WebM, OGG, MOV) - Max 50MB
+                      Supported formats: Images (JPG, PNG, GIF, WebP) - Max 5MB
                     </p>
                   </div>
 
@@ -504,23 +511,15 @@ export default function GalleryForm({
                   {(item.imageUrl || item.imageFile) && (
                     <div>
                       <label className="block text-sm font-medium text-black mb-2">Preview</label>
-                      <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                        {item.imageFile && item.imageFile.type.startsWith('video/') ? (
-                          <video
-                            src={item.imageUrl}
-                            className="w-full h-full object-cover"
-                            controls
-                          />
-                        ) : (
-                          <img
-                            src={item.imageUrl}
-                            alt={`Gallery item ${index + 1} preview`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        )}
+                      <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                        <img
+                          src={item.imageUrl}
+                          alt={`Gallery item ${index + 1} preview`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
                       </div>
                       {item.imageFile && (
                         <p className="mt-1 text-sm text-gray-600">

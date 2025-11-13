@@ -2,13 +2,16 @@
  * Get the API base URL from environment variables
  * Falls back to localhost:5000/api in development if not set
  */
+const normalizeApiBase = (base: string | undefined, fallback: string): string => {
+  const value = base || fallback;
+  return value.endsWith('/api') ? value : `${value.replace(/\/$/, '')}/api`;
+};
+
 export const getApiBaseUrl = (): string => {
   if (typeof window === 'undefined') {
-    // Server-side: use environment variable or default
-    return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+    return normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE_URL, 'http://localhost:5000/api');
   }
-  // Client-side: use environment variable or default
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+  return normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE_URL, 'http://localhost:5000/api');
 };
 
 /**
@@ -16,12 +19,17 @@ export const getApiBaseUrl = (): string => {
  * Falls back to localhost:5000 in development if not set
  */
 export const getApiUrl = (): string => {
-  if (typeof window === 'undefined') {
-    // Server-side: use environment variable or default
-    return process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    return apiUrl.replace(/\/$/, '');
   }
-  // Client-side: use environment variable or default
-  return process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (base) {
+    return normalizeApiBase(base, base).replace(/\/api$/, '');
+  }
+
+  return 'http://localhost:5000';
 };
 
 /**
@@ -34,11 +42,22 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
+
+  // Normalize absolute filesystem paths returned by the API
+  const uploadsIndex = imagePath.indexOf('/uploads/');
+  let normalizedPath = uploadsIndex !== -1 ? imagePath.slice(uploadsIndex) : imagePath;
+
+  // Ensure leading slash and replace backslashes
+  normalizedPath = normalizedPath.replace(/\\/g, '/');
+  if (!normalizedPath.startsWith('/')) {
+    normalizedPath = `/${normalizedPath}`;
+  }
   
   // Otherwise, prepend API URL
   const apiUrl = getApiUrl();
-  return `${apiUrl}${imagePath}`;
+  return `${apiUrl}${normalizedPath}`;
 };
+
 
 
 

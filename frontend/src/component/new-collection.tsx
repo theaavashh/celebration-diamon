@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { X } from "lucide-react";
+import { getApiBaseUrl, getImageUrl } from "@/lib/api";
 
 interface Product {
   id: string;
@@ -35,17 +36,15 @@ const NewCollection = () => {
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const imageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Fetch recent products from API
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const apiBaseUrl = getApiBaseUrl();
         const response = await fetch(`${apiBaseUrl}/products?limit=4&page=1`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
-            // Get top 4 most recent products, sorted by createdAt
             const recentProducts = data.data
               .filter((p: Product) => (p as any).isActive !== false)
               .sort((a: Product, b: Product) => 
@@ -54,16 +53,12 @@ const NewCollection = () => {
               .slice(0, 4)
               .map((product: Product) => ({
                 id: product.id,
-                icon: product.imageUrl?.startsWith('http') 
-                  ? product.imageUrl 
-                  : product.imageUrl 
-                    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${product.imageUrl}` 
-                    : `/${product.category.toLowerCase()}.jpeg`,
+                icon: product.imageUrl ? getImageUrl(product.imageUrl) : `/${product.category.toLowerCase()}.jpeg`,
                 label: product.name,
                 price: product.price ? `$${product.price.toFixed(2)}` : 'Price on request',
                 colors: null,
                 sizes: null,
-                isNew: true, // Mark recent products as new
+                isNew: true,
                 category: product.category
               }));
             setProducts(recentProducts);
@@ -162,6 +157,7 @@ const NewCollection = () => {
                 src={item.icon}
                 alt={item.label}
                 fill
+                sizes="(max-width: 768px) 80vw, (max-width: 1200px) 40vw, 25vw"
                 className="object-cover transition-all duration-300 ease-out group-hover:scale-105"
                 onError={() => {
                   console.log('Image failed to load:', item.icon);
@@ -178,6 +174,7 @@ const NewCollection = () => {
                     src={item.icon}
                     alt={item.label}
                     fill
+                    sizes="200px"
                     className="object-cover scale-150"
                     style={{
                       transform: `scale(2.5) translate(${-mousePosition.x * 0.3}px, ${-mousePosition.y * 0.3}px)`,
@@ -246,6 +243,7 @@ const NewCollection = () => {
                   src={selectedProduct.icon}
                   alt={selectedProduct.label}
                   fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-cover"
                 />
               </div>

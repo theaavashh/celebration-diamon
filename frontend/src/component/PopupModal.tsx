@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import Image from 'next/image';
+import { getApiBaseUrl, getImageUrl } from '@/lib/api';
 
 interface PopupImage {
   id: string;
@@ -32,7 +33,7 @@ const PopupModal = () => {
     // Fetch active popup image
     const fetchPopupImage = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/popup/active');
+        const response = await fetch(`${getApiBaseUrl()}/popup/active`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -54,13 +55,6 @@ const PopupModal = () => {
 
   const closePopup = () => {
     setIsVisible(false);
-  };
-
-  const getImageUrl = (filePath: string) => {
-    // Convert file path to URL for display
-    // Extract just the relative path from the full file path
-    const relativePath = filePath.split('uploads/')[1];
-    return `http://localhost:5000/uploads/${relativePath}`;
   };
 
   if (isLoading || !isVisible || !popupImage) {

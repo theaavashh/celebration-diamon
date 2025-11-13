@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { getApiBaseUrl, getImageUrl } from "@/lib/api";
 
 interface Category {
   id: string;
@@ -24,12 +25,11 @@ export default function Category() {
     const fetchCategories = async () => {
       try {
         setIsLoading(true);
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+        const apiBaseUrl = getApiBaseUrl();
         const response = await fetch(`${apiBaseUrl}/categories`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
-            // Filter only active categories and sort by sortOrder
             const activeCategories = data.data
               .filter((cat: Category) => cat.isActive)
               .sort((a: Category, b: Category) => a.sortOrder - b.sortOrder);
@@ -64,7 +64,7 @@ export default function Category() {
   }
 
   if (error || categories.length === 0) {
-    return null; // Don't render anything if there's an error or no categories
+    return null;
   }
 
   return (
@@ -87,14 +87,12 @@ export default function Category() {
                   <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100 hover:shadow-lg transition-shadow duration-300">
                     {category.imageUrl && !imageErrors.has(category.id) ? (
                       <Image
-                        src={category.imageUrl.startsWith('http') 
-                          ? category.imageUrl 
-                          : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${category.imageUrl}`}
+                        src={getImageUrl(category.imageUrl)}
                         alt={category.title}
                         fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 16vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-300"
                         onError={() => {
-                          // Mark this image as failed to load
                           setImageErrors(prev => new Set(prev).add(category.id));
                         }}
                       />

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
+import { getApiBaseUrl, getImageUrl } from "@/lib/api"
 
 interface DiamondCertification {
   id: string;
@@ -24,12 +25,10 @@ const DiamondCertification = () => {
 
   const fetchCertification = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/diamond-certifications`)
+      const response = await fetch(`${getApiBaseUrl()}/diamond-certifications`)
       const data = await response.json()
       
-      // API returns an array directly
       if (Array.isArray(data) && data.length > 0) {
-        // Get the first active certification, sorted by sortOrder
         const activeCertification = data
           .filter((c: DiamondCertification) => c.isActive)
           .sort((a: DiamondCertification, b: DiamondCertification) => a.sortOrder - b.sortOrder)[0]
@@ -45,11 +44,7 @@ const DiamondCertification = () => {
     }
   }
 
-  if (loading) {
-    return null
-  }
-
-  if (!certification) {
+  if (loading || !certification) {
     return null
   }
 
@@ -57,33 +52,21 @@ const DiamondCertification = () => {
     <section className="w-full py-16 sm:py-16 md:py-16 px-4 sm:px-6 md:px-16 bg-white">
       <div className="mx-auto w-full max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          
-          {/* Left Section - Large Lifestyle Image */}
           <div className="relative order-2 lg:order-1">
             <div className="relative h-[600px] sm:h-[700px] md:h-[700px] rounded-2xl overflow-hidden shadow-lg">
-              {certification.imageUrl ? (
-                <img
-                  src={certification.imageUrl}
-                  alt={certification.title}
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <Image
-                  src="/real-diamond.jpeg"
-                  alt="Premium Diamond Ring Lifestyle"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              )}
-              {/* Subtle overlay for better text contrast */}
+              <Image
+                src={certification.imageUrl ? getImageUrl(certification.imageUrl) : "/real-diamond.jpeg"}
+                alt={certification.title}
+                fill
+                className="object-cover"
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent"></div>
             </div>
           </div>
 
-          {/* Right Section - Product Information */}
           <div className="space-y-8 order-1 lg:order-2">
-            {/* Content Section */}
             <div className="space-y-6">
               <h2 className="text-3xl sm:text-4xl md:text-5xl jimthompson font-bold text-gray-900 leading-tight">
                 {certification.title}
@@ -93,7 +76,6 @@ const DiamondCertification = () => {
                 {certification.description}
               </p>
 
-              {/* Call to Action */}
               <div className="pt-4">
                 <a 
                   href={certification.ctaLink || "/diamond-certification"} 

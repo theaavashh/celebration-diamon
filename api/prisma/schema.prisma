@@ -580,3 +580,16 @@ model Store {
 
   @@map("stores")
 }
+
+
+model FAQSectionSettings {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("faq_section_settings")
+}
+

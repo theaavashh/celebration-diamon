@@ -188,10 +188,17 @@ export default function GalleriesPage() {
             <p className="text-gray-600">Manage gallery collections and items</p>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              if (galleries.length > 0) {
+                setEditingGallery(galleries[0]);
+              } else {
+                setEditingGallery(null);
+              }
+              setShowForm(true);
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Add New Gallery
+            {galleries.length > 0 ? 'Manage Gallery' : 'Add New Gallery'}
           </button>
         </div>
 
@@ -203,13 +210,13 @@ export default function GalleriesPage() {
               placeholder="Search galleries..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-black placeholder:text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>

@@ -5,7 +5,7 @@ import NewCollection from '@/component/new-collection'
 import CustomRing from '@/component/custom-ring'
 import FAQ from '@/component/faq'
 import DiamondCertification from '@/component/diamond-certification'
-import WhatsAppButton from '@/component/WhatsAppButton'
+import PopupModal from '@/component/PopupModal'
 import React from 'react'
 import Image from 'next/image'
 
@@ -22,6 +22,7 @@ import VisitStore from '@/component/visit-store'
 const HomePage = () => {
   return (
    <>
+   <PopupModal />
    <HeroSection/>
     <Category/>
      <NewCollection/>
@@ -29,13 +30,6 @@ const HomePage = () => {
      <WeddingPlanning/>
      <SelfExpression/>
      <VisitStore/>
-
-    
-
-   
-
-    
- 
    {/* Banner Section */}
    <section className="w-full py-8 sm:py-12 md:py-16 px-4 sm:px-6 md:px-16 ">
      <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] relative overflow-hidden rounded-lg">
@@ -134,7 +128,6 @@ const HomePage = () => {
      <FAQ />
      <TestimonialsSection/>
      <SerenityGallery/> 
-     <WhatsAppButton />
    </>
   )
 }

@@ -68,12 +68,13 @@ export default function FAQsPage() {
       setError(null);
       
       const response = await apiService.get('/faqs/admin');
-      
-      if (response.success && response.data) {
-        setFaqs(response.data);
-      } else {
-        throw new Error(response.error || 'Failed to fetch FAQs');
-      }
+      const faqData = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+      setFaqs(faqData);
     } catch (error: any) {
       console.error('Error fetching FAQs:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch FAQs';
@@ -88,13 +89,19 @@ export default function FAQsPage() {
   const fetchFAQSettings = useCallback(async () => {
     try {
       const response = await apiService.get('/faq-settings/admin');
-      
-      if (response.success && response.data) {
+      if (response?.success && response.data) {
         setFaqSettings(response.data);
         setSettingsFormData({
           title: response.data.title || '',
           subtitle: response.data.subtitle || '',
           isActive: response.data.isActive
+        });
+      } else if (response) {
+        setFaqSettings(null);
+        setSettingsFormData({
+          title: '',
+          subtitle: '',
+          isActive: true
         });
       }
     } catch (error) {
@@ -121,13 +128,12 @@ export default function FAQsPage() {
       setIsSubmitting(true);
       setError(null);
 
-      const response = await apiService.put('/faq-settings/admin', settingsFormData);
-      
-      if (response.success) {
-        setFaqSettings(response.data);
+      const response = await apiService.put('/faq-settings', settingsFormData);
+      if (response?.success) {
+        setFaqSettings(response.data || settingsFormData);
         toast.success('FAQ settings updated successfully!');
       } else {
-        throw new Error(response.error || 'Failed to update FAQ settings');
+        throw new Error(response?.error || 'Failed to update FAQ settings');
       }
     } catch (error: any) {
       console.error('Error saving FAQ settings:', error);

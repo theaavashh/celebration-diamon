@@ -3,7 +3,8 @@
  * Falls back to localhost:5000/api in development if not set
  */
 export const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+  return base.endsWith('/api') ? base : `${base.replace(/\/$/, '')}/api`;
 };
 
 /**
@@ -11,7 +12,15 @@ export const getApiBaseUrl = (): string => {
  * Falls back to localhost:5000 in development if not set
  */
 export const getApiUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
+  }
+
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/api\/?$/, '');
+  }
+
+  return 'http://localhost:5000';
 };
 
 /**
@@ -24,11 +33,21 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
+
+  // Normalize absolute filesystem paths returned by the API
+  const uploadsIndex = imagePath.indexOf('/uploads/');
+  let normalizedPath = uploadsIndex !== -1 ? imagePath.slice(uploadsIndex) : imagePath;
+
+  normalizedPath = normalizedPath.replace(/\\/g, '/');
+  if (!normalizedPath.startsWith('/')) {
+    normalizedPath = `/${normalizedPath}`;
+  }
   
   // Otherwise, prepend API URL
   const apiUrl = getApiUrl();
-  return `${apiUrl}${imagePath}`;
+  return `${apiUrl}${normalizedPath}`;
 };
+
 
 
 

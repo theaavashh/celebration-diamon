@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { getApiBaseUrl, getImageUrl } from "@/lib/api"
 
 interface DiamondCertification {
   id: string;
@@ -26,12 +27,10 @@ export default function DiamondCertificationPage() {
 
   const fetchCertification = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/diamond-certifications`)
+      const response = await fetch(`${getApiBaseUrl()}/diamond-certifications`)
       const data = await response.json()
       
-      // API returns an array directly
       if (Array.isArray(data) && data.length > 0) {
-        // Get the first active certification, sorted by sortOrder
         const activeCertification = data
           .filter((c: DiamondCertification) => c.isActive)
           .sort((a: DiamondCertification, b: DiamondCertification) => a.sortOrder - b.sortOrder)[0]
@@ -65,13 +64,15 @@ export default function DiamondCertificationPage() {
 
   return (
     <div className="w-full min-h-screen bg-white">
-      {/* Header with Image */}
       {certification.imageUrl && (
         <div className="relative h-[400px] w-full">
-          <img
-            src={certification.imageUrl}
+          <Image
+            src={getImageUrl(certification.imageUrl)}
             alt={certification.title}
-            className="object-cover w-full h-full"
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end">
             <div className="w-full max-w-7xl mx-auto px-4 pb-8">
@@ -83,30 +84,25 @@ export default function DiamondCertificationPage() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Title (if no image) */}
         {!certification.imageUrl && (
           <h1 className="text-4xl md:text-5xl jimthompson font-bold text-gray-900 mb-8">
             {certification.title}
           </h1>
         )}
 
-        {/* Description */}
         <div className="mb-8">
           <p className="text-lg text-gray-700 leading-relaxed">
             {certification.description}
           </p>
         </div>
 
-        {/* Rich Text Content */}
         <div 
           className="prose prose-lg max-w-none"
           dangerouslySetInnerHTML={{ __html: certification.fullContent || '' }}
         />
       </div>
 
-      {/* CTA Button */}
       {certification.ctaLink && (
         <div className="max-w-4xl mx-auto px-4 py-8">
           <Link 
@@ -120,8 +116,3 @@ export default function DiamondCertificationPage() {
     </div>
   )
 }
-
-
-
-
-
