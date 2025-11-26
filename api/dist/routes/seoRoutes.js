@@ -4,7 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const seoController_1 = require("../controllers/seoController");
 const router = express_1.default.Router();
+router.get('/report', seoController_1.getSeoReport);
 router.get('/', async (_req, res) => {
     try {
         res.json({

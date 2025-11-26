@@ -16,6 +16,7 @@ const quoteWebSocket_1 = require("./websocket/quoteWebSocket");
 const bannerRoutes_1 = __importDefault(require("./routes/bannerRoutes"));
 const heroRoutes_1 = __importDefault(require("./routes/heroRoutes"));
 const categoryRoutes_1 = __importDefault(require("./routes/categoryRoutes"));
+const subcategoryRoutes_1 = __importDefault(require("./routes/subcategoryRoutes"));
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const productRoutes_1 = __importDefault(require("./routes/productRoutes"));
@@ -98,6 +99,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/banners', bannerRoutes_1.default);
 app.use('/api/hero', heroRoutes_1.default);
 app.use('/api/categories', categoryRoutes_1.default);
+app.use('/api/subcategories', subcategoryRoutes_1.default);
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/admins', adminRoutes_1.default);
 app.use('/api/products', productRoutes_1.default);

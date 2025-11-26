@@ -7,7 +7,6 @@ import RichTextEditor from './RichTextEditor';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import FullDescriptionModal from './FullDescriptionModal';
 import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
@@ -16,6 +15,7 @@ interface Product {
   productCode: string;
   name: string;
   description: string;
+  fullDescription?: string;
   category: string;
   subCategory?: string;
   price: number;
@@ -46,6 +46,8 @@ interface Product {
   seoSlug?: string;
   images?: ProductImage[]; // Add this for multiple images
   videoUrl?: string; // Add videoUrl property
+  stoneWeight?: string; // Add stone weight field
+  caret?: string; // Add caret field
   createdAt: string;
   updatedAt: string;
 }
@@ -104,6 +106,8 @@ interface ProductPreviewData {
   imageUrl?: string;
   images?: ProductImage[];
   videoUrl?: string;
+  stoneWeight?: string; // Add stone weight field
+  caret?: string; // Add caret field
   createdAt?: string;
   updatedAt?: string;
 }
@@ -134,12 +138,12 @@ interface Subcategory {
 
 // Validation schema
 const productSchema = z.object({
-  productCode: z.string().min(1, 'Product code is required'),
-  name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(1, 'Description is required'),
+  productCode: z.string().optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
   fullDescription: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
-  subCategory: z.string().min(1, 'Sub-category is required'),
+  category: z.string().optional(),
+  subCategory: z.string().optional(),
   price: z.string().optional(),
   isActive: z.boolean(),
   status: z.enum(["draft", "active", "inactive"]).default("draft"),
@@ -166,6 +170,8 @@ const productSchema = z.object({
   seoKeywords: z.string().optional(),
   seoSlug: z.string().optional(),
   videoUrl: z.string().optional(), // Add video URL validation
+  stoneWeight: z.string().optional(), // Add stone weight validation
+  caret: z.string().optional(), // Add caret validation
   // Images will be validated separately in the form submission handler
 });
 
@@ -292,7 +298,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   // const [productForm, setProductForm] = useState({/* ... */});
   const [selectedImages, setSelectedImages] = useState<File[]>([]); // Changed to array
   const [previewImages, setPreviewImages] = useState<string[]>([]); // Changed to array
-  const [isFullDescriptionModalOpen, setIsFullDescriptionModalOpen] = useState(false);
   // State for video handling
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string>('');
@@ -398,7 +403,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     }
   };
 
-  // Reset form when modal opens
+  // Reset form
   const resetForm = () => {
     reset({
       productCode: '',
@@ -458,12 +463,13 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       console.log('Matching subcategory:', subCategoryMatch);
       console.log('All categories:', categories);
       console.log('All subcategories:', subcategories);
+      console.log('Editing product fullDescription:', editingProduct.fullDescription);
       
       reset({
         productCode: editingProduct.productCode || '',
         name: editingProduct.name || '',
         description: editingProduct.description || '',
-        fullDescription: (editingProduct as any).fullDescription || '',
+        fullDescription: editingProduct.fullDescription || '',
         category: editingProduct.category || '',
         subCategory: editingProduct.subCategory || '',
         price: editingProduct.price?.toString() || '',
@@ -471,6 +477,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         status: (editingProduct.status as 'draft' | 'active' | 'inactive' | undefined) || 'draft',
         goldWeight: editingProduct.goldWeight || '',
         diamondDetails: editingProduct.diamondDetails || '',
+        stoneWeight: editingProduct.stoneWeight || '', // Add stone weight field
+        caret: editingProduct.caret || '', // Add caret field
         diamondQuantity: editingProduct.diamondQuantity?.toString() || '',
         diamondSize: editingProduct.diamondSize || '',
         diamondWeight: editingProduct.diamondWeight || '',
@@ -571,21 +579,21 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       // Try to get token from localStorage as fallback (for API calls that need Bearer token)
       const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
-      // Validate that images are selected for new products
-      if (!editingProduct && selectedImages.length === 0) {
-        toast.error('At least one product image is required');
-        return;
-      }
+      // Images are now optional for new products
+      // if (!editingProduct && selectedImages.length === 0) {
+      //   toast.error('At least one product image is required');
+      //   return;
+      // }
       
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append('productCode', data.productCode);
-      formData.append('name', data.name);
-      formData.append('description', data.description);
+      formData.append('productCode', data.productCode || '');
+      formData.append('name', data.name || '');
+      formData.append('description', data.description || '');
       if (data.fullDescription) {
         formData.append('fullDescription', data.fullDescription);
       }
-      formData.append('category', data.category);
+      formData.append('category', data.category || '');
       formData.append('subCategory', data.subCategory || '');
       // Only append price if it has a value (make it optional)
       if (data.price && data.price.trim() !== '') {
@@ -596,6 +604,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       formData.append('goldWeight', data.goldWeight || '');
 
       formData.append('diamondDetails', data.diamondDetails || '');
+      formData.append('stoneWeight', data.stoneWeight || ''); // Add stone weight field
+      formData.append('caret', data.caret || ''); // Add caret field
       formData.append('diamondQuantity', data.diamondQuantity || '');
       formData.append('diamondSize', data.diamondSize || '');
       formData.append('diamondWeight', data.diamondWeight || '');
@@ -692,7 +702,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
@@ -714,7 +724,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Code *
+                  Product Code
                 </label>
                 <Controller
                   name="productCode"
@@ -724,7 +734,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       {...field}
                       type="text"
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.productCode ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="CD-001"
+                      placeholder="Enter Product Code"
                     />
                   )}
                 />
@@ -733,7 +743,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Name *
+                  Product Name
                 </label>
                 <Controller
                   name="name"
@@ -754,7 +764,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
+                Description
               </label>
               <Controller
                 name="description"
@@ -771,7 +781,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
             </div>
 
-            {/* Full Description with Modal Editor */}
+            {/* Full Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Full Description
@@ -779,35 +789,24 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               <Controller
                 name="fullDescription"
                 control={control}
-                render={({ field }) => (
-                  <>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={field.value ? 'Content entered' : 'No content'}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black bg-gray-50"
-                        placeholder="Click 'Edit' to add full description"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setIsFullDescriptionModalOpen(true)}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors whitespace-nowrap"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                    {errors.fullDescription && <p className="text-red-500 text-sm mt-1">{errors.fullDescription.message}</p>}
-                  </>
-                )}
+                render={({ field }) => {
+                  console.log('Full description field value:', field.value);
+                  return (
+                    <RichTextEditor
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                    />
+                  );
+                }}
               />
+              {errors.fullDescription && <p className="text-red-500 text-sm mt-1">{errors.fullDescription.message}</p>}
             </div>
 
             {/* Category and Pricing */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
+                  Category
                 </label>
                 <Controller
                   name="category"
@@ -831,7 +830,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sub Category *
+                  Sub Category
                 </label>
                 <Controller
                   name="subCategory"
@@ -905,7 +904,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             {/* Product Images */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Images *
+                Product Images
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
                 {previewImages.map((preview, index) => (
@@ -915,7 +914,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       alt={`Preview ${index + 1}`} 
                       className="w-full h-auto object-contain rounded-lg border border-gray-300 max-h-64"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                       <button
                         type="button"
                         onClick={() => handleCropImage(index)}
@@ -1063,6 +1062,46 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                           placeholder="-"
                         />
                         {errors.diamondDetails && <p className="text-red-500 text-sm mt-1">{errors.diamondDetails.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Stone Weight
+                  </label>
+                  <Controller
+                    name="stoneWeight"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.stoneWeight ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Stone weight"
+                        />
+                        {errors.stoneWeight && <p className="text-red-500 text-sm mt-1">{errors.stoneWeight.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Caret
+                  </label>
+                  <Controller
+                    name="caret"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.caret ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Caret measurement"
+                        />
+                        {errors.caret && <p className="text-red-500 text-sm mt-1">{errors.caret.message}</p>}
                       </>
                     )}
                   />
@@ -1413,11 +1452,11 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   const formData = getValues();
                   const previewProduct: ProductPreviewData = {
                     id: editingProduct?.id,
-                    productCode: formData.productCode,
-                    name: formData.name,
-                    description: formData.description,
+                    productCode: formData.productCode || '',
+                    name: formData.name || '',
+                    description: formData.description || '',
                     fullDescription: formData.fullDescription,
-                    category: formData.category,
+                    category: formData.category || '',
                     subCategory: formData.subCategory,
                     price: formData.price ? parseFloat(formData.price) : 0,
                     isActive: formData.isActive,
@@ -1444,9 +1483,22 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     seoDescription: formData.seoDescription,
                     seoKeywords: formData.seoKeywords,
                     seoSlug: formData.seoSlug,
-                    imageUrl: editingProduct?.imageUrl,
-                    images: editingProduct?.images,
-                    videoUrl: editingProduct?.videoUrl,
+                    stoneWeight: formData.stoneWeight, // Add stone weight field
+                    caret: formData.caret, // Add caret field
+                    // For images, prioritize previewImages if available, otherwise use editingProduct images
+                    imageUrl: previewImages.length > 0 ? previewImages[0] : editingProduct?.imageUrl,
+                    images: previewImages.length > 0 
+                      ? previewImages.map((url, index) => ({
+                          id: `preview-${index}`,
+                          url,
+                          altText: '',
+                          order: index,
+                          isActive: true,
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString()
+                        })) 
+                      : editingProduct?.images,
+                    videoUrl: formData.videoUrl || editingProduct?.videoUrl,
                     createdAt: editingProduct?.createdAt,
                     updatedAt: editingProduct?.updatedAt
                   };
@@ -1470,20 +1522,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         </div>
       </div>
 
-      {/* Full Description Modal */}
-      <FullDescriptionModal
-        isOpen={isFullDescriptionModalOpen}
-        onClose={() => setIsFullDescriptionModalOpen(false)}
-        initialValue={watch('fullDescription') || ''}
-        onSave={(value) => {
-          setValue('fullDescription', value);
-          setIsFullDescriptionModalOpen(false);
-        }}
-      />
-
       {/* Preview Modal */}
       {isPreviewOpen && previewData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1499,16 +1540,16 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <div className="text-black">
                   <h3 className="text-xl font-semibold mb-4">{previewData.name}</h3>
-                  <p className="text-gray-600 mb-4">{previewData.description}</p>
+                  <p className="mb-4">{previewData.description}</p>
                   
                   {previewData.fullDescription && (
                     <div className="mb-4">
                       <h4 className="font-medium mb-2">Full Description:</h4>
                       <div 
                         className="prose max-w-none"
-                        dangerouslySetInnerHTML={{ __html: previewData.fullDescription }}
+                        dangerouslySetInnerHTML={{ __html: previewData.fullDescription || '' }} 
                       />
                     </div>
                   )}
@@ -1530,31 +1571,182 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       <span className="font-medium">Price:</span>
                       <span className="ml-2">Rs. {previewData.price.toFixed(2)}</span>
                     </div>
+                    <div>
+                      <span className="font-medium">Status:</span>
+                      <span className="ml-2 capitalize">{previewData.status}</span>
+                    </div>
                   </div>
                   
-                  {previewData.goldWeight && (
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    {previewData.goldWeight && (
+                      <div>
+                        <span className="font-medium">Gold Weight:</span>
+                        <span className="ml-2">{previewData.goldWeight}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.diamondDetails && (
+                      <div>
+                        <span className="font-medium">Diamond Details:</span>
+                        <span className="ml-2">{previewData.diamondDetails}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.diamondQuantity !== undefined && (
+                      <div>
+                        <span className="font-medium">Diamond Quantity:</span>
+                        <span className="ml-2">{previewData.diamondQuantity}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.diamondSize && (
+                      <div>
+                        <span className="font-medium">Diamond Size:</span>
+                        <span className="ml-2">{previewData.diamondSize}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.diamondWeight && (
+                      <div>
+                        <span className="font-medium">Diamond Weight:</span>
+                        <span className="ml-2">{previewData.diamondWeight}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.diamondQuality && (
+                      <div>
+                        <span className="font-medium">Diamond Quality:</span>
+                        <span className="ml-2">{previewData.diamondQuality}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.stoneWeight && (
+                      <div>
+                        <span className="font-medium">Stone Weight:</span>
+                        <span className="ml-2">{previewData.stoneWeight}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.caret && (
+                      <div>
+                        <span className="font-medium">Caret:</span>
+                        <span className="ml-2">{previewData.caret}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.otherGemstones && (
+                      <div>
+                        <span className="font-medium">Other Gemstones:</span>
+                        <span className="ml-2">{previewData.otherGemstones}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.metalType && (
+                      <div>
+                        <span className="font-medium">Metal Type:</span>
+                        <span className="ml-2">{previewData.metalType}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.stoneType && (
+                      <div>
+                        <span className="font-medium">Stone Type:</span>
+                        <span className="ml-2">{previewData.stoneType}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.settingType && (
+                      <div>
+                        <span className="font-medium">Setting Type:</span>
+                        <span className="ml-2">{previewData.settingType}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.size && (
+                      <div>
+                        <span className="font-medium">Size:</span>
+                        <span className="ml-2">{previewData.size}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.color && (
+                      <div>
+                        <span className="font-medium">Color:</span>
+                        <span className="ml-2">{previewData.color}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.finish && (
+                      <div>
+                        <span className="font-medium">Finish:</span>
+                        <span className="ml-2">{previewData.finish}</span>
+                      </div>
+                    )}
+                    
+                    {previewData.orderDuration && (
+                      <div>
+                        <span className="font-medium">Order Duration:</span>
+                        <span className="ml-2">{previewData.orderDuration}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <span className="font-medium">Digital Browser:</span>
+                      <span className="ml-2">{previewData.digitalBrowser ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Website:</span>
+                      <span className="ml-2">{previewData.website ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Distributor:</span>
+                      <span className="ml-2">{previewData.distributor ? 'Yes' : 'No'}</span>
+                    </div>
+                  </div>
+                  
+                  {previewData.culture && (
                     <div className="mb-2">
-                      <span className="font-medium">Gold Weight:</span>
-                      <span className="ml-2">{previewData.goldWeight}</span>
+                      <span className="font-medium">Cultural Background:</span>
+                      <span className="ml-2">{previewData.culture}</span>
                     </div>
                   )}
                   
-                  {previewData.diamondDetails && (
-                    <div className="mb-2">
-                      <span className="font-medium">Diamond Details:</span>
-                      <span className="ml-2">{previewData.diamondDetails}</span>
-                    </div>
-                  )}
-                  
-                  {previewData.metalType && (
-                    <div className="mb-2">
-                      <span className="font-medium">Metal Type:</span>
-                      <span className="ml-2">{previewData.metalType}</span>
+                  {(previewData.seoTitle || previewData.seoDescription || previewData.seoKeywords || previewData.seoSlug) && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="font-medium mb-2">SEO Information:</h4>
+                      <div className="grid grid-cols-1 gap-2">
+                        {previewData.seoTitle && (
+                          <div>
+                            <span className="font-medium">Title:</span>
+                            <span className="ml-2">{previewData.seoTitle}</span>
+                          </div>
+                        )}
+                        {previewData.seoSlug && (
+                          <div>
+                            <span className="font-medium">Slug:</span>
+                            <span className="ml-2">{previewData.seoSlug}</span>
+                          </div>
+                        )}
+                        {previewData.seoDescription && (
+                          <div>
+                            <span className="font-medium">Description:</span>
+                            <span className="ml-2">{previewData.seoDescription}</span>
+                          </div>
+                        )}
+                        {previewData.seoKeywords && (
+                          <div>
+                            <span className="font-medium">Keywords:</span>
+                            <span className="ml-2">{previewData.seoKeywords}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
                 
-                <div>
+                <div className="text-black">
                   {previewData.images && previewData.images.length > 0 ? (
                     <div className="grid grid-cols-2 gap-2">
                       {previewData.images.map((image, index) => (
@@ -1606,7 +1798,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
       {/* Image Cropping Modal */}
       {croppingImageIndex !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">

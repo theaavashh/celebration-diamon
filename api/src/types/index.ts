@@ -245,6 +245,8 @@ export interface Product {
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
+  stoneWeight?: string;
+  caret?: string;
   otherGemstones?: string;
   orderDuration?: string;
   metalType?: string;

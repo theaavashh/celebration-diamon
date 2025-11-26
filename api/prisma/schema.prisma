@@ -91,6 +91,8 @@ model Product {
   diamondQuality  String? // quality of diamonds
   otherGemstones  String? // other gemstones
   orderDuration   String? // 7 days to make
+  stoneWeight     String? // weight of stones
+  caret           String? // caret measurement
 
   // Additional fields
   metalType   String? // 14k, 18k, etc.
@@ -424,7 +426,7 @@ model Review {
   product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   customerName String
   rating       Int // 1-5 stars
-  comment      String
+  comment      String?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

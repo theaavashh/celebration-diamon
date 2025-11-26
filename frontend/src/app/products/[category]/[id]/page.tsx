@@ -79,7 +79,7 @@ interface Review {
   productId: string;
   customerName: string;
   rating: number;
-  comment: string;
+  comment?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -817,7 +817,7 @@ export default function ProductDetailPage() {
                           {new Date(review.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-gray-700">{review.comment}</p>
+                      <p className="text-gray-700">{review.comment || 'No comment provided'}</p>
                     </div>
                   ))}
                 </div>
@@ -950,7 +950,6 @@ export default function ProductDetailPage() {
                     onChange={(e) => setReviewForm({...reviewForm, comment: e.target.value})}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                    required
                   />
                 </div>
                 

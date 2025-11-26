@@ -5,7 +5,7 @@ export interface Review {
     productId: string;
     customerName: string;
     rating: number;
-    comment: string;
+    comment?: string;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;

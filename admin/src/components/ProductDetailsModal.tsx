@@ -73,6 +73,23 @@ interface Product {
   taxable?: boolean;
   videos?: string[];
   seoKeywords?: string[];
+  // Add diamond and caret fields
+  diamondDetails?: string;
+  diamondQuantity?: number;
+  diamondSize?: string;
+  diamondWeight?: string;
+  diamondQuality?: string;
+  stoneWeight?: string;
+  caret?: string;
+  otherGemstones?: string;
+  metalType?: string;
+  stoneType?: string;
+  settingType?: string;
+  size?: string;
+  color?: string;
+  finish?: string;
+  orderDuration?: string;
+  culture?: string;
 }
 
 interface ProductDetailsModalProps {
@@ -392,6 +409,142 @@ export default function ProductDetailsModal({
                         </div>
                       </div>
                     </div>
+
+                    {/* Diamond Details */}
+                    {(product.diamondDetails || product.diamondQuantity !== undefined || product.diamondSize || product.diamondWeight || product.diamondQuality) && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <Award className="w-5 h-5 mr-2" />
+                          Diamond Details
+                        </h3>
+                        
+                        <div className="space-y-3">
+                          {product.diamondDetails && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Details</span>
+                              <span className="text-sm text-gray-900">{product.diamondDetails}</span>
+                            </div>
+                          )}
+                          
+                          {product.diamondQuantity !== undefined && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Quantity</span>
+                              <span className="text-sm text-gray-900">{product.diamondQuantity}</span>
+                            </div>
+                          )}
+                          
+                          {product.diamondSize && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Size</span>
+                              <span className="text-sm text-gray-900">{product.diamondSize}</span>
+                            </div>
+                          )}
+                          
+                          {product.diamondWeight && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Weight</span>
+                              <span className="text-sm text-gray-900">{product.diamondWeight}</span>
+                            </div>
+                          )}
+                          
+                          {product.diamondQuality && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Quality</span>
+                              <span className="text-sm text-gray-900">{product.diamondQuality}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Other Details */}
+                    {(product.caret || product.stoneWeight || product.otherGemstones || product.metalType || product.stoneType || product.settingType || product.size || product.color || product.finish || product.orderDuration || product.culture) && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <Package className="w-5 h-5 mr-2" />
+                          Other Details
+                        </h3>
+                        
+                        <div className="space-y-3">
+                          {product.caret && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Caret</span>
+                              <span className="text-sm text-gray-900">{product.caret}</span>
+                            </div>
+                          )}
+                          
+                          {product.stoneWeight && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Stone Weight</span>
+                              <span className="text-sm text-gray-900">{product.stoneWeight}</span>
+                            </div>
+                          )}
+                          
+                          {product.otherGemstones && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Other Gemstones</span>
+                              <span className="text-sm text-gray-900">{product.otherGemstones}</span>
+                            </div>
+                          )}
+                          
+                          {product.metalType && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Metal Type</span>
+                              <span className="text-sm text-gray-900">{product.metalType}</span>
+                            </div>
+                          )}
+                          
+                          {product.stoneType && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Stone Type</span>
+                              <span className="text-sm text-gray-900">{product.stoneType}</span>
+                            </div>
+                          )}
+                          
+                          {product.settingType && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Setting Type</span>
+                              <span className="text-sm text-gray-900">{product.settingType}</span>
+                            </div>
+                          )}
+                          
+                          {product.size && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Size</span>
+                              <span className="text-sm text-gray-900">{product.size}</span>
+                            </div>
+                          )}
+                          
+                          {product.color && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Color</span>
+                              <span className="text-sm text-gray-900">{product.color}</span>
+                            </div>
+                          )}
+                          
+                          {product.finish && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Finish</span>
+                              <span className="text-sm text-gray-900">{product.finish}</span>
+                            </div>
+                          )}
+                          
+                          {product.orderDuration && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Order Duration</span>
+                              <span className="text-sm text-gray-900">{product.orderDuration}</span>
+                            </div>
+                          )}
+                          
+                          {product.culture && (
+                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                              <span className="text-sm font-medium text-gray-600">Culture</span>
+                              <span className="text-sm text-gray-900">{product.culture}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* SEO Information */}
                     {product.seo && (

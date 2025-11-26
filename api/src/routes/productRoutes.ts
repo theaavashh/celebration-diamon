@@ -19,31 +19,27 @@ const router = express.Router();
 const productValidation = [
   body('productCode')
     .trim()
-    .notEmpty()
-    .withMessage('Product code is required')
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Product code must be between 1 and 50 characters'),
+    .isLength({ max: 50 })
+    .withMessage('Product code must be less than 50 characters')
+    .optional(),
   
   body('name')
     .trim()
-    .notEmpty()
-    .withMessage('Product name is required')
-    .isLength({ min: 1, max: 200 })
-    .withMessage('Product name must be between 1 and 200 characters'),
+    .isLength({ max: 200 })
+    .withMessage('Product name must be less than 200 characters')
+    .optional(),
   
   body('description')
     .trim()
-    .notEmpty()
-    .withMessage('Description is required')
-    .isLength({ min: 1, max: 1000 })
-    .withMessage('Description must be between 1 and 1000 characters'),
+    .isLength({ max: 1000 })
+    .withMessage('Description must be less than 1000 characters')
+    .optional(),
   
   body('category')
     .trim()
-    .notEmpty()
-    .withMessage('Category is required')
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Category must be between 1 and 100 characters'),
+    .isLength({ max: 100 })
+    .withMessage('Category must be less than 100 characters')
+    .optional(),
   
   body('price')
     .optional()

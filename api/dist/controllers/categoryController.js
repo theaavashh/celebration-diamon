@@ -11,6 +11,7 @@ const getAllCategories = async (req, res) => {
             where: { isActive: true },
             orderBy: { sortOrder: 'asc' }
         });
+        console.log('Public categories response:', categories);
         res.json({
             success: true,
             data: categories,
@@ -32,6 +33,7 @@ const getAdminCategories = async (req, res) => {
         const categories = await database_1.default.category.findMany({
             orderBy: { sortOrder: 'asc' }
         });
+        console.log('Admin categories response:', categories);
         res.json({
             success: true,
             data: categories,

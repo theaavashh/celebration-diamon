@@ -37,6 +37,8 @@ interface Product {
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
+  stoneWeight?: string;
+  caret?: string;
   otherGemstones?: string;
   orderDuration?: string;
   metalType?: string;
@@ -635,7 +637,9 @@ export default function ProductsPage() {
                   previewProduct.diamondQuantity !== undefined || 
                   previewProduct.diamondSize || 
                   previewProduct.diamondWeight || 
-                  previewProduct.diamondQuality) && (
+                  previewProduct.diamondQuality ||
+                  previewProduct.stoneWeight ||
+                  previewProduct.caret) && (
                   <div className="border border-gray-200 rounded-lg">
                     <div className="px-6 py-4 space-y-3">
                       <h3 className="text-xl font-semibold text-black mb-4">Diamond Details</h3>
@@ -667,6 +671,18 @@ export default function ProductsPage() {
                         <div className="flex justify-between py-2 border-b border-gray-100">
                           <span className="text-black">Diamond Quality:</span>
                           <span className="font-medium text-black">{previewProduct!.diamondQuality}</span>
+                        </div>
+                      )}
+                      {previewProduct.stoneWeight && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Stone Weight:</span>
+                          <span className="font-medium text-black">{previewProduct!.stoneWeight}</span>
+                        </div>
+                      )}
+                      {previewProduct.caret && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Caret:</span>
+                          <span className="font-medium text-black">{previewProduct!.caret}</span>
                         </div>
                       )}
                     </div>
@@ -1309,7 +1325,7 @@ export default function ProductsPage() {
                                         {new Date(review.createdAt).toLocaleDateString()}
                                       </span>
                                     </div>
-                                    <p className="text-sm text-gray-700">{review.comment}</p>
+                                    <p className="text-sm text-gray-700">{review.comment || 'No comment provided'}</p>
                                   </div>
                                 ))}
                               </div>

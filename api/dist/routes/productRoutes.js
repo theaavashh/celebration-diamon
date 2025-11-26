@@ -12,28 +12,24 @@ const router = express_1.default.Router();
 const productValidation = [
     (0, express_validator_1.body)('productCode')
         .trim()
-        .notEmpty()
-        .withMessage('Product code is required')
-        .isLength({ min: 1, max: 50 })
-        .withMessage('Product code must be between 1 and 50 characters'),
+        .isLength({ max: 50 })
+        .withMessage('Product code must be less than 50 characters')
+        .optional(),
     (0, express_validator_1.body)('name')
         .trim()
-        .notEmpty()
-        .withMessage('Product name is required')
-        .isLength({ min: 1, max: 200 })
-        .withMessage('Product name must be between 1 and 200 characters'),
+        .isLength({ max: 200 })
+        .withMessage('Product name must be less than 200 characters')
+        .optional(),
     (0, express_validator_1.body)('description')
         .trim()
-        .notEmpty()
-        .withMessage('Description is required')
-        .isLength({ min: 1, max: 1000 })
-        .withMessage('Description must be between 1 and 1000 characters'),
+        .isLength({ max: 1000 })
+        .withMessage('Description must be less than 1000 characters')
+        .optional(),
     (0, express_validator_1.body)('category')
         .trim()
-        .notEmpty()
-        .withMessage('Category is required')
-        .isLength({ min: 1, max: 100 })
-        .withMessage('Category must be between 1 and 100 characters'),
+        .isLength({ max: 100 })
+        .withMessage('Category must be less than 100 characters')
+        .optional(),
     (0, express_validator_1.body)('price')
         .optional()
         .isNumeric()
@@ -69,8 +65,8 @@ router.get('/', productController_1.getAllProducts);
 router.get('/categories', productController_1.getProductCategories);
 router.get('/:id', productController_1.getProductById);
 router.get('/admin/all', authMiddleware_1.authMiddleware, productController_1.getAdminProducts);
-router.post('/', authMiddleware_1.authMiddleware, upload_1.uploadProductImages, productValidation, productController_1.createProduct);
-router.put('/:id', authMiddleware_1.authMiddleware, upload_1.uploadProductImages, productValidation, productController_1.updateProduct);
+router.post('/', authMiddleware_1.authMiddleware, upload_1.uploadMixedFiles, productValidation, productController_1.createProduct);
+router.put('/:id', authMiddleware_1.authMiddleware, upload_1.uploadMixedFiles, productValidation, productController_1.updateProduct);
 router.delete('/:id', authMiddleware_1.authMiddleware, productController_1.deleteProduct);
 router.patch('/:id/toggle', authMiddleware_1.authMiddleware, productController_1.toggleProductStatus);
 exports.default = router;

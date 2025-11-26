@@ -63,7 +63,7 @@ const getAllProducts = async (req, res) => {
 exports.getAllProducts = getAllProducts;
 const getAdminProducts = async (req, res) => {
     try {
-        const { category, search, page = 1, limit = 10 } = req.query;
+        const { category, search, status, page = 1, limit = 10 } = req.query;
         const where = {};
         if (category) {
             where.category = {
@@ -77,6 +77,9 @@ const getAdminProducts = async (req, res) => {
                 { description: { contains: search, mode: 'insensitive' } },
                 { productCode: { contains: search, mode: 'insensitive' } }
             ];
+        }
+        if (status && status !== 'all') {
+            where.status = status;
         }
         const skip = (Number(page) - 1) * Number(limit);
         const [products, total] = await Promise.all([
@@ -151,11 +154,17 @@ const getProductById = async (req, res) => {
 exports.getProductById = getProductById;
 const createProduct = async (req, res) => {
     try {
-        const { productCode, name, description, fullDescription, category, subCategory, price, stock, isActive = true, goldWeight, diamondDetails, diamondQuantity, diamondSize, diamondWeight, diamondQuality, otherGemstones, orderDuration, metalType, stoneType, settingType, size, color, finish, digitalBrowser = false, website = false, distributor = false, culture, seoTitle, seoDescription, seoKeywords, seoSlug, videoUrl } = req.body;
+        const { productCode, name, description, fullDescription, category, subCategory, price, stock, isActive = true, goldWeight, diamondDetails, stoneWeight, caret, diamondQuantity, diamondSize, diamondWeight, diamondQuality, otherGemstones, orderDuration, metalType, stoneType, settingType, size, color, finish, digitalBrowser = false, website = false, distributor = false, culture, seoTitle, seoDescription, seoKeywords, seoSlug } = req.body;
         let imageUrls = [];
+        let uploadedVideoUrl = null;
         if (req.files) {
             const files = req.files;
-            imageUrls = files.map(file => `/uploads/products/${file.filename}`);
+            if (files.images) {
+                imageUrls = files.images.map(file => `/uploads/products/${file.filename}`);
+            }
+            if (files.video && files.video.length > 0) {
+                uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
+            }
         }
         const product = await prisma.product.create({
             data: {
@@ -171,6 +180,8 @@ const createProduct = async (req, res) => {
                 imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
                 goldWeight,
                 diamondDetails,
+                stoneWeight,
+                caret,
                 diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
                 diamondSize,
                 diamondWeight,
@@ -191,7 +202,7 @@ const createProduct = async (req, res) => {
                 seoDescription: seoDescription || null,
                 seoKeywords: seoKeywords || null,
                 seoSlug: seoSlug || null,
-                videoUrl: videoUrl || null
+                videoUrl: uploadedVideoUrl || null
             }
         });
         if (imageUrls.length > 0) {
@@ -232,7 +243,7 @@ exports.createProduct = createProduct;
 const updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { productCode, name, description, fullDescription, category, subCategory, price, stock, isActive, goldWeight, diamondDetails, diamondQuantity, diamondSize, diamondWeight, diamondQuality, otherGemstones, orderDuration, metalType, stoneType, settingType, size, color, finish, digitalBrowser, website, distributor, culture, seoTitle, seoDescription, seoKeywords, seoSlug, videoUrl } = req.body;
+        let { productCode, name, description, fullDescription, category, subCategory, price, stock, isActive, status, goldWeight, diamondDetails, stoneWeight, caret, diamondQuantity, diamondSize, diamondWeight, diamondQuality, otherGemstones, orderDuration, metalType, stoneType, settingType, size, color, finish, digitalBrowser, website, distributor, culture, seoTitle, seoDescription, seoKeywords, seoSlug, videoUrl } = req.body;
         console.log('Update product request for ID:', id);
         console.log('Request body:', req.body);
         console.log('Uploaded files:', req.files);
@@ -258,12 +269,28 @@ const updateProduct = async (req, res) => {
             diamondQuantity = diamondQuantity ? Number(diamondQuantity) : null;
         }
         let imageUrls = [];
+        let uploadedVideoUrl = null;
         if (req.files) {
             const files = req.files;
-            imageUrls = files.map(file => `/uploads/products/${file.filename}`);
+            if (files.images) {
+                imageUrls = files.images.map(file => `/uploads/products/${file.filename}`);
+            }
+            if (files.video && files.video.length > 0) {
+                uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
+            }
+        }
+        let preservedImageUrls = null;
+        if (req.body.imageUrls) {
+            try {
+                preservedImageUrls = JSON.parse(req.body.imageUrls);
+                console.log('Parsed preserved image URLs:', preservedImageUrls);
+            }
+            catch (parseError) {
+                console.error('Error parsing imageUrls:', parseError);
+            }
         }
         if (imageUrls.length > 0) {
-            imageUrl = imageUrls[0];
+            req.body.imageUrl = imageUrls[0];
             await prisma.productImage.updateMany({
                 where: { productId: id },
                 data: { isActive: false }
@@ -278,24 +305,22 @@ const updateProduct = async (req, res) => {
                 data: productImages
             });
         }
-        else if (imageUrls) {
-            const urls = Array.isArray(imageUrls) ? imageUrls : [imageUrls];
-            if (urls.length > 0) {
-                imageUrl = urls[0];
-                await prisma.productImage.updateMany({
-                    where: { productId: id },
-                    data: { isActive: false }
-                });
-                const productImages = urls.map((url, index) => ({
-                    productId: id,
-                    url,
-                    order: index,
-                    isActive: true
-                }));
-                await prisma.productImage.createMany({
-                    data: productImages
-                });
-            }
+        else if (preservedImageUrls && preservedImageUrls.length > 0) {
+            console.log('Preserving existing image URLs:', preservedImageUrls);
+            req.body.imageUrl = preservedImageUrls[0];
+            await prisma.productImage.updateMany({
+                where: { productId: id },
+                data: { isActive: false }
+            });
+            const productImages = preservedImageUrls.map((url, index) => ({
+                productId: id,
+                url,
+                order: index,
+                isActive: true
+            }));
+            await prisma.productImage.createMany({
+                data: productImages
+            });
         }
         console.log('Final update data:', {
             productCode,
@@ -309,6 +334,8 @@ const updateProduct = async (req, res) => {
             isActive,
             goldWeight,
             diamondDetails,
+            stoneWeight,
+            caret,
             diamondQuantity,
             diamondSize,
             diamondWeight,
@@ -343,9 +370,12 @@ const updateProduct = async (req, res) => {
                 price: price && price !== '' ? Number(price) : 0,
                 stock: Number(stock) || 0,
                 isActive: isActive === 'true' || isActive === true,
+                status: status || 'draft',
                 imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
                 goldWeight,
                 diamondDetails,
+                stoneWeight,
+                caret,
                 diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
                 diamondSize,
                 diamondWeight,
@@ -427,15 +457,25 @@ const toggleProductStatus = async (req, res) => {
                 message: 'Product not found'
             });
         }
+        let newStatus = product.status;
+        if (product.status === 'draft') {
+            newStatus = 'active';
+        }
+        else if (product.status === 'active') {
+            newStatus = 'inactive';
+        }
+        else {
+            newStatus = 'draft';
+        }
         const updatedProduct = await prisma.product.update({
             where: { id },
             data: {
-                isActive: !product.isActive
+                status: newStatus
             }
         });
         res.json({
             success: true,
-            message: `Product ${updatedProduct.isActive ? 'activated' : 'deactivated'} successfully`,
+            message: `Product status updated to ${newStatus} successfully`,
             data: updatedProduct
         });
     }
@@ -451,16 +491,24 @@ const toggleProductStatus = async (req, res) => {
 exports.toggleProductStatus = toggleProductStatus;
 const getProductCategories = async (req, res) => {
     try {
-        const categories = await prisma.product.groupBy({
+        const productCategories = await prisma.product.groupBy({
             by: ['category'],
             where: {
                 isActive: true
             }
         });
-        const categoryNames = categories.map(c => c.category);
+        const categoryIds = productCategories.map(c => c.category);
+        const categories = await prisma.category.findMany({
+            where: {
+                id: {
+                    in: categoryIds
+                }
+            },
+            orderBy: { sortOrder: 'asc' }
+        });
         res.json({
             success: true,
-            data: categoryNames
+            data: categories
         });
     }
     catch (error) {

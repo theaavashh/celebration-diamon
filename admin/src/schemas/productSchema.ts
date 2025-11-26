@@ -3,16 +3,14 @@ import { z } from 'zod';
 export const productSchema = z.object({
   name: z
     .string()
-    .min(1, 'Product name is required')
-    .min(2, 'Product name must be at least 2 characters')
-    .max(200, 'Product name must be less than 200 characters'),
+    .max(200, 'Product name must be less than 200 characters')
+    .optional(),
   
   slug: z
     .string()
-    .min(1, 'Slug is required')
-    .min(2, 'Slug must be at least 2 characters')
     .max(200, 'Slug must be less than 200 characters')
-    .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
+    .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
+    .optional(),
   
   description: z
     .string()
@@ -117,7 +115,7 @@ export const productSchema = z.object({
   
   categoryId: z
     .string()
-    .min(1, 'Category is required'),
+    .optional(),
   
   subCategoryId: z
     .string()

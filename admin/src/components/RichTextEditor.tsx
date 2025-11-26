@@ -138,15 +138,17 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
 function InitialContentPlugin({ html }: { html: string }) {
   const [editor] = useLexicalComposerContext();
   const isInitializedRef = useRef(false);
+  const previousHtmlRef = useRef<string>('');
   
   useEffect(() => {
-    // Only initialize once when the editor is first mounted and empty
-    if (!isInitializedRef.current) {
+    // Check if html has changed since last render
+    if (html !== previousHtmlRef.current) {
       editor.getEditorState().read(() => {
         const root = $getRoot();
         const isEmpty = root.isEmpty();
         
-        if (isEmpty && html && html.trim() !== '') {
+        // Initialize if editor is empty and html is not empty, or if html has changed
+        if ((isEmpty && html && html.trim() !== '') || (html !== previousHtmlRef.current && html && html.trim() !== '')) {
           editor.update(() => {
             const parser = new DOMParser();
             const dom = parser.parseFromString(html, 'text/html');
@@ -161,6 +163,7 @@ function InitialContentPlugin({ html }: { html: string }) {
           isInitializedRef.current = true;
         }
       });
+      previousHtmlRef.current = html;
     }
   }, [editor, html]);
 

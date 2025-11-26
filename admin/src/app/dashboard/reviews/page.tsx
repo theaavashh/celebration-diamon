@@ -15,7 +15,7 @@ interface Review {
   };
   customerName: string;
   rating: number;
-  comment: string;
+  comment?: string;
   isActive: boolean;
   createdAt: string;
 }
@@ -98,7 +98,7 @@ export default function ReviewsPage() {
   const filteredReviews = reviews.filter((review) => {
     const matchesSearch =
       review.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      review.comment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       review.product?.name.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilter =
@@ -245,7 +245,7 @@ export default function ReviewsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 max-w-md truncate">
-                          {review.comment}
+                          {review.comment || 'No comment provided'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -345,7 +345,7 @@ export default function ReviewsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Comment
                   </label>
-                  <p className="text-gray-900">{selectedReview.comment}</p>
+                  <p className="text-gray-900">{selectedReview.comment || 'No comment provided'}</p>
                 </div>
 
                 <div>

@@ -66,7 +66,7 @@ exports.getAllReviews = getAllReviews;
 const createReview = async (req, res) => {
     try {
         const { productId, customerName, rating, comment } = req.body;
-        if (!productId || !customerName || !rating || !comment) {
+        if (!productId || !customerName || !rating) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields',
@@ -92,7 +92,7 @@ const createReview = async (req, res) => {
                 productId,
                 customerName,
                 rating,
-                comment,
+                comment: comment || '',
             },
         });
         res.json({
@@ -119,7 +119,7 @@ const updateReview = async (req, res) => {
             data: {
                 customerName,
                 rating,
-                comment,
+                comment: comment !== undefined ? comment : undefined,
                 isActive,
             },
         });

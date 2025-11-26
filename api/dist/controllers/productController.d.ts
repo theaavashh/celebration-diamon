@@ -7,5 +7,5 @@ export declare const createProduct: (req: Request, res: Response<ApiResponse<Pro
 export declare const updateProduct: (req: Request, res: Response<ApiResponse<Product>>) => Promise<void>;
 export declare const deleteProduct: (req: Request, res: Response<ApiResponse<null>>) => Promise<void>;
 export declare const toggleProductStatus: (req: Request, res: Response<ApiResponse<Product>>) => Promise<Response<ApiResponse<Product>, Record<string, any>> | undefined>;
-export declare const getProductCategories: (req: Request, res: Response<ApiResponse<string[]>>) => Promise<void>;
+export declare const getProductCategories: (req: Request, res: Response<ApiResponse<any[]>>) => Promise<void>;
 //# sourceMappingURL=productController.d.ts.map

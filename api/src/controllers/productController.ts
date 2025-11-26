@@ -184,6 +184,8 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       isActive = true,
       goldWeight,
       diamondDetails,
+      stoneWeight, // Add stone weight field
+      caret, // Add caret field
       diamondQuantity,
       diamondSize,
       diamondWeight,
@@ -239,6 +241,8 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
         goldWeight,
         diamondDetails,
+        stoneWeight,
+        caret,
         diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
         diamondSize,
         diamondWeight,
@@ -320,6 +324,8 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       status, // Add status field
       goldWeight,
       diamondDetails,
+      stoneWeight, // Add stone weight field
+      caret, // Add caret field
       diamondQuantity,
       diamondSize,
       diamondWeight,
@@ -461,6 +467,8 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       isActive,
       goldWeight,
       diamondDetails,
+      stoneWeight,
+      caret,
       diamondQuantity,
       diamondSize,
       diamondWeight,
@@ -501,6 +509,8 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
         goldWeight,
         diamondDetails,
+        stoneWeight,
+        caret,
         diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
         diamondSize,
         diamondWeight,

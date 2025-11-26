@@ -7,7 +7,7 @@ export interface Review {
   productId: string;
   customerName: string;
   rating: number;
-  comment: string;
+  comment?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -80,7 +80,7 @@ export const createReview = async (req: Request, res: Response<ApiResponse<Revie
     const { productId, customerName, rating, comment } = req.body;
 
     // Validation
-    if (!productId || !customerName || !rating || !comment) {
+    if (!productId || !customerName || !rating) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields',
@@ -111,7 +111,7 @@ export const createReview = async (req: Request, res: Response<ApiResponse<Revie
         productId,
         customerName,
         rating,
-        comment,
+        comment: comment || '',
       },
     });
 
@@ -140,7 +140,7 @@ export const updateReview = async (req: Request, res: Response<ApiResponse<Revie
       data: {
         customerName,
         rating,
-        comment,
+        comment: comment !== undefined ? comment : undefined,
         isActive,
       },
     });

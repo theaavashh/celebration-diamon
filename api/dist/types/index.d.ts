@@ -48,6 +48,16 @@ export interface Category {
     createdAt: Date;
     updatedAt: Date;
 }
+export interface Subcategory {
+    id: string;
+    name: string;
+    categoryId: string;
+    category: Category;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
 export interface Service {
     id: string;
     title: string;
@@ -209,12 +219,15 @@ export interface Product {
     imageUrl?: string;
     stock: number;
     isActive: boolean;
+    status: string;
     goldWeight?: string;
     diamondDetails?: string;
     diamondQuantity?: number;
     diamondSize?: string;
     diamondWeight?: string;
     diamondQuality?: string;
+    stoneWeight?: string;
+    caret?: string;
     otherGemstones?: string;
     orderDuration?: string;
     metalType?: string;
@@ -334,6 +347,14 @@ export interface CreateCategoryRequest {
     sortOrder?: number;
 }
 export interface UpdateCategoryRequest extends Partial<CreateCategoryRequest> {
+}
+export interface CreateSubcategoryRequest {
+    name: string;
+    categoryId: string;
+    isActive?: boolean;
+    sortOrder?: number;
+}
+export interface UpdateSubcategoryRequest extends Partial<CreateSubcategoryRequest> {
 }
 export interface CreateServiceRequest {
     title: string;
