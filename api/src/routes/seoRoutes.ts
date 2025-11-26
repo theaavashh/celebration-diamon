@@ -1,6 +1,10 @@
 import express from 'express';
+import { getSeoReport } from '../controllers/seoController';
 
 const router = express.Router();
+
+// Get SEO report
+router.get('/report', getSeoReport);
 
 // Get SEO settings
 router.get('/', async (_req, res) => {
@@ -37,9 +41,3 @@ router.put('/', async (_req, res) => {
 });
 
 export default router;
-
-
-
-
-
-

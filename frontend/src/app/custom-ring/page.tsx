@@ -226,7 +226,7 @@ const CustomRingPage = () => {
               Design Your Ring
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Customize every aspect of your ring to create a piece that's uniquely yours
+              Customize every aspect of your ring to create a piece that&#39;s uniquely yours
             </p>
           </div>
 

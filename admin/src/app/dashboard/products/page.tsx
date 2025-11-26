@@ -5,7 +5,18 @@ import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from '@/components/ProductForm';
-import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X } from 'lucide-react';
+
+interface ProductImage {
+  id: string;
+  productId: string;
+  url: string;
+  altText?: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Product {
   id: string;
@@ -16,8 +27,10 @@ interface Product {
   subCategory?: string;
   price: number;
   imageUrl?: string;
+  images?: ProductImage[];
   stock: number;
   isActive: boolean;
+  status: string; // "draft", "active", "inactive"
   goldWeight?: string;
   diamondDetails?: string;
   diamondQuantity?: number;
@@ -35,6 +48,37 @@ interface Product {
   digitalBrowser?: boolean;
   website?: boolean;
   distributor?: boolean;
+  culture?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  seoSlug?: string;
+  briefDescription?: string;
+  fullDescription?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Add interface for Category (matching the backend model)
+interface Category {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  link: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Add interface for Subcategory
+interface Subcategory {
+  id: string;
+  name: string;
+  categoryId: string;
+  category: Category;
+  isActive: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -57,15 +101,19 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all'); // Add status filter state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [productReviews, setProductReviews] = useState<Record<string, any[]>>({});
   const [showReviewsFor, setShowReviewsFor] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; product: Product | null }>({ isOpen: false, product: null });
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Handle form changes
   const handleFormChange = (field: string, value: any) => {
@@ -189,6 +237,7 @@ export default function ProductsPage() {
         price: 0,
         stock: 0,
         isActive: false,
+        status: 'draft', // Add status property
         createdAt: '',
         updatedAt: ''
       } 
@@ -258,7 +307,8 @@ export default function ProductsPage() {
                          product.productCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   // Pagination calculations
@@ -267,10 +317,10 @@ export default function ProductsPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = filteredProducts.slice(startIndex, endIndex);
 
-  // Reset to page 1 when search or category changes
+  // Reset to page 1 when search, category, or status changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, selectedStatus]);
 
   // Fetch products
   const fetchProducts = async () => {
@@ -290,7 +340,17 @@ export default function ProductsPage() {
       // Try to get token from localStorage as fallback (for API calls that need Bearer token)
       const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
-      const response = await fetch(getApiUrl('/products/admin/all'), {
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (searchTerm) queryParams.append('search', searchTerm);
+      if (selectedCategory) queryParams.append('category', selectedCategory);
+      if (selectedStatus && selectedStatus !== 'all') queryParams.append('status', selectedStatus);
+      
+      const url = queryParams.toString() 
+        ? `${getApiUrl('/products/admin/all')}?${queryParams.toString()}`
+        : getApiUrl('/products/admin/all');
+      
+      const response = await fetch(url, {
         credentials: 'include', // Include cookies for authentication
         headers: {
           'Content-Type': 'application/json',
@@ -328,11 +388,32 @@ export default function ProductsPage() {
     try {
       const response = await fetch(getApiUrl('/products/categories'));
       if (response.ok) {
-      const data = await response.json();
+        const data = await response.json();
         setCategories(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  // Fetch subcategories
+  const fetchSubcategories = async () => {
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE_URL}/api/subcategories/admin/all`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSubcategories(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
     }
   };
 
@@ -367,10 +448,262 @@ export default function ProductsPage() {
     setExpandedProducts(newExpanded);
   };
 
+  // Open preview modal with product data
+  const openPreviewModal = (product: Product) => {
+    console.log('Opening preview for product:', product);
+    setPreviewProduct(product);
+    setIsPreviewOpen(true);
+    console.log('Preview state set:', { previewProduct: product, isPreviewOpen: true });
+  };
+
+  // Close preview modal
+  const closePreviewModal = () => {
+    console.log('Closing preview modal');
+    setIsPreviewOpen(false);
+    setPreviewProduct(null);
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    fetchSubcategories();
   }, []);
+
+  // Preview Modal Component
+  const PreviewModal = () => {
+    console.log('Rendering PreviewModal:', { isPreviewOpen, previewProduct });
+    if (!isPreviewOpen || !previewProduct) return null;
+    console.log('PreviewModal content rendering');
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={() => {
+        console.log('PreviewModal background clicked, closing modal');
+        closePreviewModal();
+      }}>
+        <div 
+          className="bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-200"
+          onClick={(e) => {
+            console.log('PreviewModal content clicked, stopping propagation');
+            e.stopPropagation();
+          }}
+        >
+          <div className="p-8">
+            <div className="flex justify-between items-start mb-8">
+              <h2 className="text-3xl font-bold text-black">{previewProduct!.name}</h2>
+              <button
+                onClick={() => {
+                  console.log('PreviewModal close button clicked');
+                  closePreviewModal();
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              {/* Left side - Product Image */}
+              <div className="relative aspect-square bg-gray-100 rounded-xl">
+                {previewProduct.images && previewProduct.images.length > 0 ? (
+                  <img
+                    src={previewProduct!.images[0].url.startsWith('http') ? previewProduct!.images[0].url : `http://localhost:5000${previewProduct!.images[0].url}`}
+                    alt={previewProduct!.name}
+                    className="object-cover w-full h-full rounded-xl shadow-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/400x400?text=No+Image';
+                    }}
+                  />
+                ) : previewProduct.imageUrl ? (
+                  <img
+                    src={previewProduct!.imageUrl.startsWith('http') ? previewProduct!.imageUrl : `http://localhost:5000${previewProduct!.imageUrl}`}
+                    alt={previewProduct!.name}
+                    className="object-cover w-full h-full rounded-xl shadow-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/400x400?text=No+Image';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+                {(previewProduct!.isActive) && (
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      Active
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Right side - Product Details */}
+              <div className="space-y-8">
+                {/* Description */}
+                <div>
+                  <h3 className="text-xl font-semibold text-black mb-4">Description</h3>
+                  <p className="text-black leading-relaxed text-lg">{previewProduct!.description}</p>
+                </div>
+
+                {/* Full Description */}
+                {previewProduct!.fullDescription && (
+                  <div>
+                    <h3 className="text-xl font-semibold text-black mb-4">Full Description</h3>
+                    <div className="text-black leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: previewProduct!.fullDescription }} />
+                  </div>
+                )}
+
+                {/* Product Information */}
+                <div className="border border-gray-200 rounded-lg">
+                  <div className="px-6 py-4 space-y-3">
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-black">Product Code:</span>
+                      <span className="font-medium text-black">{previewProduct!.productCode}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-black">Category:</span>
+                      <span className="font-medium text-black">
+                        {categories.find((c: Category) => c.id === previewProduct!.category)?.title || previewProduct!.category}
+                      </span>
+                    </div>
+                    {previewProduct.subCategory && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Sub Category:</span>
+                        <span className="font-medium text-black">
+                          {subcategories.find((s: Subcategory) => s.id === previewProduct!.subCategory)?.name || previewProduct!.subCategory}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-black">Price:</span>
+                      <span className="font-medium text-black">NPR {previewProduct!.price.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-black">Stock:</span>
+                      <span className="font-medium text-black">{previewProduct!.stock}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-100">
+                      <span className="text-black">Status:</span>
+                      <span className={`font-medium ${
+                        previewProduct!.status === 'active' 
+                          ? 'text-green-600' 
+                          : previewProduct!.status === 'inactive' 
+                            ? 'text-red-600' 
+                            : 'text-yellow-600'
+                      }`}>
+                        {previewProduct!.status.charAt(0).toUpperCase() + previewProduct!.status.slice(1)}
+                      </span>
+                    </div>
+                    {previewProduct.metalType && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Metal Type:</span>
+                        <span className="font-medium text-black">{previewProduct!.metalType}</span>
+                      </div>
+                    )}
+                    {previewProduct.goldWeight && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Gold Weight:</span>
+                        <span className="font-medium text-black">{previewProduct!.goldWeight}</span>
+                      </div>
+                    )}
+                    {previewProduct.otherGemstones && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Other Gemstones:</span>
+                        <span className="font-medium text-black">{previewProduct!.otherGemstones}</span>
+                      </div>
+                    )}
+                    {previewProduct.orderDuration && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Order Duration:</span>
+                        <span className="font-medium text-black">{previewProduct!.orderDuration}</span>
+                      </div>
+                    )}
+                    {previewProduct.culture && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Culture:</span>
+                        <span className="font-medium text-black">{previewProduct!.culture}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Diamond Details */}
+                {(previewProduct.diamondDetails || 
+                  previewProduct.diamondQuantity !== undefined || 
+                  previewProduct.diamondSize || 
+                  previewProduct.diamondWeight || 
+                  previewProduct.diamondQuality) && (
+                  <div className="border border-gray-200 rounded-lg">
+                    <div className="px-6 py-4 space-y-3">
+                      <h3 className="text-xl font-semibold text-black mb-4">Diamond Details</h3>
+                      {previewProduct.diamondDetails && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Diamond Details:</span>
+                          <span className="font-medium text-black">{previewProduct!.diamondDetails}</span>
+                        </div>
+                      )}
+                      {previewProduct.diamondQuantity !== undefined && previewProduct.diamondQuantity !== null && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Diamond Quantity:</span>
+                          <span className="font-medium text-black">{previewProduct!.diamondQuantity}</span>
+                        </div>
+                      )}
+                      {previewProduct.diamondSize && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Diamond Size:</span>
+                          <span className="font-medium text-black">{previewProduct!.diamondSize}</span>
+                        </div>
+                      )}
+                      {previewProduct.diamondWeight && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Diamond Weight:</span>
+                          <span className="font-medium text-black">{previewProduct!.diamondWeight}</span>
+                        </div>
+                      )}
+                      {previewProduct.diamondQuality && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Diamond Quality:</span>
+                          <span className="font-medium text-black">{previewProduct!.diamondQuality}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Distribution Channels */}
+                <div>
+                  <h3 className="text-xl font-semibold text-black mb-4">Distribution Channels</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {previewProduct!.digitalBrowser && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-black">
+                        Digital Browser
+                      </span>
+                    )}
+                    {previewProduct!.website && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-black">
+                        Website
+                      </span>
+                    )}
+                    {previewProduct!.distributor && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-black">
+                        Distributor
+                      </span>
+                    )}
+                    {!previewProduct.digitalBrowser && !previewProduct.website && !previewProduct.distributor && (
+                      <span className="text-sm text-black">No distribution channels selected</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <DashboardLayout showBreadcrumb={true}>
@@ -405,7 +738,7 @@ export default function ProductsPage() {
                 }`}
               >
                 <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
                 Cards
               </button>
@@ -420,7 +753,7 @@ export default function ProductsPage() {
         </div>
           
         {/* Search and Filter */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,15 +775,27 @@ export default function ProductsPage() {
           >
             <option value="">All Categories</option>
             {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+              <option key={category.id} value={category.id}>
+                {category.title}
               </option>
             ))}
+                </select>
+                {/* Status Filter */}
+                <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
+          >
+            <option value="all">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
                 </select>
           <button
             onClick={() => {
               setSearchTerm('');
               setSelectedCategory('');
+              setSelectedStatus('all'); // Reset status filter
             }}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
           >
@@ -523,6 +868,7 @@ export default function ProductsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -541,7 +887,16 @@ export default function ProductsPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-12 w-12">
-                              {product.imageUrl ? (
+                              {product.images && product.images.length > 0 ? (
+                                <img
+                                  className="h-12 w-12 rounded-lg object-cover"
+                                  src={product.images[0].url.startsWith('http') ? product.images[0].url : `http://localhost:5000${product.images[0].url}`}
+                                  alt={product.name}
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://via.placeholder.com/48x48?text=No+Image';
+                                  }}
+                                />
+                              ) : product.imageUrl ? (
                                 <img
                                   className="h-12 w-12 rounded-lg object-cover"
                                   src={product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`}
@@ -560,7 +915,6 @@ export default function ProductsPage() {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-500 line-clamp-1">{product.description}</div>
                             </div>
                           </div>
                         </td>
@@ -568,10 +922,25 @@ export default function ProductsPage() {
                           <span className="text-sm text-gray-900 bg-gray-100 px-2 py-1 rounded">{product.productCode}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{product.category}</div>
+                          <div className="text-sm text-gray-900">
+                            {categories.find((c: Category) => c.id === product.category)?.title || product.category}
+                          </div>
                           {product.subCategory && (
-                            <div className="text-sm text-gray-500">{product.subCategory}</div>
+                            <div className="text-sm text-gray-500">
+                              {subcategories.find((s: Subcategory) => s.id === product.subCategory)?.name || product.subCategory}
+                            </div>
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            product.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : product.status === 'inactive' 
+                                ? 'bg-red-100 text-red-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
+                          </span>
                         </td>
                       </tr>
                       {/* Secondary Info Row */}
@@ -608,11 +977,13 @@ export default function ProductsPage() {
                               <div className="flex items-center space-x-2">
                                 <span className="text-xs font-medium text-gray-500">Status:</span>
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  product.isActive 
+                                  product.status === 'active' 
                                     ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
+                                    : product.status === 'inactive' 
+                                      ? 'bg-red-100 text-red-800' 
+                                      : 'bg-yellow-100 text-yellow-800'
                                 }`}>
-                                  {product.isActive ? 'Active' : 'Inactive'}
+                                  {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
                                 </span>
                               </div>
                             </div>
@@ -627,6 +998,14 @@ export default function ProductsPage() {
                                 <Info className="w-3.5 h-3.5" />
                                 {expandedProducts.has(product.id) ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                 Details
+                              </button>
+                              <button
+                                onClick={() => openPreviewModal(product)}
+                                className="flex items-center gap-1 px-3 py-1 text-xs text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-colors"
+                                title="Preview Product"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Preview</span>
                               </button>
                               <button
                                 onClick={() => {
@@ -653,14 +1032,14 @@ export default function ProductsPage() {
                               <button
                                 onClick={() => handleToggleStatus(product.id)}
                                 className={`flex items-center gap-1 px-3 py-1 text-xs rounded transition-colors ${
-                                  product.isActive
+                                  product.status === 'active'
                                     ? 'text-red-600 hover:text-red-900 hover:bg-red-50'
                                     : 'text-green-600 hover:text-green-900 hover:bg-green-50'
                                 }`}
-                                title={product.isActive ? 'Deactivate Product' : 'Activate Product'}
+                                title={product.status === 'active' ? 'Deactivate Product' : 'Activate Product'}
                               >
-                                {product.isActive ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                <span>{product.isActive ? 'Deactivate' : 'Activate'}</span>
+                                {product.status === 'active' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                <span>{product.status === 'active' ? 'Deactivate' : 'Activate'}</span>
                               </button>
                               <button
                                 onClick={() => openDeleteModal(product)}
@@ -679,53 +1058,217 @@ export default function ProductsPage() {
                     {expandedProducts.has(product.id) && (
                       <tr key={`${product.id}-details`} className="bg-gray-50">
                         <td colSpan={3} className="px-6 py-4">
-                          <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Product Details</h4>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="font-medium text-gray-700">Price:</span>
-                                <span className="ml-2 text-gray-900">NPR {product.price.toLocaleString()}</span>
+                          <div className="bg-white rounded-lg border border-gray-200 p-6">
+                            <div className="flex justify-between items-center mb-4">
+                              <h4 className="text-lg font-semibold text-gray-900">Product Details</h4>
+                              <div className="text-sm text-gray-500">
+                                <span>Created: {new Date(product.createdAt).toLocaleDateString()}</span>
+                                <span className="mx-2">|</span>
+                                <span>Updated: {new Date(product.updatedAt).toLocaleDateString()}</span>
                               </div>
-                              <div>
-                                <span className="font-medium text-gray-700">Stock:</span>
-                                <span className="ml-2 text-gray-900">{product.stock}</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* Basic Information */}
+                              <div className="space-y-4">
+                                <h5 className="text-md font-semibold text-gray-800 border-b border-gray-200 pb-2">Basic Information</h5>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <span className="font-medium text-gray-700">Product Code:</span>
+                                    <span className="ml-2 text-gray-900">{product.productCode}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">Status:</span>
+                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                                      product.status === 'active' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : product.status === 'inactive' 
+                                          ? 'bg-red-100 text-red-800' 
+                                          : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">Price:</span>
+                                    <span className="ml-2 text-gray-900">NPR {product.price.toLocaleString()}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">Stock:</span>
+                                    <span className="ml-2 text-gray-900">{product.stock}</span>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <span className="font-medium text-gray-700">Category:</span>
+                                    <span className="ml-2 text-gray-900">
+                                      {categories.find((c: Category) => c.id === product.category)?.title || product.category}
+                                    </span>
+                                    {product.subCategory && (
+                                      <span className="ml-2 text-gray-900">
+                                        / {subcategories.find((s: Subcategory) => s.id === product.subCategory)?.name || product.subCategory}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <span className="font-medium text-gray-700">Description:</span>
+                                  <p className="mt-1 text-gray-900 whitespace-pre-wrap">{product.description}</p>
+                                </div>
                               </div>
-                              {product.goldWeight && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Gold Weight:</span>
-                                  <span className="ml-2 text-gray-900">{product.goldWeight}</span>
+                              
+                              {/* Jewelry Details */}
+                              <div className="space-y-4">
+                                <h5 className="text-md font-semibold text-gray-800 border-b border-gray-200 pb-2">Jewelry Details</h5>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                  {product.goldWeight && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Gold Weight:</span>
+                                      <span className="ml-2 text-gray-900">{product.goldWeight}</span>
+                                    </div>
+                                  )}
+                                  {product.diamondDetails && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Diamond Details:</span>
+                                      <span className="ml-2 text-gray-900">{product.diamondDetails}</span>
+                                    </div>
+                                  )}
+                                  {product.diamondQuantity !== undefined && product.diamondQuantity !== null && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Diamond Quantity:</span>
+                                      <span className="ml-2 text-gray-900">{product.diamondQuantity}</span>
+                                    </div>
+                                  )}
+                                  {product.diamondSize && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Diamond Size:</span>
+                                      <span className="ml-2 text-gray-900">{product.diamondSize}</span>
+                                    </div>
+                                  )}
+                                  {product.diamondWeight && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Diamond Weight:</span>
+                                      <span className="ml-2 text-gray-900">{product.diamondWeight}</span>
+                                    </div>
+                                  )}
+                                  {product.diamondQuality && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Diamond Quality:</span>
+                                      <span className="ml-2 text-gray-900">{product.diamondQuality}</span>
+                                    </div>
+                                  )}
+                                  {product.otherGemstones && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Other Gemstones:</span>
+                                      <span className="ml-2 text-gray-900">{product.otherGemstones}</span>
+                                    </div>
+                                  )}
+                                  {product.metalType && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Metal Type:</span>
+                                      <span className="ml-2 text-gray-900">{product.metalType}</span>
+                                    </div>
+                                  )}
+                                  {product.stoneType && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Stone Type:</span>
+                                      <span className="ml-2 text-gray-900">{product.stoneType}</span>
+                                    </div>
+                                  )}
+                                  {product.settingType && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Setting Type:</span>
+                                      <span className="ml-2 text-gray-900">{product.settingType}</span>
+                                    </div>
+                                  )}
+                                  {product.size && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Size:</span>
+                                      <span className="ml-2 text-gray-900">{product.size}</span>
+                                    </div>
+                                  )}
+                                  {product.color && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Color:</span>
+                                      <span className="ml-2 text-gray-900">{product.color}</span>
+                                    </div>
+                                  )}
+                                  {product.finish && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Finish:</span>
+                                      <span className="ml-2 text-gray-900">{product.finish}</span>
+                                    </div>
+                                  )}
+                                  {product.orderDuration && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Order Duration:</span>
+                                      <span className="ml-2 text-gray-900">{product.orderDuration}</span>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                              {product.diamondDetails && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Diamond Details:</span>
-                                  <span className="ml-2 text-gray-900">{product.diamondDetails}</span>
+                              </div>
+                              
+                              {/* Distribution Channels */}
+                              <div className="space-y-4">
+                                <h5 className="text-md font-semibold text-gray-800 border-b border-gray-200 pb-2">Distribution Channels</h5>
+                                
+                                <div className="flex flex-wrap gap-2">
+                                  {product.digitalBrowser && (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                      Digital Browser
+                                    </span>
+                                  )}
+                                  {product.website && (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                      Website
+                                    </span>
+                                  )}
+                                  {product.distributor && (
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                                      Distributor
+                                    </span>
+                                  )}
+                                  {!product.digitalBrowser && !product.website && !product.distributor && (
+                                    <span className="text-sm text-gray-500">No distribution channels selected</span>
+                                  )}
                                 </div>
-                              )}
-                              {product.metalType && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Metal Type:</span>
-                                  <span className="ml-2 text-gray-900">{product.metalType}</span>
+                              </div>
+                              
+                              {/* SEO Information */}
+                              <div className="space-y-4">
+                                <h5 className="text-md font-semibold text-gray-800 border-b border-gray-200 pb-2">SEO Information</h5>
+                                
+                                <div className="space-y-3">
+                                  {product.seoTitle && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">SEO Title:</span>
+                                      <p className="mt-1 text-gray-900">{product.seoTitle}</p>
+                                    </div>
+                                  )}
+                                  {product.seoDescription && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">SEO Description:</span>
+                                      <p className="mt-1 text-gray-900">{product.seoDescription}</p>
+                                    </div>
+                                  )}
+                                  {product.seoKeywords && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">SEO Keywords:</span>
+                                      <p className="mt-1 text-gray-900">{product.seoKeywords}</p>
+                                    </div>
+                                  )}
+                                  {product.seoSlug && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">SEO Slug:</span>
+                                      <p className="mt-1 text-gray-900">{product.seoSlug}</p>
+                                    </div>
+                                  )}
+                                  {!product.seoTitle && !product.seoDescription && !product.seoKeywords && !product.seoSlug && (
+                                    <p className="text-sm text-gray-500">No SEO information available</p>
+                                  )}
                                 </div>
-                              )}
-                              {product.stoneType && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Stone Type:</span>
-                                  <span className="ml-2 text-gray-900">{product.stoneType}</span>
-                                </div>
-                              )}
-                              {product.settingType && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Setting Type:</span>
-                                  <span className="ml-2 text-gray-900">{product.settingType}</span>
-                                </div>
-                              )}
-                              {product.size && (
-                                <div>
-                                  <span className="font-medium text-gray-700">Size:</span>
-                                  <span className="ml-2 text-gray-900">{product.size}</span>
-                                </div>
-                              )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -793,32 +1336,43 @@ export default function ProductsPage() {
               <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200">
                 {/* Product Image */}
                 <div className="relative h-48 bg-gray-100">
-                  {product.imageUrl ? (
+                  {product.images && product.images.length > 0 ? (
                     <img
-                      src={product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`}
-                                alt={product.name}
+                      src={product.images[0].url.startsWith('http') ? product.images[0].url : `http://localhost:5000${product.images[0].url}`}
+                      alt={product.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Image';
                       }}
-                              />
-                            ) : (
+                    />
+                  ) : product.imageUrl ? (
+                    <img
+                      src={product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                      }}
+                    />
+                  ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
                       <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                              </div>
-                            )}
+                    </div>
+                  )}
                   
                   {/* Status Badge */}
                   <div className="absolute top-3 right-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          product.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {product.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                      product.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : product.status === 'inactive' 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
+                    </span>
                   </div>
                 </div>
 
@@ -838,8 +1392,21 @@ export default function ProductsPage() {
                   </p>
                   
                   <div className="space-y-1 mb-4 text-xs text-gray-500">
-                    <div><span className="font-medium">Category:</span> {product.category}</div>
-                    {product.subCategory && <div><span className="font-medium">Sub Category:</span> {product.subCategory}</div>}
+                    <div><span className="font-medium">Category:</span> {categories.find((c: Category) => c.id === product.category)?.title || product.category}</div>
+                    {product.subCategory && (
+                      <div><span className="font-medium">Sub Category:</span> {subcategories.find((s: Subcategory) => s.id === product.subCategory)?.name || product.subCategory}</div>
+                    )}
+                    <div><span className="font-medium">Status:</span> 
+                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                        product.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : product.status === 'inactive' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
+                      </span>
+                    </div>
                     <div><span className="font-medium">Price:</span> <span className="text-green-600 font-semibold">${product.price}</span></div>
                     <div><span className="font-medium">Stock:</span> {product.stock}</div>
                     {/* Distribution Channels */}
@@ -865,23 +1432,29 @@ export default function ProductsPage() {
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex space-x-2">
-                          <button
+                      <button
                         onClick={() => openEditModal(product)}
                         className="text-purple-600 hover:text-purple-700 text-sm font-medium transition-colors"
-                          >
+                      >
                         Edit
-                          </button>
-                          <button
+                      </button>
+                      <button
+                        onClick={() => openPreviewModal(product)}
+                        className="text-green-600 hover:text-green-700 text-sm font-medium transition-colors"
+                      >
+                        Preview
+                      </button>
+                      <button
                         onClick={() => handleToggleStatus(product.id)}
                         className={`text-sm font-medium transition-colors ${
-                          product.isActive
+                          product.status === 'active'
                             ? 'text-red-600 hover:text-red-700'
                             : 'text-green-600 hover:text-green-700'
                         }`}
                       >
-                        {product.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                        </div>
+                        {product.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                     <button
                       onClick={() => openDeleteModal(product)}
                       className="text-red-600 hover:text-red-700 text-sm font-medium transition-colors"
@@ -993,6 +1566,7 @@ export default function ProductsPage() {
             </div>
           </div>
         )}
+        {isPreviewOpen && previewProduct && <PreviewModal />}
       </div>
     </DashboardLayout>
   );

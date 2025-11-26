@@ -36,6 +36,31 @@ interface Product {
   warranty?: string;
 }
 
+interface ApiProduct {
+  id: string;
+  name: string;
+  category: string;
+  subCategory?: string;
+  subcategory?: string;
+  price: number;
+  originalPrice?: number;
+  imageUrl?: string;
+  stock: number;
+  isActive: boolean;
+  isNew?: boolean;
+  isSale?: boolean;
+  description: string;
+  metalType?: string;
+  goldWeight?: string;
+  diamondDetails?: string;
+  diamondQuantity?: number;
+  diamondSize?: string;
+  diamondWeight?: string;
+  diamondQuality?: string;
+  otherGemstones?: string;
+  orderDuration?: string;
+}
+
 const categoryTitles: { [key: string]: string } = {
   necklace: 'Diamond Necklaces',
   bracelet: 'Diamond Bracelets',
@@ -162,7 +187,7 @@ export default function CategoryPage() {
           console.log('Number of products:', productsData.length);
           
           // Filter only active products (in case API doesn't filter)
-          const activeProducts = productsData.filter((product: any) => product.isActive !== false);
+          const activeProducts = productsData.filter((product: ApiProduct) => product.isActive !== false);
           console.log('Active products:', activeProducts);
           console.log('Active products count:', activeProducts.length);
           
@@ -174,16 +199,16 @@ export default function CategoryPage() {
               if (allResponse.ok) {
                 const allData = await allResponse.json();
                 if (allData.success && allData.data) {
-                  console.log('All products in database:', allData.data.map((p: any) => ({ 
+                  console.log('All products in database:', allData.data.map((p: ApiProduct) => ({ 
                     name: p.name, 
                     category: p.category, 
                     isActive: p.isActive 
                   })));
                   // Check if there are any products with the expected category
-                  const matchingProducts = allData.data.filter((p: any) => 
+                  const matchingProducts = allData.data.filter((p: ApiProduct) => 
                     p.category && p.category.toLowerCase() === apiCategory.toLowerCase()
                   );
-                  console.log(`Products with category "${apiCategory}":`, matchingProducts.map((p: any) => ({
+                  console.log(`Products with category "${apiCategory}":`, matchingProducts.map((p: ApiProduct) => ({
                     name: p.name,
                     category: p.category,
                     isActive: p.isActive
@@ -196,7 +221,7 @@ export default function CategoryPage() {
           }
           
           // Map API data to local Product interface
-          const mappedProducts = activeProducts.map((product: any) => ({
+          const mappedProducts = activeProducts.map((product: ApiProduct) => ({
             id: product.id,
             name: product.name,
             category: product.category,
@@ -243,7 +268,7 @@ export default function CategoryPage() {
               const allProductsData = await allProductsResponse.json();
               console.log('All products (for debugging):', allProductsData);
               if (allProductsData.success && allProductsData.data) {
-                console.log('Available categories:', [...new Set(allProductsData.data.map((p: any) => p.category))]);
+                console.log('Available categories:', [...new Set(allProductsData.data.map((p: ApiProduct) => p.category))]);
               }
             }
           } catch (err) {
@@ -424,7 +449,7 @@ export default function CategoryPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2 jimthompson">No products found</h3>
             <p className="text-gray-600 mb-4">Try adjusting your filters or search terms</p>
             <div className="text-sm text-gray-500 mt-4">
-              <p>Debug info: Category "{category}" mapped to "{categoryMapping[category] || category}"</p>
+              <p>Debug info: Category &#34;{category}&#34; mapped to &#34;{categoryMapping[category] || category}&#34;</p>
               <p className="mt-2">Check browser console (F12) for detailed API response logs</p>
             </div>
           </div>

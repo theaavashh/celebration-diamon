@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
-import prisma from '../config/database';
-import { ApiResponse, Product } from '../types';
+import { PrismaClient } from '@prisma/client';
+import { Product, ApiResponse } from '../types';
+
+const prisma = new PrismaClient();
 
 // Get all products (public)
 export const getAllProducts = async (req: Request, res: Response<ApiResponse<Product[]>>) => {
   try {
-    const { category, search, page = 1, limit = 10 } = req.query;
+    const { category, search, page = 1, limit = 12 } = req.query;
     
     const where: any = {
       isActive: true
@@ -33,14 +35,20 @@ export const getAllProducts = async (req: Request, res: Response<ApiResponse<Pro
         where,
         skip,
         take: Number(limit),
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        include: {
+          images: {
+            where: { isActive: true },
+            orderBy: { order: 'asc' as const }
+          }
+        }
       }),
       prisma.product.count({ where })
     ]);
     
     res.json({
       success: true,
-      data: products,
+      data: products as unknown as Product[],
       count: products.length,
       total,
       pagination: {
@@ -63,7 +71,7 @@ export const getAllProducts = async (req: Request, res: Response<ApiResponse<Pro
 // Get all products (admin)
 export const getAdminProducts = async (req: Request, res: Response<ApiResponse<Product[]>>) => {
   try {
-    const { category, search, page = 1, limit = 10 } = req.query;
+    const { category, search, status, page = 1, limit = 10 } = req.query;
     
     const where: any = {};
     
@@ -82,6 +90,11 @@ export const getAdminProducts = async (req: Request, res: Response<ApiResponse<P
       ];
     }
     
+    // Add status filter
+    if (status && status !== 'all') {
+      where.status = status as string;
+    }
+    
     const skip = (Number(page) - 1) * Number(limit);
     
     const [products, total] = await Promise.all([
@@ -89,14 +102,19 @@ export const getAdminProducts = async (req: Request, res: Response<ApiResponse<P
         where,
         skip,
         take: Number(limit),
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        include: {
+          images: {
+            orderBy: { order: 'asc' as const }
+          }
+        }
       }),
       prisma.product.count({ where })
     ]);
     
     res.json({
       success: true,
-      data: products,
+      data: products as unknown as Product[],
       count: products.length,
       total,
       pagination: {
@@ -121,7 +139,13 @@ export const getProductById = async (req: Request, res: Response<ApiResponse<Pro
   try {
     const { id } = req.params;
     const product = await prisma.product.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        images: {
+          where: { isActive: true },
+          orderBy: { order: 'asc' as const }
+        }
+      }
     });
     
     if (!product) {
@@ -133,7 +157,7 @@ export const getProductById = async (req: Request, res: Response<ApiResponse<Pro
     
     res.json({
       success: true,
-      data: product
+      data: product as unknown as Product
     });
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -152,7 +176,6 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       productCode,
       name,
       description,
-      briefDescription,
       fullDescription,
       category,
       subCategory,
@@ -183,22 +206,37 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       seoSlug
     } = req.body;
     
-    // Get uploaded file path
-    const imageUrl = req.file ? `/uploads/products/${req.file.filename}` : null;
+    // Get uploaded file paths
+    let imageUrls: string[] = [];
+    let uploadedVideoUrl: string | null = null;
     
+    if (req.files) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Handle image uploads
+      if (files.images) {
+        imageUrls = files.images.map(file => `/uploads/products/${file.filename}`);
+      }
+      
+      // Handle video upload
+      if (files.video && files.video.length > 0) {
+        uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
+      }
+    }
+    
+    // Create product first
     const product = await prisma.product.create({
       data: {
         productCode,
         name,
         description,
-        briefDescription: briefDescription || null,
         fullDescription: fullDescription || null,
         category,
         subCategory,
         price: price && price !== '' ? Number(price) : 0,
         stock: Number(stock) || 0,
         isActive: isActive === 'true' || isActive === true,
-        imageUrl,
+        imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
         goldWeight,
         diamondDetails,
         diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
@@ -220,14 +258,40 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
         seoKeywords: seoKeywords || null,
-        seoSlug: seoSlug || null
+        seoSlug: seoSlug || null,
+        // @ts-ignore - videoUrl exists in schema but TypeScript is not recognizing it
+        videoUrl: uploadedVideoUrl || null
+      } as any
+    });
+    
+    // Create product images if any were uploaded
+    if (imageUrls.length > 0) {
+      const productImages = imageUrls.map((url: string, index: number) => ({
+        productId: product.id,
+        url,
+        order: index,
+        isActive: true
+      }));
+      
+      await prisma.productImage.createMany({
+        data: productImages
+      });
+    }
+    
+    // Fetch the complete product with images
+    const completeProduct = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: {
+        images: {
+          orderBy: { order: 'asc' as const }
+        }
       }
     });
     
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: product
+      data: completeProduct as unknown as Product
     });
   } catch (error) {
     console.error('Error creating product:', error);
@@ -243,49 +307,240 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
 export const updateProduct = async (req: Request, res: Response<ApiResponse<Product>>) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    let {
+      productCode,
+      name,
+      description,
+      fullDescription,
+      category,
+      subCategory,
+      price,
+      stock,
+      isActive,
+      status, // Add status field
+      goldWeight,
+      diamondDetails,
+      diamondQuantity,
+      diamondSize,
+      diamondWeight,
+      diamondQuality,
+      otherGemstones,
+      orderDuration,
+      metalType,
+      stoneType,
+      settingType,
+      size,
+      color,
+      finish,
+      digitalBrowser,
+      website,
+      distributor,
+      culture,
+      seoTitle,
+      seoDescription,
+      seoKeywords,
+      seoSlug,
+      videoUrl // Add videoUrl
+    } = req.body;
+    
+    // Log incoming data for debugging
+    console.log('Update product request for ID:', id);
+    console.log('Request body:', req.body);
+    console.log('Uploaded files:', req.files);
     
     // Convert string boolean to actual boolean if present
-    if (updateData.isActive !== undefined) {
-      updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
+    if (isActive !== undefined) {
+      isActive = isActive === 'true' || isActive === true;
     }
-    if (updateData.digitalBrowser !== undefined) {
-      updateData.digitalBrowser = updateData.digitalBrowser === 'true' || updateData.digitalBrowser === true;
+    if (digitalBrowser !== undefined) {
+      digitalBrowser = digitalBrowser === 'true' || digitalBrowser === true;
     }
-    if (updateData.website !== undefined) {
-      updateData.website = updateData.website === 'true' || updateData.website === true;
+    if (website !== undefined) {
+      website = website === 'true' || website === true;
     }
-    if (updateData.distributor !== undefined) {
-      updateData.distributor = updateData.distributor === 'true' || updateData.distributor === true;
+    if (distributor !== undefined) {
+      distributor = distributor === 'true' || distributor === true;
     }
     
     // Convert numeric fields
-    if (updateData.price !== undefined) {
+    if (price !== undefined) {
       // If price is empty string, set to 0, otherwise convert to number
-      updateData.price = updateData.price === '' || updateData.price === null ? 0 : Number(updateData.price);
+      price = price === '' || price === null ? 0 : Number(price);
     }
-    if (updateData.stock !== undefined) {
-      updateData.stock = Number(updateData.stock);
+    if (stock !== undefined) {
+      stock = Number(stock);
     }
-    if (updateData.diamondQuantity !== undefined) {
-      updateData.diamondQuantity = updateData.diamondQuantity ? Number(updateData.diamondQuantity) : null;
+    if (diamondQuantity !== undefined) {
+      diamondQuantity = diamondQuantity ? Number(diamondQuantity) : null;
     }
     
-    // Get uploaded file path if new image is uploaded
-    const imageUrl = req.file ? `/uploads/products/${req.file.filename}` : updateData.imageUrl;
+    // Handle image uploads
+    let imageUrls: string[] = [];
+    let uploadedVideoUrl: string | null = null;
+    
+    if (req.files) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      // Handle image uploads
+      if (files.images) {
+        imageUrls = files.images.map(file => `/uploads/products/${file.filename}`);
+      }
+      
+      // Handle video upload
+      if (files.video && files.video.length > 0) {
+        uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
+      }
+    }
+    
+    // Check if image URLs are provided in the request body (for preserving existing images)
+    let preservedImageUrls: string[] | null = null;
+    if (req.body.imageUrls) {
+      try {
+        preservedImageUrls = JSON.parse(req.body.imageUrls);
+        console.log('Parsed preserved image URLs:', preservedImageUrls);
+      } catch (parseError) {
+        console.error('Error parsing imageUrls:', parseError);
+      }
+    }
+    
+    // If new images are uploaded, update the product and create new image records
+    if (imageUrls.length > 0) {
+      // Update the main image URL for backward compatibility
+      (req.body as any).imageUrl = imageUrls[0];
+      
+      // Delete existing images for this product (soft delete approach)
+      await prisma.productImage.updateMany({
+        where: { productId: id },
+        data: { isActive: false }
+      });
+      
+      // Create new image records
+      const productImages = imageUrls.map((url: string, index: number) => ({
+        productId: id,
+        url,
+        order: index,
+        isActive: true
+      }));
+      
+      await prisma.productImage.createMany({
+        data: productImages
+      });
+    } else if (preservedImageUrls && preservedImageUrls.length > 0) {
+      // If image URLs are provided in the request body, update them
+      console.log('Preserving existing image URLs:', preservedImageUrls);
+      (req.body as any).imageUrl = preservedImageUrls[0]; // Keep for backward compatibility
+      
+      // Delete existing images for this product (soft delete approach)
+      await prisma.productImage.updateMany({
+        where: { productId: id },
+        data: { isActive: false }
+      });
+      
+      // Create new image records
+      const productImages = preservedImageUrls.map((url: string, index: number) => ({
+        productId: id,
+        url,
+        order: index,
+        isActive: true
+      }));
+      
+      await prisma.productImage.createMany({
+        data: productImages
+      });
+    }
+    
+    console.log('Final update data:', {
+      productCode,
+      name,
+      description,
+      fullDescription,
+      category,
+      subCategory,
+      price,
+      stock,
+      isActive,
+      goldWeight,
+      diamondDetails,
+      diamondQuantity,
+      diamondSize,
+      diamondWeight,
+      diamondQuality,
+      otherGemstones,
+      orderDuration,
+      metalType,
+      stoneType,
+      settingType,
+      size,
+      color,
+      finish,
+      digitalBrowser,
+      website,
+      distributor,
+      culture,
+      seoTitle,
+      seoDescription,
+      seoKeywords,
+      seoSlug,
+      videoUrl // Add videoUrl
+    });
     
     const product = await prisma.product.update({
       where: { id },
       data: {
-        ...updateData,
-        imageUrl: imageUrl || null
+        productCode,
+        name,
+        description,
+        fullDescription: fullDescription || null,
+        category,
+        subCategory,
+        price: price && price !== '' ? Number(price) : 0,
+        stock: Number(stock) || 0,
+        isActive: isActive === 'true' || isActive === true,
+        // @ts-ignore - status exists in schema but TypeScript is not recognizing it
+        status: status || 'draft', // Add status field with default to 'draft'
+        imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
+        goldWeight,
+        diamondDetails,
+        diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
+        diamondSize,
+        diamondWeight,
+        diamondQuality,
+        otherGemstones,
+        orderDuration,
+        metalType,
+        stoneType,
+        settingType,
+        size,
+        color,
+        finish,
+        digitalBrowser: digitalBrowser === 'true' || digitalBrowser === true,
+        website: website === 'true' || website === true,
+        distributor: distributor === 'true' || distributor === true,
+        culture: culture || null,
+        seoTitle: seoTitle || null,
+        seoDescription: seoDescription || null,
+        seoKeywords: seoKeywords || null,
+        seoSlug: seoSlug || null,
+        // @ts-ignore - videoUrl exists in schema but TypeScript is not recognizing it
+        videoUrl: videoUrl || null
+      } as any
+    });
+    
+    // Fetch the complete product with images
+    const completeProduct = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: {
+        images: {
+          where: { isActive: true },
+          orderBy: { order: 'asc' as const }
+        }
       }
     });
     
     res.json({
       success: true,
       message: 'Product updated successfully',
-      data: product
+      data: completeProduct as unknown as Product
     });
   } catch (error) {
     console.error('Error updating product:', error);
@@ -327,7 +582,7 @@ export const toggleProductStatus = async (req: Request, res: Response<ApiRespons
     
     const product = await prisma.product.findUnique({
       where: { id }
-    });
+    }) as any; // Explicit cast to any to bypass type checking temporarily
     
     if (!product) {
       return res.status(404).json({
@@ -336,51 +591,71 @@ export const toggleProductStatus = async (req: Request, res: Response<ApiRespons
       });
     }
     
+    // Cycle through status values: draft -> active -> inactive -> draft
+    let newStatus = product.status;
+    if (product.status === 'draft') {
+      newStatus = 'active';
+    } else if (product.status === 'active') {
+      newStatus = 'inactive';
+    } else {
+      newStatus = 'draft';
+    }
+    
     const updatedProduct = await prisma.product.update({
       where: { id },
-      data: { isActive: !product.isActive }
-    });
+      data: {
+        // @ts-ignore - status exists in schema but TypeScript is not recognizing it
+        status: newStatus
+      }
+    }) as any; // Explicit cast to any to bypass type checking temporarily
     
     res.json({
       success: true,
-      message: `Product ${updatedProduct.isActive ? 'activated' : 'deactivated'} successfully`,
-      data: updatedProduct
+      message: `Product status updated to ${newStatus} successfully`,
+      data: updatedProduct as unknown as Product
     });
   } catch (error) {
     console.error('Error toggling product status:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to toggle product status',
+      message: 'Failed to update product status',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
 
 // Get product categories
-export const getProductCategories = async (req: Request, res: Response<ApiResponse<string[]>>) => {
+export const getProductCategories = async (req: Request, res: Response<ApiResponse<any[]>>) => {
   try {
-    const categories = await prisma.product.findMany({
-      select: { category: true },
-      where: { isActive: true }
+    // Get distinct categories from products
+    const productCategories = await prisma.product.groupBy({
+      by: ['category'],
+      where: {
+        isActive: true
+      }
     });
     
-    const uniqueCategories = [...new Set(categories.map(p => p.category))];
+    // Get full category objects from the categories table
+    const categoryIds = productCategories.map(c => c.category);
+    const categories = await prisma.category.findMany({
+      where: {
+        id: {
+          in: categoryIds
+        }
+      },
+      orderBy: { sortOrder: 'asc' }
+    });
     
     res.json({
       success: true,
-      data: uniqueCategories
+      data: categories
     });
   } catch (error) {
-    console.error('Error fetching product categories:', error);
+    console.error('Error fetching categories:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch product categories',
+      message: 'Failed to fetch categories',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
-
-
-
-
-

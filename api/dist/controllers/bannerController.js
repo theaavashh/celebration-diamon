@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.toggleBannerStatus = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.getBannerById = exports.getAdminBanners = exports.getAllBanners = void 0;
 const express_validator_1 = require("express-validator");
-const database_1 = __importDefault(require("@/config/database"));
+const database_1 = __importDefault(require("../config/database"));
 const getAllBanners = async (req, res) => {
     try {
         const { active_only = 'true' } = req.query;
@@ -220,18 +220,28 @@ exports.updateBanner = updateBanner;
 const deleteBanner = async (req, res) => {
     try {
         const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Banner ID is required'
+            });
+        }
+        console.log('Attempting to delete banner with ID:', id);
         const existingBanner = await database_1.default.banner.findUnique({
             where: { id }
         });
         if (!existingBanner) {
+            console.log('Banner not found with ID:', id);
             return res.status(404).json({
                 success: false,
                 message: 'Banner not found'
             });
         }
+        console.log('Banner found, deleting:', existingBanner.title);
         await database_1.default.banner.delete({
             where: { id }
         });
+        console.log('Banner deleted successfully:', id);
         res.json({
             success: true,
             message: 'Banner deleted successfully'
@@ -239,10 +249,23 @@ const deleteBanner = async (req, res) => {
     }
     catch (error) {
         console.error('Error deleting banner:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const isDevelopment = process.env['NODE_ENV'] === 'development';
+        if (error && typeof error === 'object' && 'code' in error) {
+            const prismaError = error;
+            console.error('Prisma error code:', prismaError.code);
+            if (prismaError.code === 'P2025') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Banner not found',
+                    error: isDevelopment ? errorMessage : undefined
+                });
+            }
+        }
         res.status(500).json({
             success: false,
             message: 'Failed to delete banner',
-            error: process.env['NODE_ENV'] === 'development' ? error.message : undefined
+            error: isDevelopment ? errorMessage : undefined
         });
     }
 };

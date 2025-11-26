@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { CelebrationProcess, CelebrationProcessStep } from '@/types';
+import { CelebrationProcess, CelebrationProcessStep, CelebrationProcessStepFormData } from '@/types';
 
 interface CelebrationProcessFormProps {
   celebrationProcess?: CelebrationProcess | null;
@@ -35,7 +35,7 @@ export default function CelebrationProcessForm({
     sortOrder: 0
   });
 
-  const [steps, setSteps] = useState<Omit<CelebrationProcessStep, 'id' | 'celebrationProcessId' | 'createdAt' | 'updatedAt'>[]>([
+  const [steps, setSteps] = useState<CelebrationProcessStepFormData[]>([
     { title: '', description: '', icon: 'diamond', order: 1, isActive: true },
     { title: '', description: '', icon: 'star', order: 2, isActive: true },
     { title: '', description: '', icon: 'shield', order: 3, isActive: true },
@@ -137,7 +137,12 @@ export default function CelebrationProcessForm({
         description: step.description.trim(),
         icon: step.icon.trim(),
         order: step.order,
-        isActive: step.isActive
+        isActive: step.isActive,
+        // These are required by the interface but will be filled by the API
+        id: '',
+        celebrationProcessId: '',
+        createdAt: '',
+        updatedAt: ''
       }))
     });
   };

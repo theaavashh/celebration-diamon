@@ -269,13 +269,13 @@ export default function CategoriesPage() {
                 <div className="relative h-48 bg-gray-100">
                   {category.imageUrl ? (
                     <img
-                      src={category.imageUrl.startsWith('http') ? category.imageUrl : `http://localhost:5000${category.imageUrl}`}
+                      src={category.imageUrl?.startsWith('http') ? category.imageUrl : `http://localhost:5000${category.imageUrl || ''}`}
                       alt={category.title}
                       className="w-full h-full object-cover"
                       onLoad={() => console.log('Image loaded successfully:', category.imageUrl)}
                       onError={(e) => {
                         console.error('Image failed to load:', category.imageUrl);
-                        console.error('Constructed URL:', category.imageUrl.startsWith('http') ? category.imageUrl : `http://localhost:5000${category.imageUrl}`);
+                        console.error('Constructed URL:', category.imageUrl?.startsWith('http') ? category.imageUrl : `http://localhost:5000${category.imageUrl || ''}`);
                         // Try to use the existing image file as fallback
                         const fallbackUrl = 'http://localhost:5000/uploads/categories/image-1758798193293-520590607.jpeg';
                         e.currentTarget.src = fallbackUrl;

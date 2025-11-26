@@ -56,20 +56,6 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const handleNextTab = () => {
-    const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
-    if (currentIndex < tabs.length - 1) {
-      setActiveTab(tabs[currentIndex + 1].id);
-    }
-  };
-
-  const handlePreviousTab = () => {
-    const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
-    if (currentIndex > 0) {
-      setActiveTab(tabs[currentIndex - 1].id);
-    }
-  };
-
   const {
     control,
     handleSubmit,
@@ -139,6 +125,30 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
     }
   });
 
+  const tabs = [
+    { id: 'basic', label: 'Basic Info', icon: FileText },
+    { id: 'pricing', label: 'Pricing', icon: DollarSign },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'media', label: 'Media', icon: Camera },
+    { id: 'seo', label: 'SEO', icon: Search },
+    { id: 'shipping', label: 'Shipping', icon: Truck },
+    { id: 'advanced', label: 'Advanced', icon: Settings },
+  ];
+
+  const handleNextTab = () => {
+    const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1].id);
+    }
+  };
+
+  const handlePreviousTab = () => {
+    const currentIndex = tabs.findIndex(tab => tab.id === activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(tabs[currentIndex - 1].id);
+    }
+  };
+
   // Watch categoryId to clear subCategoryId when category changes
   const watchedCategoryId = watch('categoryId');
   
@@ -173,7 +183,9 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
     if (isOpen) {
       if (initialData) {
         reset(initialData);
-        setPreviewImages(initialData.images || []);
+        // For editing, set preview images from existing data
+        const imageUrls = initialData.images || (initialData.imageUrl ? [initialData.imageUrl] : []);
+        setPreviewImages(imageUrls);
       } else {
         reset();
         setPreviewImages([]);
@@ -206,58 +218,49 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
     console.log('Raw form data:', formData);
     
     // Create minimal data with only essential fields
-    const processedData = {
+    const processedData: any = {
       name: formData.name,
+      slug: formData.slug || '',
       price: formData.price ? Number(formData.price) : 0,
       categoryId: formData.categoryId,
+      tags: formData.tags || [],
+      images: formData.images || [],
+      isActive: formData.isActive !== undefined ? formData.isActive : true,
+      stock: formData.stock ? Number(formData.stock) : 0,
+      isFeatured: formData.isFeatured !== undefined ? formData.isFeatured : false,
+      isDigital: formData.isDigital !== undefined ? formData.isDigital : false,
+      requiresShipping: formData.requiresShipping !== undefined ? formData.requiresShipping : true,
+      trackQuantity: formData.trackQuantity !== undefined ? formData.trackQuantity : true,
+      allowBackorder: formData.allowBackorder !== undefined ? formData.allowBackorder : false,
+      minQuantity: formData.minQuantity ? Number(formData.minQuantity) : undefined,
+      maxQuantity: formData.maxQuantity ? Number(formData.maxQuantity) : undefined,
       // Add only fields that have actual values (not empty strings or undefined)
       ...(formData.description && formData.description.trim() && { description: formData.description }),
       ...(formData.shortDescription && formData.shortDescription.trim() && { shortDescription: formData.shortDescription }),
       ...(formData.sku && formData.sku.trim() && { sku: formData.sku }),
       ...(formData.subCategoryId && formData.subCategoryId.trim() && { subCategoryId: formData.subCategoryId }),
       ...(formData.brandId && formData.brandId.trim() && { brandId: formData.brandId }),
-      ...(formData.images && formData.images.length > 0 && { images: formData.images }),
-      ...(formData.tags && formData.tags.length > 0 && { tags: formData.tags }),
       // Add pricing fields
       ...(formData.comparePrice && formData.comparePrice > 0 && { comparePrice: Number(formData.comparePrice) }),
       ...(formData.costPrice && formData.costPrice > 0 && { costPrice: Number(formData.costPrice) }),
       ...(formData.margin && formData.margin > 0 && { margin: Number(formData.margin) }),
-      // Set defaults for required fields
-      quantity: formData.stock ? Number(formData.stock) : 0,
-      trackQuantity: formData.trackQuantity !== undefined ? formData.trackQuantity : true,
-      manageStock: formData.manageStock !== undefined ? formData.manageStock : true,
-      allowBackorder: formData.allowBackorder !== undefined ? formData.allowBackorder : false,
-      lowStockThreshold: formData.lowStockThreshold ? Number(formData.lowStockThreshold) : 5,
-      isActive: formData.isActive !== undefined ? formData.isActive : true,
-      isDigital: formData.isDigital !== undefined ? formData.isDigital : false,
-      isFeatured: formData.isFeatured !== undefined ? formData.isFeatured : false,
-      isNew: formData.isNew !== undefined ? formData.isNew : false,
-      isOnSale: formData.isOnSale !== undefined ? formData.isOnSale : false,
-      isBestSeller: formData.isBestSeller !== undefined ? formData.isBestSeller : false,
-      visibility: formData.visibility || 'VISIBLE',
-      requiresShipping: formData.requiresShipping !== undefined ? formData.requiresShipping : true,
-      freeShipping: formData.freeShipping !== undefined ? formData.freeShipping : false,
-      taxable: formData.taxable !== undefined ? formData.taxable : true,
-      // Arrays with defaults
-      videos: formData.videos || [],
-      seoKeywords: formData.seoKeywords || [],
+      // SEO fields
+      ...(formData.seo && { seo: formData.seo }),
+      // Weight and dimensions
+      ...(formData.weight && { weight: Number(formData.weight) }),
+      ...(formData.dimensions && { dimensions: formData.dimensions }),
+      // Shipping fields
+      ...(formData.shippingCountry && { shippingCountry: formData.shippingCountry }),
+      ...(formData.deliveryCharge !== undefined && { deliveryCharge: Number(formData.deliveryCharge) }),
+      ...(formData.minDeliveryDays && { minDeliveryDays: Number(formData.minDeliveryDays) }),
+      ...(formData.maxDeliveryDays && { maxDeliveryDays: Number(formData.maxDeliveryDays) }),
+      ...(formData.freeShippingThreshold !== undefined && { freeShippingThreshold: Number(formData.freeShippingThreshold) }),
+      ...(formData.shippingWeight && { shippingWeight: Number(formData.shippingWeight) }),
+      ...(formData.isFragile !== undefined && { isFragile: formData.isFragile }),
+      ...(formData.isHazardous !== undefined && { isHazardous: formData.isHazardous }),
     };
     
-    // Filter out empty strings and convert them to undefined
-    const cleanedData = Object.fromEntries(
-      Object.entries(processedData)
-        .filter(([key, value]) => value !== '') // Remove empty strings entirely
-        .map(([key, value]) => [key, value])
-    );
-    
-    console.log('Processed data being sent to API:', cleanedData);
-    
-    // Update form values with converted numbers
-    Object.keys(processedData).forEach(key => {
-      if (processedData[key] !== formData[key]) {
-        setValue(key, processedData[key]);
-      }
-    });
+    console.log('Processed data being sent to API:', processedData);
     
     // Only validate essential fields
     const essentialFields = ['name', 'price', 'categoryId'];
@@ -265,11 +268,12 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
     
     console.log('Validation result:', isValid);
     console.log('Form errors:', errors);
-    console.log('Processed form data:', cleanedData);
+    console.log('Processed form data:', processedData);
     
     if (isValid) {
-      console.log('Submitting cleaned form data:', cleanedData);
-      await onSubmit(cleanedData as any);
+      console.log('Submitting processed form data:', processedData);
+      // Pass the form data to the onSubmit function
+      await onSubmit(processedData);
     } else {
       console.log('Validation failed, switching to Basic Info tab');
       // Switch to Basic Info tab if validation fails
@@ -279,29 +283,44 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+  
     const newImages: string[] = [];
-    
-    files.forEach(file => {
+    let processedCount = 0;
+  
+    files.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
-        newImages.push(result);
-        if (newImages.length === files.length) {
-          const currentImages = getValues('images');
-          setValue('images', [...currentImages, ...newImages]);
-          setPreviewImages([...currentImages, ...newImages]);
+        newImages[index] = result;
+        processedCount++;
+      
+        // When all files are processed
+        if (processedCount === files.length) {
+          // Get current images from form state
+          const currentImages = getValues('images') || [];
+          // Combine existing images with new ones
+          const updatedImages = [...currentImages, ...newImages.filter(img => img !== undefined)];
+        
+          // Update both form state and preview
+          setValue('images', updatedImages);
+          setPreviewImages(updatedImages);
         }
       };
       reader.readAsDataURL(file);
     });
-  };
+};
 
-  const removeImage = (index: number) => {
-    const currentImages = getValues('images');
-    const newImages = currentImages.filter((_: any, i: any) => i !== index);
-    setValue('images', newImages);
-    setPreviewImages(newImages);
-  };
+const removeImage = (index: number) => {
+  // Get current images
+  const currentImages = getValues('images') || [];
+  // Remove the image at the specified index
+  const newImages = currentImages.filter((_: any, i: number) => i !== index);
+  
+  // Update both form state and preview
+  setValue('images', newImages);
+  setPreviewImages(newImages);
+};
 
   const addTag = () => {
     appendTag('');
@@ -310,16 +329,6 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
   const addKeyword = () => {
     appendKeyword('');
   };
-
-  const tabs = [
-    { id: 'basic', label: 'Basic Info', icon: FileText },
-    { id: 'pricing', label: 'Pricing', icon: DollarSign },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'media', label: 'Media', icon: Camera },
-    { id: 'seo', label: 'SEO', icon: Search },
-    { id: 'shipping', label: 'Shipping', icon: Truck },
-    { id: 'advanced', label: 'Advanced', icon: Settings },
-  ];
 
   const mainCategories = useMemo(() => 
     categories.filter((cat: any) => !cat.parentId), 
@@ -1187,12 +1196,14 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {previewImages.map((image, index) => (
                                 <div key={index} className="relative group">
-                                  <Image
+                                  <img
                                     src={image}
                                     alt={`Preview ${index + 1}`}
-                                    width={150}
-                                    height={150}
-                                    className="w-full h-32 object-cover rounded-lg"
+                                    className="w-full h-auto object-cover rounded-lg"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                                    }}
                                   />
                                   <button
                                     type="button"
@@ -1201,6 +1212,9 @@ const EnhancedProductForm: React.FC<EnhancedProductFormProps> = ({
                                   >
                                     <X className="w-4 h-4" />
                                   </button>
+                                  <div className="absolute top-2 left-2 bg-black/50 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                                    {index + 1}
+                                  </div>
                                 </div>
                               ))}
                             </div>

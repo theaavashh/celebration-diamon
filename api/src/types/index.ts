@@ -54,6 +54,17 @@ export interface Category {
   updatedAt: Date;
 }
 
+export interface Subcategory {
+  id: string;
+  name: string;
+  categoryId: string;
+  category: Category;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Service {
   id: string;
   title: string;
@@ -219,12 +230,15 @@ export interface Product {
   productCode: string;
   name: string;
   description: string;
+  briefDescription?: string;
+  fullDescription?: string;
   category: string;
   subCategory?: string;
   price: number;
   imageUrl?: string;
   stock: number;
   isActive: boolean;
+  status: string;
   goldWeight?: string;
   diamondDetails?: string;
   diamondQuantity?: number;
@@ -247,6 +261,18 @@ export interface Product {
   seoDescription?: string;
   seoKeywords?: string;
   seoSlug?: string;
+  images?: ProductImage[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProductImage {
+  id: string;
+  productId: string;
+  url: string;
+  altText?: string;
+  order: number;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -284,13 +310,19 @@ export interface SavedProduct {
 }
 
 // API Request/Response Types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data?: T;
+  error?: string;
   count?: number;
-  error?: string | undefined;
-  errors?: any[];
+  total?: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
 }
 
 export interface PaginationParams {
@@ -345,6 +377,15 @@ export interface CreateCategoryRequest {
 }
 
 export interface UpdateCategoryRequest extends Partial<CreateCategoryRequest> {}
+
+export interface CreateSubcategoryRequest {
+  name: string;
+  categoryId: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateSubcategoryRequest extends Partial<CreateSubcategoryRequest> {}
 
 export interface CreateServiceRequest {
   title: string;

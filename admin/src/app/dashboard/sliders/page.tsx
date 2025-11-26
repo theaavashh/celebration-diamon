@@ -291,7 +291,7 @@ export default function SlidersPage() {
               {slider.imageUrl ? (
                 <img
                   src={slider.imageUrl}
-                  alt={slider.title}
+                  alt={slider.internalLink || 'Slider image'}
                   className="w-full h-full object-cover"
                 />
               ) : (

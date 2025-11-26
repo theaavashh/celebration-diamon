@@ -3,214 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { Filter, Grid, List, Search, Heart, X, User, MapPin, Settings, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Product data structure
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  subcategory: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  rating: number;
-  reviews: number;
-  description: string;
-  details: string;
-  inStock: boolean;
-  isNew?: boolean;
-  isSale?: boolean;
-  metal: string;
-  purity: string;
-  caratWeight: string;
-  clarity: string;
-  color: string;
-  cut: string;
-  length?: string;
-  width?: string;
-  height?: string;
-  weight?: string;
-  certification?: string;
-  warranty?: string;
-}
-
-// Sample product data
-const products: Product[] = [
-  {
-    id: "1",
-    name: "Diamond Solitaire Ring",
-    category: "rings",
-    subcategory: "engagement",
-    price: 2500,
-    originalPrice: 3000,
-    image: "/ring.jpeg",
-    rating: 4.8,
-    reviews: 124,
-    description: "Classic 1-carat diamond solitaire ring in 18k white gold",
-    details: "This timeless engagement ring features a brilliant-cut diamond set in a classic solitaire setting. The 18k white gold band provides the perfect backdrop for the diamond's sparkle.",
-    inStock: true,
-    isNew: true,
-    metal: "White Gold",
-    purity: "18K",
-    caratWeight: "1.00 CTW",
-    clarity: "VS1",
-    color: "F",
-    cut: "Round Brilliant",
-    length: "6.5mm",
-    width: "6.5mm",
-    height: "4.5mm",
-    weight: "3.2g",
-    certification: "GIA",
-    warranty: "Lifetime"
-  },
-  {
-    id: "2",
-    name: "Emerald Cut Diamond Necklace",
-    category: "necklaces",
-    subcategory: "pendants",
-    price: 1800,
-    image: "/necklace.jpeg",
-    rating: 4.9,
-    reviews: 89,
-    description: "Elegant emerald-cut diamond pendant on 18k gold chain",
-    details: "A sophisticated pendant featuring an emerald-cut diamond suspended from a delicate 18k gold chain. Perfect for both everyday wear and special occasions.",
-    inStock: true,
-    metal: "White Gold",
-    purity: "18K",
-    caratWeight: "1.25 CTW",
-    clarity: "VS1",
-    color: "F",
-    cut: "Emerald",
-    length: "18 inches",
-    width: "8mm",
-    height: "2mm",
-    weight: "3.2g",
-    certification: "GIA",
-    warranty: "Lifetime"
-  },
-  {
-    id: "3",
-    name: "Diamond Tennis Bracelet",
-    category: "bracelets",
-    subcategory: "tennis",
-    price: 3200,
-    originalPrice: 3800,
-    image: "/bracelet.jpeg",
-    rating: 4.7,
-    reviews: 156,
-    description: "Classic tennis bracelet with round brilliant diamonds",
-    details: "This elegant tennis bracelet features a continuous line of round brilliant diamonds set in 18k white gold. The flexible design ensures a perfect fit and maximum comfort.",
-    inStock: true,
-    isSale: true,
-    metal: "White Gold",
-    purity: "18K",
-    caratWeight: "2.50 CTW",
-    clarity: "VS2",
-    color: "G",
-    cut: "Round Brilliant",
-    length: "7.5 inches",
-    width: "4mm",
-    height: "2.5mm",
-    weight: "8.5g",
-    certification: "IGI",
-    warranty: "Lifetime"
-  },
-  {
-    id: "4",
-    name: "Pearl and Diamond Earrings",
-    category: "earrings",
-    subcategory: "studs",
-    price: 950,
-    image: "/footer-earring.jpeg",
-    rating: 4.6,
-    reviews: 67,
-    description: "Sophisticated pearl and diamond stud earrings",
-    details: "These elegant stud earrings combine the timeless beauty of freshwater pearls with the sparkle of diamond accents. Perfect for adding sophistication to any outfit.",
-    inStock: true,
-    metal: "White Gold",
-    purity: "14K",
-    caratWeight: "0.50 CTW",
-    clarity: "SI1",
-    color: "H",
-    cut: "Round Brilliant",
-    length: "8mm",
-    width: "8mm",
-    height: "6mm",
-    weight: "2.1g",
-    certification: "IGI",
-    warranty: "2 Years"
-  },
-  {
-    id: "5",
-    name: "Vintage Style Diamond Ring",
-    category: "rings",
-    subcategory: "vintage",
-    price: 4200,
-    image: "/ring.jpeg",
-    rating: 4.9,
-    reviews: 92,
-    description: "Art deco inspired diamond ring with intricate details",
-    details: "This stunning vintage-inspired ring features an art deco design with multiple diamonds set in an intricate pattern. The 18k yellow gold setting adds warmth and character.",
-    inStock: true,
-    isNew: true,
-    metal: "Yellow Gold",
-    purity: "18K",
-    caratWeight: "1.85 CTW",
-    clarity: "VVS2",
-    color: "E",
-    cut: "Princess",
-    length: "8mm",
-    width: "8mm",
-    height: "5mm",
-    weight: "4.8g",
-    certification: "GIA",
-    warranty: "Lifetime"
-  },
-  {
-    id: "6",
-    name: "Diamond Choker Necklace",
-    category: "necklaces",
-    subcategory: "chokers",
-    price: 2800,
-    originalPrice: 3500,
-    image: "/necklace.jpeg",
-    rating: 4.8,
-    reviews: 78,
-    description: "Luxurious diamond choker with adjustable length",
-    details: "This sophisticated choker features a line of diamonds set in 18k white gold with an adjustable chain for the perfect fit. The design is both modern and timeless.",
-    inStock: true,
-    isSale: true,
-    metal: "White Gold",
-    purity: "18K",
-    caratWeight: "2.15 CTW",
-    clarity: "VS2",
-    color: "G",
-    cut: "Round Brilliant",
-    length: "16 inches",
-    width: "12mm",
-    height: "3mm",
-    weight: "5.8g",
-    certification: "IGI",
-    warranty: "Lifetime"
-  }
-];
-
-const categories = [
-  { id: "all", name: "All Products", count: products.length },
-  { id: "rings", name: "Rings", count: products.filter(p => p.category === "rings").length },
-  { id: "necklaces", name: "Necklaces", count: products.filter(p => p.category === "necklaces").length },
-  { id: "bracelets", name: "Bracelets", count: products.filter(p => p.category === "bracelets").length },
-  { id: "earrings", name: "Earrings", count: products.filter(p => p.category === "earrings").length }
-];
-
-const subcategories = {
-  rings: ["engagement", "wedding", "vintage", "modern", "stackable"],
-  necklaces: ["pendants", "chokers", "layered", "statement", "minimalist"],
-  bracelets: ["tennis", "charm", "bangle", "cuff", "chain"],
-  earrings: ["studs", "hoops", "drops", "chandelier", "clips"]
-};
+import { apiService } from '@/lib/apiService';
+import type { Product } from '@/lib/apiService';
+import { getImageUrl } from '@/lib/api';
 
 export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState("featured");
@@ -231,6 +31,24 @@ export default function ProductsPage() {
     preferredTime: '',
     additionalNotes: ''
   });
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const fetchedProducts = await apiService.getProducts();
+        setProducts(fetchedProducts);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+        setError('Failed to load products. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -297,6 +115,159 @@ export default function ProductsPage() {
     setShowCartModal(false);
     alert('Thank you! We will contact you soon to arrange your appointment.');
   };
+
+  // Bento grid layout component
+  const BentoGrid = () => {
+    if (sortedProducts.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <div className="text-gray-400 mb-4">
+            <Search className="w-16 h-16 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+          <p className="text-gray-600">Try adjusting your filters or search terms</p>
+        </div>
+      );
+    }
+
+    // Create a bento grid layout with different aspect ratios
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
+        {sortedProducts.map((product, index) => {
+          // Determine the grid area based on index for bento effect
+          let rowSpan = "row-span-1";
+          let colSpan = "col-span-1";
+          
+          // Every 5th item takes double width
+          if (index % 5 === 0) {
+            colSpan = "col-span-2";
+          }
+          
+          // Every 7th item takes double height
+          if (index % 7 === 0) {
+            rowSpan = "row-span-2";
+          }
+          
+          // Special case for items that should be large
+          if (index % 11 === 0) {
+            rowSpan = "row-span-2";
+            colSpan = "col-span-2";
+          }
+
+          return (
+            <div 
+              key={product.id} 
+              className={`${rowSpan} ${colSpan} bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer`}
+              onClick={() => setSelectedProduct(product)}
+            >
+              <div className={`relative overflow-hidden bg-gray-100 ${
+                rowSpan.includes("2") && colSpan.includes("2") 
+                  ? "aspect-video" 
+                  : rowSpan.includes("2") 
+                    ? "aspect-square" 
+                    : colSpan.includes("2") 
+                      ? "aspect-[2/1]" 
+                      : "aspect-square"
+              }`}>
+                <Image
+                  src={getImageUrl(product.image)}
+                  alt={product.name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                {product.isNew && (
+                  <div className="absolute top-2 sm:top-3 left-2 sm:left-3 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                    New
+                  </div>
+                )}
+                {product.isSale && (
+                  <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                    Sale
+                  </div>
+                )}
+                {/* Removed hover buttons */}
+              </div>
+              
+              <div className="p-3 sm:p-4">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                  <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm sm:text-base">{product.name}</h3>
+                  <button className="text-gray-400 hover:text-red-500 transition-colors">
+                    <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                
+                <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">{product.description}</p>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                  <div className="flex gap-2 sm:hidden">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProduct(product);
+                      }}
+                      className="flex-1 bg-white text-gray-900 px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95 border border-gray-200"
+                    >
+                      Quick View
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProduct(product);
+                        setShowImageModal(true);
+                      }}
+                      className="flex-1 bg-amber-600 text-white px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95"
+                    >
+                      View Image
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToCart(product);
+                      }}
+                      className="flex-1 bg-amber-600 text-white px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95"
+                    >
+                      Request
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-amber-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-amber-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <X className="w-16 h-16 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading products</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors font-medium"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-amber-50/30">
@@ -368,22 +339,41 @@ export default function ProductsPage() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Categories</h3>
                   <div className="space-y-2">
-                    {categories.map((category) => (
+                    <button
+                      key="all"
+                      onClick={() => {
+                        setSelectedCategory("all");
+                        setSelectedSubcategory(null);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                        selectedCategory === "all"
+                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>All Products</span>
+                        <span className="text-sm text-gray-500">({products.length})</span>
+                      </div>
+                    </button>
+                    {Array.from(new Set(products.map(p => p.category))).map((category) => (
                       <button
-                        key={category.id}
+                        key={category}
                         onClick={() => {
-                          setSelectedCategory(category.id);
+                          setSelectedCategory(category);
                           setSelectedSubcategory(null);
                         }}
                         className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                          selectedCategory === category.id
+                          selectedCategory === category
                             ? "bg-amber-50 text-amber-700 border border-amber-200"
                             : "text-gray-700 hover:bg-gray-50"
                         }`}
                       >
                         <div className="flex justify-between items-center">
-                          <span>{category.name}</span>
-                          <span className="text-sm text-gray-500">({category.count})</span>
+                          <span>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                          <span className="text-sm text-gray-500">
+                            ({products.filter(p => p.category === category).length})
+                          </span>
                         </div>
                       </button>
                     ))}
@@ -391,11 +381,11 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Subcategories */}
-                {selectedCategory !== "all" && subcategories[selectedCategory as keyof typeof subcategories] && (
+                {selectedCategory !== "all" && (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Types</h3>
                     <div className="space-y-2">
-                      {subcategories[selectedCategory as keyof typeof subcategories].map((sub) => (
+                      {Array.from(new Set(products.filter(p => p.category === selectedCategory).map(p => p.subcategory))).map((sub) => (
                         <button
                           key={sub}
                           onClick={() => setSelectedSubcategory(selectedSubcategory === sub ? null : sub)}
@@ -457,20 +447,7 @@ export default function ProductsPage() {
 
             {/* Products */}
             {viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sortedProducts.map((product) => (
-                  <ProductCard 
-                    key={product.id} 
-                    product={product} 
-                    onSelect={setSelectedProduct}
-                    onImageModal={() => {
-                      setSelectedProduct(product);
-                      setShowImageModal(true);
-                    }}
-                    onAddToCart={handleAddToCart}
-                  />
-                ))}
-              </div>
+              <BentoGrid />
             ) : (
               <div className="space-y-4">
                 {sortedProducts.map((product) => (
@@ -488,7 +465,7 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {sortedProducts.length === 0 && (
+            {sortedProducts.length === 0 && !loading && (
               <div className="text-center py-12">
                 <div className="text-gray-400 mb-4">
                   <Search className="w-16 h-16 mx-auto" />
@@ -534,94 +511,14 @@ export default function ProductsPage() {
   );
 }
 
-// Product Card Component
-function ProductCard({ product, onSelect, onImageModal, onAddToCart }: { product: Product; onSelect: (product: Product) => void; onImageModal: () => void; onAddToCart: (product: Product) => void }) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group h-full">
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        {product.isNew && (
-          <div className="absolute top-2 sm:top-3 left-2 sm:left-3 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-            New
-          </div>
-        )}
-        {product.isSale && (
-          <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-            Sale
-          </div>
-        )}
-        <div className="absolute inset-0 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 opacity-0 sm:group-hover:opacity-100 transition-all duration-300 p-2">
-          <button
-            onClick={() => onSelect(product)}
-            className="bg-white text-gray-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium shadow-lg transform translate-y-4 sm:group-hover:translate-y-0 transition-all duration-300 hover:scale-105 active:scale-95 text-xs sm:text-sm w-full sm:w-auto"
-          >
-            Quick View
-          </button>
-          <button
-            onClick={onImageModal}
-            className="bg-amber-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium shadow-lg transform translate-y-4 sm:group-hover:translate-y-0 transition-all duration-300 hover:scale-105 active:scale-95 text-xs sm:text-sm w-full sm:w-auto"
-          >
-            View Image
-          </button>
-          <button
-            onClick={() => onAddToCart(product)}
-            className="bg-amber-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium shadow-lg transform translate-y-4 sm:group-hover:translate-y-0 transition-all duration-300 hover:scale-105 active:scale-95 text-xs sm:text-sm w-full sm:w-auto"
-          >
-            Add to Cart
-          </button>
-        </div>
-      </div>
-      
-      <div className="p-3 sm:p-4">
-        <div className="flex items-start justify-between mb-2 sm:mb-3">
-          <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm sm:text-base">{product.name}</h3>
-          <button className="text-gray-400 hover:text-red-500 transition-colors">
-            <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        </div>
-        
-        <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2">{product.description}</p>
-        
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <div className="flex gap-2 sm:hidden">
-            <button
-              onClick={() => onSelect(product)}
-              className="flex-1 bg-white text-gray-900 px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95 border border-gray-200"
-            >
-              Quick View
-            </button>
-            <button
-              onClick={onImageModal}
-              className="flex-1 bg-amber-600 text-white px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95"
-            >
-              View Image
-            </button>
-            <button
-              onClick={() => onAddToCart(product)}
-              className="flex-1 bg-amber-600 text-white px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95"
-            >
-              Request
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Product List Card Component
 function ProductListCard({ product, onSelect, onImageModal, onAddToCart }: { product: Product; onSelect: (product: Product) => void; onImageModal: () => void; onAddToCart: (product: Product) => void }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 hover:shadow-lg transition-shadow group">
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-        <div className="relative w-full sm:w-32 h-32 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden group">
+        <div className="relative w-full sm:w-32 h-32 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden group cursor-pointer" onClick={() => onSelect(product)}>
           <Image
-            src={product.image}
+            src={getImageUrl(product.image)}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -631,26 +528,7 @@ function ProductListCard({ product, onSelect, onImageModal, onAddToCart }: { pro
               New
             </div>
           )}
-          <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-            <button
-              onClick={() => onSelect(product)}
-              className="bg-white text-gray-900 px-3 py-2 rounded-full font-medium shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 text-xs hover:scale-105 active:scale-95"
-            >
-              Quick View
-            </button>
-            <button
-              onClick={onImageModal}
-              className="bg-amber-600 text-white px-3 py-2 rounded-full font-medium shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 text-xs hover:scale-105 active:scale-95"
-            >
-              View Image
-            </button>
-            <button
-              onClick={() => onAddToCart(product)}
-              className="bg-amber-600 text-white px-3 py-2 rounded-full font-medium shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 text-xs hover:scale-105 active:scale-95"
-            >
-              Add to Cart
-            </button>
-          </div>
+          {/* Removed hover buttons */}
         </div>
         
         <div className="flex-1">
@@ -666,25 +544,40 @@ function ProductListCard({ product, onSelect, onImageModal, onAddToCart }: { pro
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
             <div className="flex gap-2 sm:hidden">
               <button
-                onClick={() => onSelect(product)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(product);
+                }}
                 className="flex-1 bg-white text-gray-900 px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95 border border-gray-200"
               >
                 Quick View
               </button>
               <button
-                onClick={onImageModal}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onImageModal();
+                }}
                 className="flex-1 bg-amber-600 text-white px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95"
               >
                 View Image
               </button>
               <button
-                onClick={() => onAddToCart(product)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToCart(product);
+                }}
                 className="flex-1 bg-amber-600 text-white px-2 py-1.5 rounded-full font-medium shadow-lg text-xs hover:scale-105 active:scale-95"
               >
                 Add to Cart
               </button>
             </div>
-            <button className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm sm:text-base w-full sm:w-auto flex justify-center">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCart(product);
+              }}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm sm:text-base w-full sm:w-auto flex justify-center"
+            >
               Add to Cart
             </button>
           </div>
@@ -730,7 +623,7 @@ function ProductModal({ product, onClose, onImageModal, onAddToCart }: { product
               {/* Left side - Product Image */}
               <div className="relative aspect-square group cursor-pointer" onClick={onImageModal}>
                 <Image
-                  src={product.image}
+                  src={getImageUrl(product.image)}
                   alt={product.name}
                   fill
                   className="object-cover rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300"
@@ -762,7 +655,7 @@ function ProductModal({ product, onClose, onImageModal, onAddToCart }: { product
                 {/* Description */}
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">Description</h3>
-                  <p className="text-gray-600 leading-relaxed text-lg">{product.details}</p>
+                  <p className="text-gray-600 leading-relaxed text-lg">{product.details || product.fullDescription}</p>
                 </div>
 
                 {/* Diamond Details - Collapsible Accordion */}
@@ -790,7 +683,7 @@ function ProductModal({ product, onClose, onImageModal, onAddToCart }: { product
                       </div>
                       <div className="flex justify-between py-2 border-b border-gray-100">
                         <span className="text-gray-600">Type:</span>
-                        <span className="font-medium">{product.subcategory.charAt(0).toUpperCase() + product.subcategory.slice(1)}</span>
+                        <span className="font-medium">{(product.subcategory || product.subCategory).charAt(0).toUpperCase() + (product.subcategory || product.subCategory).slice(1)}</span>
                       </div>
                       <div className="flex justify-between py-2 border-b border-gray-100">
                         <span className="text-gray-600">Metal:</span>
@@ -901,7 +794,7 @@ function ImageModal({ product, onClose }: { product: Product; onClose: () => voi
           {/* Product Image */}
           <div className="relative w-full h-96 bg-gray-100">
             <Image
-              src={product.image}
+              src={getImageUrl(product.image)}
               alt={product.name}
               fill
               className="object-cover"
@@ -943,9 +836,7 @@ function ImageModal({ product, onClose }: { product: Product; onClose: () => voi
   );
 }
 
-// ... existing code ...
-
-// Cart Modal Component (continued)
+// Cart Modal Component
 function CartModal({ service, personalDetails, cartStep, onClose, onServiceSelection, onPersonalDetailsSubmit, setPersonalDetails }: {
   service: string;
   personalDetails: {

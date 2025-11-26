@@ -14,6 +14,7 @@ interface Product {
   imageUrl: string | null;
   description: string;
   createdAt: string;
+  isActive: boolean;
 }
 
 interface ProductItem {
@@ -46,7 +47,7 @@ const NewCollection = () => {
           const data = await response.json();
           if (data.success && data.data) {
             const recentProducts = data.data
-              .filter((p: Product) => (p as any).isActive !== false)
+              .filter((p: Product) => p.isActive !== false)
               .sort((a: Product, b: Product) => 
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
               )

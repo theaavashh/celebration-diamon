@@ -41,7 +41,7 @@ export default function PopupManagementPage() {
       setPopupImages(response.data || []);
       setCurrentPage(1); // Reset to first page when loading new data
     } catch (error) {
-      console.error('Error loading popup images:', error);
+      console.error('Error loading popup images:', error as any);
       toast.error('Failed to load popup images');
     } finally {
       setIsLoading(false);
@@ -121,7 +121,7 @@ export default function PopupManagementPage() {
       loadPopupImages(); // Reload the list
     } catch (error) {
       console.error('Error toggling image status:', error);
-      console.error('Error details:', error.response?.data || error.message);
+      console.error('Error details:', (error as any).response?.data || (error as any).message);
       toast.error('Failed to toggle image status');
     }
   };
@@ -159,7 +159,7 @@ export default function PopupManagementPage() {
       setShowDeleteModal(false);
       setImageToDelete(null);
     } catch (error) {
-      console.error('Error deleting image:', error);
+      console.error('Error deleting image:', error as any);
       toast.error('Failed to delete image');
     }
   };

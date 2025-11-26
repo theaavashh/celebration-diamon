@@ -39,7 +39,7 @@ const AdvancedProductFilter: React.FC<AdvancedProductFilterProps> = ({
     defaultValues: {
       search: '',
       categoryId: '',
-      status: 'all',
+      isActive: undefined,
       priceMin: undefined,
       priceMax: undefined,
       stockMin: undefined,
@@ -65,7 +65,7 @@ const AdvancedProductFilter: React.FC<AdvancedProductFilterProps> = ({
     onFilterChange({
       search: '',
       categoryId: '',
-      status: 'all',
+      isActive: undefined,
       priceMin: undefined,
       priceMax: undefined,
       stockMin: undefined,
@@ -169,17 +169,25 @@ const AdvancedProductFilter: React.FC<AdvancedProductFilterProps> = ({
                 {/* Status Filter */}
                 <div>
                   <Controller
-                    name="status"
+                    name="isActive"
                     control={control}
                     render={({ field }) => (
                       <select
                         {...field}
+                        value={field.value === undefined ? 'all' : field.value ? 'active' : 'inactive'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === 'all') {
+                            field.onChange(undefined);
+                          } else {
+                            field.onChange(value === 'active');
+                          }
+                        }}
                       >
                         <option value="all">All Status</option>
                         <option value="active">Active</option>
-                        <option value="draft">Draft</option>
-                        <option value="archived">Archived</option>
+                        <option value="inactive">Inactive</option>
                       </select>
                     )}
                   />

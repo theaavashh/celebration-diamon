@@ -1,9 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import RichTextEditor from './RichTextEditor';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import FullDescriptionModal from './FullDescriptionModal';
+import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 interface Product {
   id: string;
@@ -14,8 +20,8 @@ interface Product {
   subCategory?: string;
   price: number;
   imageUrl?: string;
-  stock: number;
   isActive: boolean;
+  status?: string; // "draft", "active", "inactive"
   goldWeight?: string;
   diamondDetails?: string;
   diamondQuantity?: number;
@@ -38,6 +44,18 @@ interface Product {
   seoDescription?: string;
   seoKeywords?: string;
   seoSlug?: string;
+  images?: ProductImage[]; // Add this for multiple images
+  videoUrl?: string; // Add videoUrl property
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProductImage {
+  id: string;
+  url: string;
+  altText?: string;
+  order: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,79 +67,347 @@ interface ProductFormProps {
   onSuccess: () => void;
 }
 
+// Add this interface for our preview data
+interface ProductPreviewData {
+  id?: string;
+  productCode: string;
+  name: string;
+  description: string;
+  fullDescription?: string;
+  category: string;
+  subCategory?: string;
+  price: number;
+  isActive: boolean;
+  status: string; // "draft", "active", "inactive"
+  goldWeight?: string;
+  diamondDetails?: string;
+  diamondQuantity?: number;
+  diamondSize?: string;
+  diamondWeight?: string;
+  diamondQuality?: string;
+  otherGemstones?: string;
+  orderDuration?: string;
+  metalType?: string;
+  stoneType?: string;
+  settingType?: string;
+  size?: string;
+  color?: string;
+  finish?: string;
+  digitalBrowser: boolean;
+  website: boolean;
+  distributor: boolean;
+  culture?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+  seoSlug?: string;
+  imageUrl?: string;
+  images?: ProductImage[];
+  videoUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Add interface for Category
+interface Category {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  link: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Add interface for Subcategory
+interface Subcategory {
+  id: string;
+  name: string;
+  categoryId: string;
+  category: Category;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Validation schema
+const productSchema = z.object({
+  productCode: z.string().min(1, 'Product code is required'),
+  name: z.string().min(1, 'Product name is required'),
+  description: z.string().min(1, 'Description is required'),
+  fullDescription: z.string().optional(),
+  category: z.string().min(1, 'Category is required'),
+  subCategory: z.string().min(1, 'Sub-category is required'),
+  price: z.string().optional(),
+  isActive: z.boolean(),
+  status: z.enum(["draft", "active", "inactive"]).default("draft"),
+  goldWeight: z.string().optional(),
+  diamondDetails: z.string().optional(),
+  diamondQuantity: z.string().optional(),
+  diamondSize: z.string().optional(),
+  diamondWeight: z.string().optional(),
+  diamondQuality: z.string().optional(),
+  otherGemstones: z.string().optional(),
+  orderDuration: z.string().optional(),
+  metalType: z.string().optional(),
+  stoneType: z.string().optional(),
+  settingType: z.string().optional(),
+  size: z.string().optional(),
+  color: z.string().optional(),
+  finish: z.string().optional(),
+  digitalBrowser: z.boolean(),
+  website: z.boolean(),
+  distributor: z.boolean(),
+  culture: z.string().optional(),
+  seoTitle: z.string().optional(),
+  seoDescription: z.string().optional(),
+  seoKeywords: z.string().optional(),
+  seoSlug: z.string().optional(),
+  videoUrl: z.string().optional(), // Add video URL validation
+  // Images will be validated separately in the form submission handler
+});
+
+type ProductFormData = z.infer<typeof productSchema>;
+
 export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess }: ProductFormProps) {
   const { isAuthenticated } = useAuth();
-  const [productForm, setProductForm] = useState({
-    productCode: '',
-    name: '',
-    description: '',
-    briefDescription: '',
-    fullDescription: '',
-    category: '',
-    subCategory: '',
-    price: '',
-    stock: '0',
-    isActive: true,
-    goldWeight: '',
-    diamondDetails: '',
-    diamondQuantity: '',
-    diamondSize: '',
-    diamondWeight: '',
-    diamondQuality: '',
-    otherGemstones: '',
-    orderDuration: '',
-    metalType: '',
-    stoneType: '',
-    settingType: '',
-    size: '',
-    color: '',
-    finish: '',
-    digitalBrowser: false,
-    website: false,
-    distributor: false,
-    culture: '',
-    seoTitle: '',
-    seoDescription: '',
-    seoKeywords: '',
-    seoSlug: ''
+  
+  // Add state for categories and subcategories
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [filteredSubcategories, setFilteredSubcategories] = useState<Subcategory[]>([]);
+  
+  // Add state for preview modal
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<ProductPreviewData | null>(null);
+  
+  // Refs for image cropping
+  const imgRef = useRef<HTMLImageElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // React Hook Form setup
+  const {
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isSubmitting: formIsSubmitting },
+    reset,
+    setValue,
+    watch,
+    getValues
+  } = useForm({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      productCode: '',
+      name: '',
+      description: '',
+      fullDescription: '',
+      category: '',
+      subCategory: '',
+      price: '',
+      isActive: true,
+      status: 'draft',
+      goldWeight: '',
+      diamondDetails: '',
+      diamondQuantity: '',
+      diamondSize: '',
+      diamondWeight: '',
+      diamondQuality: '',
+      otherGemstones: '',
+      orderDuration: '',
+      metalType: '',
+      stoneType: '',
+      settingType: '',
+      size: '',
+      color: '',
+      finish: '',
+      digitalBrowser: false,
+      website: false,
+      distributor: false,
+      culture: '',
+      seoTitle: '',
+      seoDescription: '',
+      seoKeywords: '',
+      seoSlug: '',
+      videoUrl: '' // Add videoUrl to reset
+    }
   });
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
+  // Fetch categories and subcategories
+  useEffect(() => {
+    const fetchCategoriesAndSubcategories = async () => {
+      try {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+        
+        // Fetch categories
+        const categoriesResponse = await fetch(`${API_BASE_URL}/api/categories/admin/all`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          console.log('Categories API response:', categoriesData);
+          setCategories(categoriesData.data || []);
+        }
+        
+        // Fetch subcategories
+        const subcategoriesResponse = await fetch(`${API_BASE_URL}/api/subcategories/admin/all`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (subcategoriesResponse.ok) {
+          const subcategoriesData = await subcategoriesResponse.json();
+          console.log('Subcategories API response:', subcategoriesData);
+          setSubcategories(subcategoriesData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories and subcategories:', error);
+      }
+    };
+    
+    fetchCategoriesAndSubcategories();
+  }, []);
+  
+  // Filter subcategories when category changes
+  const watchCategory = watch('category');
+  useEffect(() => {
+    if (watchCategory) {
+      const filtered = subcategories.filter(sub => sub.categoryId === watchCategory);
+      setFilteredSubcategories(filtered);
+    } else {
+      setFilteredSubcategories([]);
+    }
+  }, [watchCategory, subcategories]);
+  
+  // State is now managed by React Hook Form, removing the old state management
+  // const [productForm, setProductForm] = useState({/* ... */});
+  const [selectedImages, setSelectedImages] = useState<File[]>([]); // Changed to array
+  const [previewImages, setPreviewImages] = useState<string[]>([]); // Changed to array
+  const [isFullDescriptionModalOpen, setIsFullDescriptionModalOpen] = useState(false);
+  // State for video handling
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
+  
+  // State for image cropping
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [croppingImageIndex, setCroppingImageIndex] = useState<number | null>(null);
+  const [croppingImageUrl, setCroppingImageUrl] = useState<string>('');
+  
   // Handle form changes
-  const handleFormChange = (field: string, value: any) => {
-    setProductForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleFormChange = (field: keyof ProductFormData, value: any) => {
+    setValue(field, value);
   };
 
-  // Handle image selection
+  // Handle image selection (multiple images)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const fileList = Array.from(files);
+      // Instead of replacing, append new files to existing ones
+      setSelectedImages(prevImages => [...prevImages, ...fileList]);
+      
+      // Create preview URLs for all selected images and append to existing previews
+      const previewUrls = fileList.map(file => URL.createObjectURL(file));
+      setPreviewImages(prevPreviews => [...prevPreviews, ...previewUrls]);
+    }
+  };
+
+  // Handle image cropping
+  const handleCropImage = (index: number) => {
+    setCroppingImageIndex(index);
+    setCroppingImageUrl(previewImages[index]);
+    // Initialize crop with a centered crop
+    setCrop({
+      unit: '%',
+      width: 50,
+      height: 50,
+      x: 25,
+      y: 25
+    });
+  };
+
+  // Complete cropping and update the image
+  const handleCompleteCrop = () => {
+    if (imgRef.current && completedCrop && croppingImageIndex !== null) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        toast.error('Failed to create canvas context');
+        return;
+      }
+      
+      const image = imgRef.current;
+      const pixelRatio = window.devicePixelRatio;
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      
+      canvas.width = completedCrop.width * pixelRatio;
+      canvas.height = completedCrop.height * pixelRatio;
+      
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.imageSmoothingQuality = 'high';
+      
+      ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width,
+        completedCrop.height
+      );
+      
+      // Convert canvas to blob and create a new file
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const fileName = `cropped-${Date.now()}.png`;
+          const croppedFile = new File([blob], fileName, { type: 'image/png' });
+          
+          // Update the selected images and preview
+          const newSelectedImages = [...selectedImages];
+          const newPreviewImages = [...previewImages];
+          
+          newSelectedImages[croppingImageIndex] = croppedFile;
+          newPreviewImages[croppingImageIndex] = URL.createObjectURL(croppedFile);
+          
+          setSelectedImages(newSelectedImages);
+          setPreviewImages(newPreviewImages);
+          
+          // Close cropping modal
+          setCroppingImageIndex(null);
+          setCroppingImageUrl('');
+          setCrop(undefined);
+          setCompletedCrop(undefined);
+          
+          toast.success('Image cropped successfully!');
+        }
+      }, 'image/png');
     }
   };
 
   // Reset form when modal opens
   const resetForm = () => {
-    setProductForm({
+    reset({
       productCode: '',
       name: '',
       description: '',
-      briefDescription: '',
       fullDescription: '',
       category: '',
       subCategory: '',
       price: '',
-      stock: '0',
       isActive: true,
       goldWeight: '',
       diamondDetails: '',
@@ -144,26 +430,45 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       seoTitle: '',
       seoDescription: '',
       seoKeywords: '',
-      seoSlug: ''
+      seoSlug: '',
+      videoUrl: '' // Add videoUrl to reset
     });
-    setSelectedImage(null);
-    setPreviewImage(null);
+    setSelectedImages([]);
+    setPreviewImages([]);
+    setSelectedVideoFile(null);
+    setVideoPreview('');
+    
+    // Reset cropping state
+    setCroppingImageIndex(null);
+    setCroppingImageUrl('');
+    setCrop(undefined);
+    setCompletedCrop(undefined);
   };
 
   // Populate form when editing
   useEffect(() => {
-    if (editingProduct) {
-      setProductForm({
+    if (editingProduct && categories.length > 0 && subcategories.length > 0) {
+      // Debug: Check if category exists in loaded categories
+      const categoryMatch = categories.find(cat => cat.id === editingProduct.category);
+      const subCategoryMatch = subcategories.find(sub => sub.id === editingProduct.subCategory);
+      
+      console.log('Editing product category ID:', editingProduct.category);
+      console.log('Editing product subCategory ID:', editingProduct.subCategory);
+      console.log('Matching category:', categoryMatch);
+      console.log('Matching subcategory:', subCategoryMatch);
+      console.log('All categories:', categories);
+      console.log('All subcategories:', subcategories);
+      
+      reset({
         productCode: editingProduct.productCode || '',
         name: editingProduct.name || '',
         description: editingProduct.description || '',
-        briefDescription: (editingProduct as any).briefDescription || '',
         fullDescription: (editingProduct as any).fullDescription || '',
         category: editingProduct.category || '',
         subCategory: editingProduct.subCategory || '',
         price: editingProduct.price?.toString() || '',
-        stock: editingProduct.stock?.toString() || '0',
         isActive: editingProduct.isActive,
+        status: (editingProduct.status as 'draft' | 'active' | 'inactive' | undefined) || 'draft',
         goldWeight: editingProduct.goldWeight || '',
         diamondDetails: editingProduct.diamondDetails || '',
         diamondQuantity: editingProduct.diamondQuantity?.toString() || '',
@@ -187,18 +492,70 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         seoKeywords: editingProduct.seoKeywords || '',
         seoSlug: editingProduct.seoSlug || ''
       });
-      setSelectedImage(null);
-      setPreviewImage(editingProduct.imageUrl || null);
-    } else {
+      setSelectedImages([]);
+      
+      // Set preview images from existing product images
+      if (editingProduct.images && editingProduct.images.length > 0) {
+        // Use the image URLs for preview
+        const imageUrls = editingProduct.images
+          .filter(img => img.isActive)
+          .sort((a, b) => a.order - b.order)
+          .map(img => {
+            // Handle different URL formats properly
+            if (img.url.startsWith('http')) {
+              // Already a full URL
+              return img.url;
+            } else if (img.url.startsWith('/')) {
+              // Absolute path from domain root
+              const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+              const fullUrl = baseUrl.endsWith('/') ? 
+                `${baseUrl.slice(0, -1)}${img.url}` : 
+                `${baseUrl}${img.url}`;
+              return fullUrl;
+            } else {
+              // Relative path or filename
+              const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+              const basePath = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+              const fullUrl = `${basePath}${img.url}`;
+              return fullUrl;
+            }
+          });
+        setPreviewImages(imageUrls);
+      } else if (editingProduct.imageUrl) {
+        // Fallback to single image URL if no images array
+        let fullImageUrl = editingProduct.imageUrl;
+        if (!editingProduct.imageUrl.startsWith('http')) {
+          const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+          if (editingProduct.imageUrl.startsWith('/')) {
+            // Absolute path from domain root
+            fullImageUrl = baseUrl.endsWith('/') ? 
+              `${baseUrl.slice(0, -1)}${editingProduct.imageUrl}` : 
+              `${baseUrl}${editingProduct.imageUrl}`;
+          } else {
+            // Relative path or filename
+            const basePath = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+            fullImageUrl = `${basePath}${editingProduct.imageUrl}`;
+          }
+        }
+        setPreviewImages([fullImageUrl]);
+      } else {
+        setPreviewImages([]);
+      }
+      
+      // Set video preview if editing and product has a video
+      if (editingProduct && (editingProduct as any).videoUrl) {
+        setVideoPreview((editingProduct as any).videoUrl);
+      } else {
+        setVideoPreview('');
+      }
+      setSelectedVideoFile(null);
+    } else if (!editingProduct) {
       resetForm();
     }
-  }, [editingProduct]);
+  }, [editingProduct, reset, categories, subcategories]);
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
+  // Handle form submission with React Hook Form
+  const onSubmit = async (data: ProductFormData) => {
     try {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/products`;
       
@@ -208,254 +565,315 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }
-        setIsSubmitting(false);
         return;
       }
       
       // Try to get token from localStorage as fallback (for API calls that need Bearer token)
       const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
+      // Validate that images are selected for new products
+      if (!editingProduct && selectedImages.length === 0) {
+        toast.error('At least one product image is required');
+        return;
+      }
+      
       // Create FormData for file upload
       const formData = new FormData();
-      formData.append('productCode', productForm.productCode);
-      formData.append('name', productForm.name);
-      formData.append('description', productForm.description);
-      if (productForm.briefDescription) {
-        formData.append('briefDescription', productForm.briefDescription);
+      formData.append('productCode', data.productCode);
+      formData.append('name', data.name);
+      formData.append('description', data.description);
+      if (data.fullDescription) {
+        formData.append('fullDescription', data.fullDescription);
       }
-      if (productForm.fullDescription) {
-        formData.append('fullDescription', productForm.fullDescription);
-      }
-      formData.append('category', productForm.category);
-      formData.append('subCategory', productForm.subCategory);
+      formData.append('category', data.category);
+      formData.append('subCategory', data.subCategory || '');
       // Only append price if it has a value (make it optional)
-      if (productForm.price && productForm.price.trim() !== '') {
-        formData.append('price', productForm.price);
+      if (data.price && data.price.trim() !== '') {
+        formData.append('price', data.price);
       }
-      formData.append('stock', productForm.stock);
-      formData.append('isActive', productForm.isActive.toString());
-      formData.append('goldWeight', productForm.goldWeight);
-      formData.append('diamondDetails', productForm.diamondDetails);
-      formData.append('diamondQuantity', productForm.diamondQuantity);
-      formData.append('diamondSize', productForm.diamondSize);
-      formData.append('diamondWeight', productForm.diamondWeight);
-      formData.append('diamondQuality', productForm.diamondQuality);
-      formData.append('otherGemstones', productForm.otherGemstones);
-      formData.append('orderDuration', productForm.orderDuration);
-      formData.append('metalType', productForm.metalType);
-      formData.append('stoneType', productForm.stoneType);
-      formData.append('settingType', productForm.settingType);
-      formData.append('size', productForm.size);
-      formData.append('color', productForm.color);
-      formData.append('finish', productForm.finish);
-      formData.append('digitalBrowser', productForm.digitalBrowser.toString());
-      formData.append('website', productForm.website.toString());
-      formData.append('distributor', productForm.distributor.toString());
-      if (productForm.culture) {
-        formData.append('culture', productForm.culture);
-      }
-      if (productForm.seoTitle) {
-        formData.append('seoTitle', productForm.seoTitle);
-      }
-      if (productForm.seoDescription) {
-        formData.append('seoDescription', productForm.seoDescription);
-      }
-      if (productForm.seoKeywords) {
-        formData.append('seoKeywords', productForm.seoKeywords);
-      }
-      if (productForm.seoSlug) {
-        formData.append('seoSlug', productForm.seoSlug);
-      }
-      
-      if (selectedImage) {
-        formData.append('image', selectedImage);
-      }
-      
-      const response = await fetch(editingProduct ? `${apiUrl}/${editingProduct.id}` : apiUrl, {
-        method: editingProduct ? 'PUT' : 'POST',
-        credentials: 'include', // Include cookies for authentication
-        headers: {
-          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
-        },
-        body: formData
-      });
+      formData.append('isActive', data.isActive.toString());
+      formData.append('status', data.status);
+      formData.append('goldWeight', data.goldWeight || '');
 
-      if (response.ok) {
+      formData.append('diamondDetails', data.diamondDetails || '');
+      formData.append('diamondQuantity', data.diamondQuantity || '');
+      formData.append('diamondSize', data.diamondSize || '');
+      formData.append('diamondWeight', data.diamondWeight || '');
+      formData.append('diamondQuality', data.diamondQuality || '');
+      formData.append('otherGemstones', data.otherGemstones || '');
+      formData.append('orderDuration', data.orderDuration || '');
+      formData.append('metalType', data.metalType || '');
+      formData.append('stoneType', data.stoneType || '');
+      formData.append('settingType', data.settingType || '');
+      formData.append('size', data.size || '');
+      formData.append('color', data.color || '');
+      formData.append('finish', data.finish || '');
+      formData.append('digitalBrowser', data.digitalBrowser.toString());
+      formData.append('website', data.website.toString());
+      formData.append('distributor', data.distributor.toString());
+      if (data.culture) {
+        formData.append('culture', data.culture);
+      }
+      if (data.seoTitle) {
+        formData.append('seoTitle', data.seoTitle);
+      }
+      if (data.seoDescription) {
+        formData.append('seoDescription', data.seoDescription);
+      }
+      if (data.seoKeywords) {
+        formData.append('seoKeywords', data.seoKeywords);
+      }
+      formData.append('seoSlug', data.seoSlug || '');
+      if (data.videoUrl) {
+        formData.append('videoUrl', data.videoUrl);
+      }
+      
+      // Handle image uploads
+      if (selectedImages.length > 0) {
+        // If new images are selected, upload them
+        console.log('Uploading new images:', selectedImages.length);
+        selectedImages.forEach((image, index) => {
+          formData.append('images', image);
+        });
+      } else if (editingProduct && editingProduct.images && editingProduct.images.length > 0) {
+        // If editing and no new images are selected, preserve the existing image URLs
+        console.log('Preserving existing image URLs:', editingProduct.images.length);
+        const imageUrls = editingProduct.images
+          .filter(img => img.isActive)
+          .sort((a, b) => a.order - b.order)
+          .map(img => img.url);
+        // Only append imageUrls if there are images to preserve
+        if (imageUrls.length > 0) {
+          formData.append('imageUrls', JSON.stringify(imageUrls));
+        }
+      }
+      
+      // Handle video upload
+      if (selectedVideoFile) {
+        formData.append('video', selectedVideoFile);
+      }
+      
+      // Make API request
+      const method = editingProduct ? 'PUT' : 'POST';
+      const url = editingProduct ? `${apiUrl}/${editingProduct.id}` : apiUrl;
+      
+      const response = await fetch(url, {
+        method,
+        body: formData,
+        // Don't set Content-Type header when using FormData
+        credentials: 'include', // Send cookies
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
         toast.success(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
         onSuccess();
         onClose();
-        resetForm();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
       } else {
-        const errorText = await response.text();
-        console.error('Error saving product, status:', response.status);
-        console.error('Error response text:', errorText);
-        let errorMessage = 'Failed to save product';
-        try {
-          const errorJson = JSON.parse(errorText);
-          // Show specific validation errors if available
-          if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
-            const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
-            errorMessage = validationErrors;
-          } else {
-            errorMessage = errorJson.message || errorMessage;
-          }
-        } catch (e) {
-          console.error('Could not parse error response as JSON');
-        }
-        toast.error(errorMessage);
+        console.error('API error:', result);
+        toast.error(result.message || (editingProduct ? 'Failed to update product' : 'Failed to create product'));
       }
     } catch (error) {
-      console.error('Error saving product:', error);
-      toast.error('Failed to save product');
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error submitting form:', error);
+      toast.error('An error occurred while submitting the form');
+    }
+  };
+
+  // Handle video file selection
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedVideoFile(file);
+      setVideoPreview(URL.createObjectURL(file));
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
               {editingProduct ? 'Edit Product' : 'Add New Product'}
-          </h2>
-              <button
+            </h2>
+            <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-500 hover:text-gray-700"
             >
-              ✕
-              </button>
-        </div>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleFormSubmit(onSubmit)} className="space-y-6">
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Product Code *
-                    </label>
+                </label>
+                <Controller
+                  name="productCode"
+                  control={control}
+                  render={({ field }) => (
                     <input
+                      {...field}
                       type="text"
-                  value={productForm.productCode}
-                  onChange={(e) => handleFormChange('productCode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                  placeholder="CD-001"
-                      required
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.productCode ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="CD-001"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  )}
+                />
+                {errors.productCode && <p className="text-red-500 text-sm mt-1">{errors.productCode.message}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Product Name *
-                    </label>
+                </label>
+                <Controller
+                  name="name"
+                  control={control}
+                  render={({ field }) => (
                     <input
+                      {...field}
                       type="text"
-                  value={productForm.name}
-                  onChange={(e) => handleFormChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                  placeholder="Enter product name"
-                      required
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="Product Name"
                     />
-                  </div>
-                </div>
+                  )}
+                />
+                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+              </div>
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description *
-                  </label>
+              </label>
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
                   <textarea
-                value={productForm.description}
-                onChange={(e) => handleFormChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                rows={3}
-                placeholder="Enter product description"
-                    required
+                    {...field}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
+                    rows={6}
+                    placeholder="Enter product description"
                   />
-                </div>
+                )}
+              />
+              {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
+            </div>
 
-                {/* Brief Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Brief Description
-                  </label>
-                  <textarea
-                    value={productForm.briefDescription}
-                    onChange={(e) => handleFormChange('briefDescription', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    rows={2}
-                    placeholder="Short description for product listings"
-                  />
-                </div>
-
-                {/* Full Description with Rich Text Editor */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Description
-                  </label>
-                  <RichTextEditor
-                    value={productForm.fullDescription}
-                    onChange={(value) => handleFormChange('fullDescription', value)}
-                  />
-                </div>
+            {/* Full Description with Modal Editor */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Description
+              </label>
+              <Controller
+                name="fullDescription"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={field.value ? 'Content entered' : 'No content'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black bg-gray-50"
+                        placeholder="Click 'Edit' to add full description"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsFullDescriptionModalOpen(true)}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors whitespace-nowrap"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    {errors.fullDescription && <p className="text-red-500 text-sm mt-1">{errors.fullDescription.message}</p>}
+                  </>
+                )}
+              />
+            </div>
 
             {/* Category and Pricing */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Category *
-                    </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category *
+                </label>
+                <Controller
+                  name="category"
+                  control={control}
+                  render={({ field }) => (
                     <select
-                  value={productForm.category}
-                  onChange={(e) => handleFormChange('category', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
-                      required
-                >
-                  <option value="">Select Category</option>
-                  <option value="Ring">Ring</option>
-                  <option value="Necklace">Necklace</option>
-                  <option value="Bracelet">Bracelet</option>
-                  <option value="Earring">Earring</option>
-                  <option value="Pendant">Pendant</option>
-                  <option value="Chain">Chain</option>
-                  <option value="Bangle">Bangle</option>
+                      {...field}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.category ? 'border-red-500' : 'border-gray-300'}`}
+                      value={field.value || ''}
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.title}
+                        </option>
+                      ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sub Category
-                    </label>
-                    <input
-                      type="text"
-                  value={productForm.subCategory}
-                  onChange={(e) => handleFormChange('subCategory', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                  placeholder="Ladies/Casual"
+                  )}
                 />
+                {errors.category && <p className="text-red-500 text-sm mt-1">{errors.category.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sub Category *
+                </label>
+                <Controller
+                  name="subCategory"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.subCategory ? 'border-red-500' : 'border-gray-300'}`}
+                      value={field.value || ''}
+                      disabled={!watchCategory}
+                    >
+                      <option value="">Select Sub Category</option>
+                      {filteredSubcategories.map((subcategory) => (
+                        <option key={subcategory.id} value={subcategory.id}>
+                          {subcategory.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+                {errors.subCategory && <p className="text-red-500 text-sm mt-1">{errors.subCategory.message}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Price
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={productForm.price}
-                  onChange={(e) => handleFormChange('price', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                  placeholder="0.00"
+                <Controller
+                  name="price"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.price ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="0.00"
                     />
+                  )}
+                />
+                {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price.message}</p>}
               </div>
-                </div>
+            </div>
 
             {/* Culture */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -463,17 +881,125 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Cultural Background
                 </label>
-                <select
-                  value={productForm.culture}
-                  onChange={(e) => handleFormChange('culture', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
-                >
-                  <option value="">Select Culture</option>
-                  <option value="None">None</option>
-                  <option value="Newari">Newari</option>
-                  <option value="Brahmin/Chhetri">Brahmin/Chhetri</option>
-                  <option value="Tamang">Tamang</option>
-                </select>
+                <Controller
+                  name="culture"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.culture ? 'border-red-500' : 'border-gray-300'}`}
+                      value={field.value || ''}
+                    >
+                      <option value="">Select Culture</option>
+                      <option value="None">None</option>
+                      <option value="Newari">Newari</option>
+                      <option value="Brahmin/Chhetri">Brahmin/Chhetri</option>
+                      <option value="Tamang">Tamang</option>
+                    </select>
+                  )}
+                />
+                {errors.culture && <p className="text-red-500 text-sm mt-1">{errors.culture.message}</p>}
+              </div>
+            </div>
+
+            {/* Product Images */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Product Images *
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
+                {previewImages.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img 
+                      src={preview} 
+                      alt={`Preview ${index + 1}`} 
+                      className="w-full h-auto object-contain rounded-lg border border-gray-300 max-h-64"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => handleCropImage(index)}
+                        className="bg-white text-black px-2 py-1 rounded text-xs font-medium"
+                      >
+                        Crop
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newPreviewImages = previewImages.filter((_, i) => i !== index);
+                        const newSelectedImages = selectedImages.filter((_, i) => i !== index);
+                        setPreviewImages(newPreviewImages);
+                        setSelectedImages(newSelectedImages);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {previewImages.length < 5 && (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-xs text-gray-500 mt-2">Add Image</p>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Video Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Product Video
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-xs text-gray-500 mt-2">Upload Video</p>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="video/*"
+                      onChange={handleVideoChange}
+                    />
+                  </label>
+                </div>
+                {videoPreview && (
+                  <div className="relative">
+                    <video 
+                      src={videoPreview} 
+                      controls 
+                      className="w-full h-auto object-contain rounded-lg border border-gray-300"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVideoPreview('');
+                        setSelectedVideoFile(null);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
               </div>
             </div>
 
@@ -485,302 +1011,660 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Gold Weight
                   </label>
-                    <input
-                      type="text"
-                    value={productForm.goldWeight}
-                    onChange={(e) => handleFormChange('goldWeight', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="4 gms approx"
+                  <Controller
+                    name="goldWeight"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldWeight ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="4 gms approx"
+                        />
+                        {errors.goldWeight && <p className="text-red-500 text-sm mt-1">{errors.goldWeight.message}</p>}
+                      </>
+                    )}
                   />
                 </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Metal Type
-                    </label>
-                      <input
-                    type="text"
-                    value={productForm.metalType}
-                    onChange={(e) => handleFormChange('metalType', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="14k/18k"
+                  </label>
+                  <Controller
+                    name="metalType"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.metalType ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="14k/18k"
+                        />
+                        {errors.metalType && <p className="text-red-500 text-sm mt-1">{errors.metalType.message}</p>}
+                      </>
+                    )}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Diamond Details
-                          </label>
-                          <input
-                    type="text"
-                    value={productForm.diamondDetails}
-                    onChange={(e) => handleFormChange('diamondDetails', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="-"
-                  />
-                </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Quantity
-                    </label>
-                    <input
-                      type="number"
-                    value={productForm.diamondQuantity}
-                    onChange={(e) => handleFormChange('diamondQuantity', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Size
-                    </label>
-                    <input
-                    type="text"
-                    value={productForm.diamondSize}
-                    onChange={(e) => handleFormChange('diamondSize', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="Size"
-                  />
-                </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Weight
-                    </label>
-                      <input
-                    type="text"
-                    value={productForm.diamondWeight}
-                    onChange={(e) => handleFormChange('diamondWeight', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="None"
+                  </label>
+                  <Controller
+                    name="diamondDetails"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondDetails ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="-"
+                        />
+                        {errors.diamondDetails && <p className="text-red-500 text-sm mt-1">{errors.diamondDetails.message}</p>}
+                      </>
+                    )}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Quality
+                    Diamond Quantity
                   </label>
-                  <input
-                    type="text"
-                    value={productForm.diamondQuality}
-                    onChange={(e) => handleFormChange('diamondQuality', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="Not mentioned"
+                  <Controller
+                    name="diamondQuantity"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="number"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondQuantity ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="0"
+                        />
+                        {errors.diamondQuantity && <p className="text-red-500 text-sm mt-1">{errors.diamondQuantity.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Diamond Size
+                  </label>
+                  <Controller
+                    name="diamondSize"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondSize ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Size"
+                        />
+                        {errors.diamondSize && <p className="text-red-500 text-sm mt-1">{errors.diamondSize.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Stone Type
+                  </label>
+                  <Controller
+                    name="stoneType"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.stoneType ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Diamond, Ruby, etc."
+                        />
+                        {errors.stoneType && <p className="text-red-500 text-sm mt-1">{errors.stoneType.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Setting Type
+                  </label>
+                  <Controller
+                    name="settingType"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.settingType ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Prong, Bezel, etc."
+                        />
+                        {errors.settingType && <p className="text-red-500 text-sm mt-1">{errors.settingType.message}</p>}
+                      </>
+                    )}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Other Gemstones
                   </label>
-                  <input
-                    type="text"
-                    value={productForm.otherGemstones}
-                    onChange={(e) => handleFormChange('otherGemstones', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="None"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Order Duration
-                  </label>
-                    <input
-                      type="text"
-                    value={productForm.orderDuration}
-                    onChange={(e) => handleFormChange('orderDuration', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="7 days to make"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={productForm.stock}
-                    onChange={(e) => handleFormChange('stock', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-                </div>
-
-            {/* Image Upload */}
-                      <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Image
-                        </label>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                  <div className="flex flex-col items-center">
-                    <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-sm text-gray-600 mb-2">Click to upload or drag and drop</p>
+                  <Controller
+                    name="otherGemstones"
+                    control={control}
+                    render={({ field }) => (
+                      <>
                         <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
-                    >
-                      Choose Image
-                        </label>
-                      </div>
-                      </div>
-                {previewImage && (
-                  <div className="mt-2">
-                    <img
-                      src={previewImage}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg border border-gray-300"
-                    />
-                    </div>
-                  )}
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.otherGemstones ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Other gemstones used"
+                        />
+                        {errors.otherGemstones && <p className="text-red-500 text-sm mt-1">{errors.otherGemstones.message}</p>}
+                      </>
+                    )}
+                  />
                 </div>
               </div>
+            </div>
+
+            {/* Additional Details */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Size
+                  </label>
+                  <Controller
+                    name="size"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.size ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Ring size, etc."
+                        />
+                        {errors.size && <p className="text-red-500 text-sm mt-1">{errors.size.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Color
+                  </label>
+                  <Controller
+                    name="color"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.color ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Gold color"
+                        />
+                        {errors.color && <p className="text-red-500 text-sm mt-1">{errors.color.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Finish
+                  </label>
+                  <Controller
+                    name="finish"
+                    control={control}
+                    render={({ field }) => (
+                      <>
+                        <input
+                          {...field}
+                          type="text"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.finish ? 'border-red-500' : 'border-gray-300'}`}
+                          placeholder="Polished, Matte, etc."
+                        />
+                        {errors.finish && <p className="text-red-500 text-sm mt-1">{errors.finish.message}</p>}
+                      </>
+                    )}
+                  />
+                </div>
+                {/* Status Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <Controller
+                    name="status"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        {...field}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.status ? 'border-red-500' : 'border-gray-300'}`}
+                        value={field.value}
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    )}
+                  />
+                  {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
+                </div>
+              </div>
+            </div>
 
             {/* Distribution Channels */}
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Distribution Channels</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="digitalBrowser"
-                    checked={productForm.digitalBrowser}
-                    onChange={(e) => handleFormChange('digitalBrowser', e.target.checked)}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  <Controller
+                    name="digitalBrowser"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                    )}
                   />
-                  <label htmlFor="digitalBrowser" className="ml-2 block text-sm font-medium text-gray-700">
+                  <label className="ml-2 block text-sm text-gray-700">
                     Digital Browser
                   </label>
                 </div>
                 <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="website"
-                    checked={productForm.website}
-                    onChange={(e) => handleFormChange('website', e.target.checked)}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  <Controller
+                    name="website"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                    )}
                   />
-                  <label htmlFor="website" className="ml-2 block text-sm font-medium text-gray-700">
+                  <label className="ml-2 block text-sm text-gray-700">
                     Website
                   </label>
                 </div>
                 <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="distributor"
-                    checked={productForm.distributor}
-                    onChange={(e) => handleFormChange('distributor', e.target.checked)}
-                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  <Controller
+                    name="distributor"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                    )}
                   />
-                  <label htmlFor="distributor" className="ml-2 block text-sm font-medium text-gray-700">
+                  <label className="ml-2 block text-sm text-gray-700">
                     Distributor
                   </label>
                 </div>
               </div>
             </div>
 
-            {/* SEO Fields */}
+            {/* SEO Information */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">SEO Settings</h3>
-              <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">SEO Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     SEO Title
                   </label>
-                  <input
-                    type="text"
-                    value={productForm.seoTitle}
-                    onChange={(e) => handleFormChange('seoTitle', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="e.g., 18k Gold Ring with Diamonds - Celebration Diamond"
-                    maxLength={60}
+                  <Controller
+                    name="seoTitle"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.seoTitle ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Meta title"
+                      />
+                    )}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Recommended: 50-60 characters</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    SEO Description
-                  </label>
-                  <textarea
-                    value={productForm.seoDescription}
-                    onChange={(e) => handleFormChange('seoDescription', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    rows={3}
-                    placeholder="A brief description for search engines"
-                    maxLength={160}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Recommended: 150-160 characters</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    SEO Keywords
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.seoKeywords}
-                    onChange={(e) => handleFormChange('seoKeywords', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="e.g., gold ring, diamond jewelry, wedding rings"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
+                  {errors.seoTitle && <p className="text-red-500 text-sm mt-1">{errors.seoTitle.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     SEO Slug
                   </label>
-                  <input
-                    type="text"
-                    value={productForm.seoSlug}
-                    onChange={(e) => handleFormChange('seoSlug', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                    placeholder="e.g., 18k-gold-ring-diamonds"
+                  <Controller
+                    name="seoSlug"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.seoSlug ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="URL slug"
+                      />
+                    )}
                   />
-                  <p className="text-xs text-gray-500 mt-1">URL-friendly version of the title</p>
+                  {errors.seoSlug && <p className="text-red-500 text-sm mt-1">{errors.seoSlug.message}</p>}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    SEO Description
+                  </label>
+                  <Controller
+                    name="seoDescription"
+                    control={control}
+                    render={({ field }) => (
+                      <textarea
+                        {...field}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.seoDescription ? 'border-red-500' : 'border-gray-300'}`}
+                        rows={3}
+                        placeholder="Meta description"
+                      />
+                    )}
+                  />
+                  {errors.seoDescription && <p className="text-red-500 text-sm mt-1">{errors.seoDescription.message}</p>}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    SEO Keywords
+                  </label>
+                  <Controller
+                    name="seoKeywords"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.seoKeywords ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Meta keywords (comma separated)"
+                      />
+                    )}
+                  />
+                  {errors.seoKeywords && <p className="text-red-500 text-sm mt-1">{errors.seoKeywords.message}</p>}
                 </div>
               </div>
             </div>
 
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <select
-                value={productForm.isActive ? 'active' : 'inactive'}
-                onChange={(e) => handleFormChange('isActive', e.target.value === 'active')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-          </div>
-
-            <div className="flex justify-end space-x-3 pt-6">
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
               <button
-            type="button"
-            onClick={onClose}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Cancel
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={formIsSubmitting}
+              >
+                Cancel
               </button>
               <button
-            type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  // Get current form data for preview
+                  const formData = getValues();
+                  const previewProduct: ProductPreviewData = {
+                    id: editingProduct?.id,
+                    productCode: formData.productCode,
+                    name: formData.name,
+                    description: formData.description,
+                    fullDescription: formData.fullDescription,
+                    category: formData.category,
+                    subCategory: formData.subCategory,
+                    price: formData.price ? parseFloat(formData.price) : 0,
+                    isActive: formData.isActive,
+                    status: formData.status || 'draft',
+                    goldWeight: formData.goldWeight,
+                    diamondDetails: formData.diamondDetails,
+                    diamondQuantity: formData.diamondQuantity ? parseInt(formData.diamondQuantity) : undefined,
+                    diamondSize: formData.diamondSize,
+                    diamondWeight: formData.diamondWeight,
+                    diamondQuality: formData.diamondQuality,
+                    otherGemstones: formData.otherGemstones,
+                    orderDuration: formData.orderDuration,
+                    metalType: formData.metalType,
+                    stoneType: formData.stoneType,
+                    settingType: formData.settingType,
+                    size: formData.size,
+                    color: formData.color,
+                    finish: formData.finish,
+                    digitalBrowser: formData.digitalBrowser,
+                    website: formData.website,
+                    distributor: formData.distributor,
+                    culture: formData.culture,
+                    seoTitle: formData.seoTitle,
+                    seoDescription: formData.seoDescription,
+                    seoKeywords: formData.seoKeywords,
+                    seoSlug: formData.seoSlug,
+                    imageUrl: editingProduct?.imageUrl,
+                    images: editingProduct?.images,
+                    videoUrl: editingProduct?.videoUrl,
+                    createdAt: editingProduct?.createdAt,
+                    updatedAt: editingProduct?.updatedAt
+                  };
+                  setPreviewData(previewProduct);
+                  setIsPreviewOpen(true);
+                }}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                disabled={formIsSubmitting}
               >
-                {isSubmitting ? 'Saving...' : editingProduct ? 'Update Product' : 'Create Product'}
+                Preview
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                disabled={formIsSubmitting}
+              >
+                {formIsSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Add Product')}
               </button>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Full Description Modal */}
+      <FullDescriptionModal
+        isOpen={isFullDescriptionModalOpen}
+        onClose={() => setIsFullDescriptionModalOpen(false)}
+        initialValue={watch('fullDescription') || ''}
+        onSave={(value) => {
+          setValue('fullDescription', value);
+          setIsFullDescriptionModalOpen(false);
+        }}
+      />
+
+      {/* Preview Modal */}
+      {isPreviewOpen && previewData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Product Preview</h2>
+                <button
+                  onClick={() => setIsPreviewOpen(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-xl font-semibold mb-4">{previewData.name}</h3>
+                  <p className="text-gray-600 mb-4">{previewData.description}</p>
+                  
+                  {previewData.fullDescription && (
+                    <div className="mb-4">
+                      <h4 className="font-medium mb-2">Full Description:</h4>
+                      <div 
+                        className="prose max-w-none"
+                        dangerouslySetInnerHTML={{ __html: previewData.fullDescription }}
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <span className="font-medium">Category:</span>
+                      <span className="ml-2">
+                        {categories.find(c => c.id === previewData.category)?.title || previewData.category}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Subcategory:</span>
+                      <span className="ml-2">
+                        {subcategories.find(s => s.id === previewData.subCategory)?.name || previewData.subCategory}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Price:</span>
+                      <span className="ml-2">Rs. {previewData.price.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  
+                  {previewData.goldWeight && (
+                    <div className="mb-2">
+                      <span className="font-medium">Gold Weight:</span>
+                      <span className="ml-2">{previewData.goldWeight}</span>
+                    </div>
+                  )}
+                  
+                  {previewData.diamondDetails && (
+                    <div className="mb-2">
+                      <span className="font-medium">Diamond Details:</span>
+                      <span className="ml-2">{previewData.diamondDetails}</span>
+                    </div>
+                  )}
+                  
+                  {previewData.metalType && (
+                    <div className="mb-2">
+                      <span className="font-medium">Metal Type:</span>
+                      <span className="ml-2">{previewData.metalType}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  {previewData.images && previewData.images.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {previewData.images.map((image, index) => (
+                        <img 
+                          key={index}
+                          src={image.url} 
+                          alt={`Product ${index + 1}`} 
+                          className="w-full h-auto object-contain rounded-lg"
+                        />
+                      ))}
+                    </div>
+                  ) : previewData.imageUrl ? (
+                    <img 
+                      src={previewData.imageUrl} 
+                      alt="Product" 
+                      className="w-full h-auto object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-auto flex items-center justify-center">
+                      <span className="text-gray-500">No image available</span>
+                    </div>
+                  )}
+                  
+                  {previewData.videoUrl && (
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Product Video:</h4>
+                      <video 
+                        src={previewData.videoUrl} 
+                        controls 
+                        className="w-full h-auto object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => setIsPreviewOpen(false)}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Cropping Modal */}
+      {croppingImageIndex !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Crop Image</h2>
+                <button
+                  onClick={() => {
+                    setCroppingImageIndex(null);
+                    setCroppingImageUrl('');
+                    setCrop(undefined);
+                    setCompletedCrop(undefined);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="flex flex-col items-center">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(c) => setCrop(c)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  minWidth={50}
+                >
+                  <img
+                    ref={imgRef}
+                    src={croppingImageUrl}
+                    alt="Crop preview"
+                    className="max-h-[60vh]"
+                  />
+                </ReactCrop>
+                
+                <div className="flex justify-end space-x-4 mt-6">
+                  <button
+                    onClick={() => {
+                      setCroppingImageIndex(null);
+                      setCroppingImageUrl('');
+                      setCrop(undefined);
+                      setCompletedCrop(undefined);
+                    }}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCompleteCrop}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Apply Crop
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

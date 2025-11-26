@@ -19,10 +19,10 @@ const storage = multer.diskStorage({
     
     if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
       destination = 'uploads/hero/';
+    } else if (fieldName === 'images' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {
+      destination = 'uploads/products/';
     } else if (fieldName === 'image' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
       destination = 'uploads/categories/';
-    } else if (fieldName === 'image' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {
-      destination = 'uploads/products/';
     } else if (fieldName === 'image' && (req.path.includes('/services') || req.originalUrl.includes('/services'))) {
       destination = 'uploads/services/';
     } else if (fieldName === 'image' && (req.path.includes('/testimonials') || req.originalUrl.includes('/testimonials'))) {
@@ -31,6 +31,9 @@ const storage = multer.diskStorage({
       destination = 'uploads/about-us/';
     } else if (fieldName === 'image' && (req.path.includes('/stores') || req.originalUrl.includes('/stores'))) {
       destination = 'uploads/stores/';
+    } else if (fieldName === 'images') {
+      // Default for product images
+      destination = 'uploads/products/';
     } else {
       destination = 'uploads/';
     }
@@ -52,8 +55,10 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   // Check file type
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
+  } else if (file.mimetype.startsWith('video/')) {
+    cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed!'));
+    cb(new Error('Only image and video files are allowed!'));
   }
 };
 
@@ -62,9 +67,14 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit for videos
   }
 });
 
 export default upload;
 export const uploadHeroImage = upload.single('image');
+export const uploadProductImages = upload.array('images', 10); // Allow up to 10 images
+export const uploadMixedFiles = upload.fields([
+  { name: 'images', maxCount: 10 },
+  { name: 'video', maxCount: 1 }
+]);

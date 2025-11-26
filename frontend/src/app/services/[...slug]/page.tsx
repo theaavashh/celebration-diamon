@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useParams } from 'next/navigation';
 import { ArrowLeft } from "lucide-react";
 
 interface Service {
@@ -17,31 +18,16 @@ interface Service {
   updatedAt: string;
 }
 
-interface ServicePageProps {
-  params: {
-    slug: string[];
-  } | Promise<{
-    slug: string[];
-  }>;
-}
+export default function ServicePage() {
+  const params = useParams();
+  const slug = params.slug as string[];
 
-export default function ServicePage({ params }: ServicePageProps) {
   const [service, setService] = useState<Service | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [slug, setSlug] = useState<string[]>([]);
-
-  // Resolve params (handle both Promise and non-Promise)
-  useEffect(() => {
-    if (params instanceof Promise) {
-      params.then((resolved) => setSlug(resolved.slug));
-    } else {
-      setSlug(params.slug);
-    }
-  }, [params]);
 
   // Construct the full path from slug array
-  const servicePath = slug.length > 0 ? `/${slug.join('/')}` : '';
+  const servicePath = slug && slug.length > 0 ? `/${slug.join('/')}` : '';
 
   useEffect(() => {
     const fetchService = async () => {

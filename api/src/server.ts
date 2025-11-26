@@ -13,6 +13,7 @@ import { setupQuoteWebSocket } from './websocket/quoteWebSocket';
 import bannerRoutes from './routes/bannerRoutes';
 import heroRoutes from './routes/heroRoutes';
 import categoryRoutes from './routes/categoryRoutes';
+import subcategoryRoutes from './routes/subcategoryRoutes';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import productRoutes from './routes/productRoutes';
@@ -122,6 +123,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/banners', bannerRoutes);
 app.use('/api/hero', heroRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/subcategories', subcategoryRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/products', productRoutes);

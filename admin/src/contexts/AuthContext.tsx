@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Fetch current user from server (validates cookie)
   const fetchCurrentUser = useCallback(async () => {
     try {
+      console.log('Fetching current user from:', `${API_BASE_URL}/api/auth/me`);
       const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
         method: 'GET',
         credentials: 'include', // Important: sends cookies
@@ -59,15 +60,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
 
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('User data received:', result);
         if (result.success && result.data) {
           setUser(result.data);
           return true;
         }
+      } else {
+        console.log('Failed to fetch user, status:', response.status);
       }
       return false;
     } catch (error) {
+      console.error('Error fetching current user:', error);
       return false;
     }
   }, []);
@@ -75,9 +82,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('Checking authentication...');
       setIsLoading(true);
       await fetchCurrentUser();
       setIsLoading(false);
+      console.log('Authentication check completed');
     };
 
     checkAuth();
@@ -88,6 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
 
       const loginUrl = `${API_BASE_URL}/api/auth/login`;
+      console.log('Logging in to:', loginUrl);
       
       const response = await fetch(loginUrl, {
         method: 'POST',
@@ -97,6 +107,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
         body: JSON.stringify({ email, password }),
       });
+
+      console.log('Login response status:', response.status);
 
       if (!response.ok) {
         const statusMessages: Record<number, string> = {
@@ -138,6 +150,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const result = await response.json();
+      console.log('Login result:', result);
 
       if (result.success && result.data) {
         // Backend should set httpOnly cookie, we only store user data in state

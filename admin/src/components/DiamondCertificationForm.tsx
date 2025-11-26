@@ -208,7 +208,6 @@ export default function DiamondCertificationForm({
               <RichTextEditor
                 value={formData.fullContent}
                 onChange={(html) => setFormData(prev => ({ ...prev, fullContent: html }))}
-                disabled={isLoading}
               />
             </div>
 

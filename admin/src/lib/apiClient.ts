@@ -3,7 +3,6 @@ import { getApiBaseUrl } from './api';
 
 // API Configuration
 const API_BASE_URL = getApiBaseUrl();
-console.log('🔧 API_BASE_URL configured as:', API_BASE_URL);
 
 // Create axios instance with default configuration
 const createApiClient = (): AxiosInstance => {

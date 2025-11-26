@@ -121,9 +121,7 @@ export default function ProductDetailsModal({
     return isActive ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />;
   };
 
-  const categoryName = typeof product.category === 'string' 
-    ? product.category 
-    : product.category?.name || 'Uncategorized';
+  const categoryName = product.category || 'Uncategorized';
 
   return (
     <AnimatePresence>

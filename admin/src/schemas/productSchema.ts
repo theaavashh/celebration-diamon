@@ -212,7 +212,6 @@ export const productSchema = z.object({
       .optional(),
   }).optional(),
   
-  isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
   isDigital: z.boolean().default(false),
   requiresShipping: z.boolean().default(true),

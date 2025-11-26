@@ -1,23 +1,25 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Save, RefreshCw } from 'lucide-react';
-import { apiService } from '@/lib/apiClient';
+import { Save, RefreshCw, Plus } from 'lucide-react';
+import { apiService, type ApiResponse } from '@/lib/apiClient';
 import DashboardLayout from '@/components/DashboardLayout';
 
-interface TestimonialSettings {
+interface TestimonialSection {
   id: string;
   title: string;
   subtitle?: string;
   isActive: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
 
-interface TestimonialSettingsFormData {
+interface TestimonialSectionFormData {
   title: string;
   subtitle: string;
   isActive: boolean;
+  sortOrder: number;
 }
 
 const TestimonialSectionsPage: React.FC = () => {
@@ -30,8 +32,8 @@ const TestimonialSectionsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   const [formData, setFormData] = useState<TestimonialSectionFormData>({
-    heading: '',
-    subHeading: '',
+    title: '',
+    subtitle: '',
     isActive: true,
     sortOrder: 0
   });
@@ -39,8 +41,8 @@ const TestimonialSectionsPage: React.FC = () => {
   // Reset form
   const resetForm = useCallback(() => {
     setFormData({
-      heading: '',
-      subHeading: '',
+      title: '',
+      subtitle: '',
       isActive: true,
       sortOrder: 0
     });
@@ -52,7 +54,7 @@ const TestimonialSectionsPage: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.get('/testimonial-sections/admin/all');
+      const response: ApiResponse<TestimonialSection[]> = await apiService.get('/testimonial-sections/admin/all');
       
       if (response.success && response.data) {
         setSections(response.data);
@@ -77,11 +79,11 @@ const TestimonialSectionsPage: React.FC = () => {
 
       if (editingSection) {
         // Update existing section
-        const response = await apiService.put(`/testimonial-sections/${editingSection.id}`, formData);
+        const response: ApiResponse<TestimonialSection> = await apiService.put(`/testimonial-sections/${editingSection.id}`, formData);
         
-        if (response.success) {
+        if (response.success && response.data) {
           setSections(prev => prev.map(section => 
-            section.id === editingSection.id ? response.data : section
+            section.id === editingSection.id ? response.data as TestimonialSection : section
           ));
           setShowForm(false);
           setEditingSection(null);
@@ -91,10 +93,10 @@ const TestimonialSectionsPage: React.FC = () => {
         }
       } else {
         // Create new section
-        const response = await apiService.post('/testimonial-sections', formData);
+        const response: ApiResponse<TestimonialSection> = await apiService.post('/testimonial-sections', formData);
         
-        if (response.success) {
-          setSections(prev => [...prev, response.data]);
+        if (response.success && response.data) {
+          setSections(prev => [...prev, response.data as TestimonialSection]);
           setShowForm(false);
           resetForm();
         } else {
@@ -119,7 +121,7 @@ const TestimonialSectionsPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiService.delete(`/testimonial-sections/${id}`);
+      const response: ApiResponse<void> = await apiService.delete(`/testimonial-sections/${id}`);
       
       if (response.success) {
         setSections(prev => prev.filter(section => section.id !== id));
@@ -140,11 +142,11 @@ const TestimonialSectionsPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await apiService.patch(`/testimonial-sections/${id}/toggle-status`);
+      const response: ApiResponse<TestimonialSection> = await apiService.patch(`/testimonial-sections/${id}/toggle-status`);
       
-      if (response.success) {
+      if (response.success && response.data) {
         setSections(prev => prev.map(section => 
-          section.id === id ? response.data : section
+          section.id === id ? response.data as TestimonialSection : section
         ));
       } else {
         throw new Error(response.error || 'Failed to toggle testimonial section status');
@@ -161,8 +163,8 @@ const TestimonialSectionsPage: React.FC = () => {
   const handleEdit = (section: TestimonialSection) => {
     setEditingSection(section);
     setFormData({
-      heading: section.heading,
-      subHeading: section.subHeading || '',
+      title: section.title,
+      subtitle: section.subtitle || '',
       isActive: section.isActive,
       sortOrder: section.sortOrder
     });
@@ -178,8 +180,8 @@ const TestimonialSectionsPage: React.FC = () => {
 
   // Filter sections
   const filteredSections = sections.filter(section => {
-    const matchesSearch = section.heading.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (section.subHeading && section.subHeading.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = section.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (section.subtitle && section.subtitle.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'active' && section.isActive) ||
@@ -221,21 +223,21 @@ const TestimonialSectionsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Search and Filter */}
-        <div className="flex gap-4 items-center">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <input
               type="text"
               placeholder="Search sections..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
@@ -245,177 +247,186 @@ const TestimonialSectionsPage: React.FC = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
+          </div>
+        )}
+
+        {/* Sections Grid */}
+        {filteredSections.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="mx-auto h-24 w-24 text-gray-400">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">
+              {searchTerm || statusFilter !== 'all' ? 'No sections found' : 'No testimonial sections yet'}
+            </h3>
+            <p className="mt-2 text-gray-500">
+              {searchTerm || statusFilter !== 'all' 
+                ? 'Try adjusting your search or filter criteria.'
+                : 'Get started by creating your first testimonial section.'
+              }
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Add New Section
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSections.map((section) => (
+              <div key={section.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 truncate">{section.title}</h3>
+                      {section.subtitle && (
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{section.subtitle}</p>
+                      )}
+                    </div>
+                    <div className="ml-4 flex-shrink-0">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        section.isActive 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {section.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center text-sm text-gray-500">
+                    <span>Order: {section.sortOrder}</span>
+                    <span className="mx-2">•</span>
+                    <span>{new Date(section.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  
+                  <div className="mt-4 flex space-x-3">
+                    <button
+                      onClick={() => handleEdit(section)}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(section.id)}
+                      className={`text-sm font-medium ${
+                        section.isActive
+                          ? 'text-red-600 hover:text-red-700'
+                          : 'text-green-600 hover:text-green-700'
+                      }`}
+                    >
+                      {section.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(section.id)}
+                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {/* Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-              <h2 className="text-xl font-bold text-black mb-4">
-                {editingSection ? 'Edit Testimonial Section' : 'Add New Testimonial Section'}
-              </h2>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingSection ? 'Edit Section' : 'Add New Section'}
+                </h2>
+                <button
+                  onClick={handleCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    Heading *
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title *
                   </label>
                   <input
                     type="text"
-                    value={formData.heading}
-                    onChange={(e) => setFormData(prev => ({ ...prev, heading: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                    placeholder="Section heading"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter section title"
                     required
                   />
                 </div>
-
+                
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    Sub-heading
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subtitle
                   </label>
-                  <input
-                    type="text"
-                    value={formData.subHeading}
-                    onChange={(e) => setFormData(prev => ({ ...prev, subHeading: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                    placeholder="Section sub-heading"
+                  <textarea
+                    value={formData.subtitle}
+                    onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter section subtitle (optional)"
+                    rows={3}
                   />
                 </div>
-
+                
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Sort Order
                   </label>
                   <input
                     type="number"
                     value={formData.sortOrder}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                    placeholder="0"
+                    onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     min="0"
                   />
                 </div>
-
+                
                 <div className="flex items-center">
                   <input
                     type="checkbox"
                     id="isActive"
                     checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="isActive" className="ml-2 block text-sm text-black">
+                  <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
                     Active
                   </label>
                 </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Saving...' : (editingSection ? 'Update' : 'Create')}
-                  </button>
+                
+                <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-4 py-2 text-sm font-medium text-black bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {editingSection ? 'Update' : 'Create'}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         )}
-
-        {/* Sections Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Heading
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sub-heading
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Testimonials
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sort Order
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSections.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    No testimonial sections found
-                  </td>
-                </tr>
-              ) : (
-                filteredSections.map((section) => (
-                  <tr key={section.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-black">{section.heading}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{section.subHeading || '-'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{section._count?.testimonials || 0}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{section.sortOrder}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        section.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {section.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleEdit(section)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(section.id)}
-                        className={section.isActive ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"}
-                      >
-                        {section.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(section.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </DashboardLayout>
   );

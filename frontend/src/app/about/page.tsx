@@ -89,7 +89,7 @@ const AboutPage = () => {
             About Celebration Diamond
           </h1>
           <p className="text-lg sm:text-xl md:text-2xl text-gray-700 jimthompson max-w-2xl mx-auto">
-            Nepal's First and Finest Diamond Studio
+            Nepal&#39;s First and Finest Diamond Studio
           </p>
         </div>
       </section>
@@ -122,7 +122,7 @@ const AboutPage = () => {
                   With an in-house diamond lab and 3 advanced SJI machines, we ensure authenticity, ethical sourcing, and unmatched craftsmanship.
                 </p>
                 <p>
-                  Each piece is a fusion of tradition and innovation, designed with soul, delivered with meaning. We believe that every diamond tells a story, and we're here to help you create yours.
+                  Each piece is a fusion of tradition and innovation, designed with soul, delivered with meaning. We believe that every diamond tells a story, and we&#39;re here to help you create yours.
                 </p>
                 <p>
                   From engagement rings to custom jewelry, we combine the finest materials with expert craftsmanship to create pieces that will be treasured for generations.
@@ -146,7 +146,7 @@ const AboutPage = () => {
                 Our Mission
               </h3>
               <p className="text-lg text-gray-700 leading-relaxed">
-                To provide authentic, ethically sourced diamonds with unparalleled craftsmanship, creating timeless pieces that celebrate life's most precious moments.
+                To provide authentic, ethically sourced diamonds with unparalleled craftsmanship, creating timeless pieces that celebrate life&#39;s most precious moments.
               </p>
             </div>
 
@@ -159,7 +159,7 @@ const AboutPage = () => {
                 Our Vision
               </h3>
               <p className="text-lg text-gray-700 leading-relaxed">
-                To become Nepal's leading diamond studio, recognized globally for our commitment to quality, authenticity, and ethical practices in the jewelry industry.
+                To become Nepal&#39;s leading diamond studio, recognized globally for our commitment to quality, authenticity, and ethical practices in the jewelry industry.
               </p>
             </div>
           </div>

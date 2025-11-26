@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import { apiService } from '@/lib/apiClient';
+import { apiService, type ApiResponse } from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { Star, Edit, Trash2, Plus, Eye, EyeOff } from 'lucide-react';
 
@@ -73,7 +73,7 @@ export default function TestimonialsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.get('/testimonials/admin/all');
+      const response: ApiResponse<Testimonial[]> = await apiService.get('/testimonials/admin/all');
       
       if (response.success && response.data) {
         setTestimonials(response.data);
@@ -93,7 +93,7 @@ export default function TestimonialsPage() {
   // Fetch testimonial settings
   const fetchTestimonialSettings = useCallback(async () => {
     try {
-      const response = await apiService.get('/testimonial-settings/admin');
+      const response: ApiResponse<any> = await apiService.get('/testimonial-settings/admin');
       
       if (response.success && response.data) {
         setTestimonialSettings(response.data);
@@ -127,7 +127,7 @@ export default function TestimonialsPage() {
       setIsSubmitting(true);
       setError(null);
 
-      const response = await apiService.put('/testimonial-settings/admin', settingsFormData);
+      const response: ApiResponse<any> = await apiService.put('/testimonial-settings/admin', settingsFormData);
       
       if (response.success) {
         setTestimonialSettings(response.data);
@@ -169,7 +169,7 @@ export default function TestimonialsPage() {
         isActive: formData.isActive
       };
 
-      let response;
+      let response: ApiResponse<Testimonial>;
       if (editingTestimonial) {
         response = await apiService.put(`/testimonials/${editingTestimonial.id}`, testimonialData);
         toast.success('Testimonial updated successfully');
@@ -219,7 +219,7 @@ export default function TestimonialsPage() {
     }
 
     try {
-      const response = await apiService.delete(`/testimonials/${id}`);
+      const response: ApiResponse<Testimonial> = await apiService.delete(`/testimonials/${id}`);
       
       if (response.success) {
         toast.success('Testimonial deleted successfully');
@@ -237,9 +237,9 @@ export default function TestimonialsPage() {
   // Handle toggle status
   const handleToggleStatus = useCallback(async (id: string) => {
     try {
-      const response = await apiService.patch(`/testimonials/${id}/toggle-status`);
+      const response: ApiResponse<Testimonial> = await apiService.patch(`/testimonials/${id}/toggle-status`);
       
-      if (response.success) {
+      if (response.success && response.data) {
         toast.success(`Testimonial ${response.data.isActive ? 'activated' : 'deactivated'} successfully`);
         await fetchTestimonials();
       } else {

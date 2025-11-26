@@ -11,7 +11,7 @@ import {
   getProductCategories
 } from '../controllers/productController';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { uploadHeroImage } from '../middleware/upload';
+import { uploadHeroImage, uploadProductImages, uploadMixedFiles } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -90,8 +90,8 @@ router.get('/:id', getProductById);
 
 // Admin routes (protected)
 router.get('/admin/all', authMiddleware, getAdminProducts);
-router.post('/', authMiddleware, uploadHeroImage, productValidation, createProduct);
-router.put('/:id', authMiddleware, uploadHeroImage, productValidation, updateProduct);
+router.post('/', authMiddleware, uploadMixedFiles, productValidation, createProduct);
+router.put('/:id', authMiddleware, uploadMixedFiles, productValidation, updateProduct);
 router.delete('/:id', authMiddleware, deleteProduct);
 router.patch('/:id/toggle', authMiddleware, toggleProductStatus);
 

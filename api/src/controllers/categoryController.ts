@@ -9,6 +9,8 @@ export const getAllCategories = async (req: Request, res: Response<ApiResponse<C
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' }
     });
+    
+    console.log('Public categories response:', categories);
 
     res.json({
       success: true,
@@ -31,6 +33,8 @@ export const getAdminCategories = async (req: Request, res: Response<ApiResponse
     const categories = await prisma.category.findMany({
       orderBy: { sortOrder: 'asc' }
     });
+    
+    console.log('Admin categories response:', categories);
 
     res.json({
       success: true,

@@ -60,7 +60,7 @@ interface EnhancedProductCardProps {
   index: number;
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: Product['status']) => void;
+  onStatusChange: (id: string, status: boolean) => void;
   onDuplicate?: (product: Product) => void;
   onToggleFeatured?: (id: string) => void;
   onView?: (product: Product) => void;

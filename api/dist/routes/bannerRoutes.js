@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const express_validator_1 = require("express-validator");
-const bannerController_1 = require("@/controllers/bannerController");
-const authMiddleware_1 = require("@/middleware/authMiddleware");
+const bannerController_1 = require("../controllers/bannerController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = express_1.default.Router();
 const bannerValidation = [
     (0, express_validator_1.body)('title')

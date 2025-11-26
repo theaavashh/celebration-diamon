@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Gallery } from '@/types';
+import { Gallery, NewGallery } from '@/types';
 import GalleryForm from '@/components/GalleryForm';
 import DashboardLayout from '@/components/DashboardLayout';
 import { galleryApi, type ApiResponse } from '@/lib/apiClient';
@@ -60,7 +60,7 @@ export default function GalleriesPage() {
   }, [fetchGalleries]);
 
   // Handle save with optimistic updates
-  const handleSave = useCallback(async (galleryData: Omit<Gallery, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSave = useCallback(async (galleryData: Omit<NewGallery, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       setIsSubmitting(true);
       setError(null);

@@ -5,17 +5,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authMiddleware = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const database_1 = __importDefault(require("@/config/database"));
+const database_1 = __importDefault(require("../config/database"));
 const authMiddleware = async (req, res, next) => {
     try {
-        const authHeader = req.header('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({
-                success: false,
-                message: 'Access denied. No token provided.'
-            });
+        let token = req.cookies?.authToken;
+        if (!token) {
+            const authHeader = req.header('Authorization');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+            }
         }
-        const token = authHeader.substring(7);
         if (!token) {
             return res.status(401).json({
                 success: false,

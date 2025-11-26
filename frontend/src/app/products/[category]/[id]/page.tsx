@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Heart, ShoppingBag, Share2, Star, Facebook, Twitter, Instagram, MessageCircle, Link2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Heart, ShoppingBag, Share2, Star, Facebook, Twitter, Instagram, MessageCircle, Link2, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Product {
@@ -13,6 +14,7 @@ interface Product {
   price: number;
   originalPrice?: number;
   image: string;
+  images?: ProductImage[]; // Add this for multiple images
   rating: number;
   reviews: number;
   description: string;
@@ -31,14 +33,64 @@ interface Product {
   orderDuration?: string;
 }
 
+interface ProductImage {
+  id: string;
+  url: string;
+  altText?: string;
+  order: number;
+  isActive: boolean;
+}
+
+interface ApiProductImage {
+  id: string;
+  url: string;
+  altText?: string;
+  order: number;
+  isActive: boolean;
+}
+
+interface ApiProduct {
+  id: string;
+  name: string;
+  category: string;
+  subCategory?: string;
+  subcategory?: string;
+  price: number;
+  originalPrice?: number;
+  imageUrl?: string;
+  images?: ApiProductImage[];
+  stock: number;
+  isNew?: boolean;
+  isSale?: boolean;
+  metalType?: string;
+  goldWeight?: string;
+  diamondDetails?: string;
+  diamondQuantity?: number;
+  diamondSize?: string;
+  diamondWeight?: string;
+  diamondQuality?: string;
+  otherGemstones?: string;
+  orderDuration?: string;
+  description: string;
+}
+
+interface Review {
+  id: string;
+  productId: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function ProductDetailPage() {
-  const { useParams } = require('next/navigation');
   const params = useParams();
   const category = params.category as string;
   const id = params.id as string;
 
   // Helper function to safely display values
-  const displayValue = (value: any): string => {
+  const displayValue = (value: unknown): string => {
     if (value === null || value === undefined) return 'N/A';
     if (typeof value === 'string' && value.trim() === '') return 'N/A';
     return String(value);
@@ -46,9 +98,9 @@ export default function ProductDetailPage() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeImage, setActiveImage] = useState(0);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showCartModal, setShowCartModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -68,6 +120,47 @@ export default function ProductDetailPage() {
     appointmentType: 'online',
     additionalNotes: ''
   });
+
+  // Function to get all product images (including the main image)
+  const getAllProductImages = (): string[] => {
+    if (!product) return [];
+    
+    // If we have multiple images, use them
+    if (product.images && product.images.length > 0) {
+      return product.images
+        .filter(img => img.isActive)
+        .sort((a, b) => a.order - b.order)
+        .map(img => {
+          return img.url.startsWith('http') 
+            ? img.url 
+            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${img.url}`;
+        });
+    }
+    
+    // Fallback to single image
+    if (product.image) {
+      return [product.image];
+    }
+    
+    // Default placeholder
+    return [`/${category}.jpeg`];
+  };
+
+  const productImages = getAllProductImages();
+
+  // Navigation functions for carousel
+  const goToPreviousImage = () => {
+    setActiveImageIndex(prev => (prev === 0 ? productImages.length - 1 : prev - 1));
+  };
+
+  const goToNextImage = () => {
+    setActiveImageIndex(prev => (prev === productImages.length - 1 ? 0 : prev + 1));
+  };
+
+  // Set active image when thumbnails are clicked
+  const setActiveImage = (index: number) => {
+    setActiveImageIndex(index);
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -93,6 +186,17 @@ export default function ProductDetailPage() {
               : product.imageUrl 
                 ? `${apiUrl}${product.imageUrl}` 
                 : `/${category}.jpeg`,
+            images: product.images?.map((img: ApiProductImage) => ({
+              id: img.id,
+              url: img.url?.startsWith('http') 
+                ? img.url 
+                : img.url 
+                  ? `${apiUrl}${img.url}` 
+                  : `/${category}.jpeg`,
+              altText: img.altText || product.name,
+              order: img.order,
+              isActive: img.isActive
+            })) || [],
             rating: 4.5,
             reviews: 0,
             description: product.description,
@@ -127,9 +231,9 @@ export default function ProductDetailPage() {
         
         if (data.success && data.data) {
           const mappedProducts = data.data
-            .filter((p: any) => p.id !== id) // Exclude current product
+            .filter((p: ApiProduct) => p.id !== id) // Exclude current product
             .slice(0, 4)
-            .map((product: any) => ({
+            .map((product: ApiProduct) => ({
               id: product.id,
               name: product.name,
               category: product.category,
@@ -141,6 +245,17 @@ export default function ProductDetailPage() {
                 : product.imageUrl 
                   ? `${apiUrl}${product.imageUrl}` 
                   : `/${product.category}.jpeg`,
+              images: product.images?.map((img: ApiProductImage) => ({
+                id: img.id,
+                url: img.url?.startsWith('http') 
+                  ? img.url 
+                  : img.url 
+                    ? `${apiUrl}${img.url}` 
+                    : `/${product.category}.jpeg`,
+                altText: img.altText || product.name,
+                order: img.order,
+                isActive: img.isActive
+              })) || [],
               rating: 4.5,
               reviews: 0,
               description: product.description,
@@ -364,362 +479,495 @@ export default function ProductDetailPage() {
           </Link>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Product Images */}
+            {/* Product Images Carousel */}
             <div className="space-y-4">
-              <div className="relative aspect-square overflow-hidden bg-gray-100">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                />
-                {product.isNew && (
-                  <div className="absolute top-4 left-4 bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    New
-                  </div>
-                )}
-                {product.isSale && (
-                  <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    Sale
+              {/* Main Image Display */}
+              <div className="relative aspect-square overflow-hidden bg-gray-100 rounded-xl">
+                {productImages.length > 0 ? (
+                  <>
+                    <Image
+                      src={productImages[activeImageIndex]}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                    {product.isNew && (
+                      <div className="absolute top-4 left-4 bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        New
+                      </div>
+                    )}
+                    {product.isSale && (
+                      <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        Sale
+                      </div>
+                    )}
+                    
+                    {/* Navigation Arrows */}
+                    {productImages.length > 1 && (
+                      <>
+                        <button
+                          onClick={goToPreviousImage}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors"
+                          aria-label="Previous image"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={goToNextImage}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-colors"
+                          aria-label="Next image"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+                        
+                        {/* Image Counter */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-3 py-1 rounded-full">
+                          {activeImageIndex + 1} / {productImages.length}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-gray-400">No image available</span>
                   </div>
                 )}
               </div>
               
-              <div className="flex gap-3">
-                <div className="relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer border-2 border-amber-600">
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
+              {/* Thumbnails */}
+              {productImages.length > 1 && (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {productImages.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setActiveImage(index)}
+                      className={`relative w-20 h-20 bg-gray-100 rounded-lg overflow-hidden cursor-pointer border-2 flex-shrink-0 ${
+                        activeImageIndex === index ? 'border-amber-600' : 'border-gray-300'
+                      }`}
+                      aria-label={`View image ${index + 1}`}
+                    >
+                      <Image
+                        src={image}
+                        alt={`${product.name} thumbnail ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </button>
+                  ))}
                 </div>
-                {/* Add more thumbnails here if needed */}
-              </div>
+              )}
             </div>
 
-            {/* Product Info */}
+            {/* Product Details */}
             <div className="space-y-6">
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-4xl font-bold text-gray-900 jimthompson">{product.name}</h1>
-                  <div className="flex items-center gap-2 relative">
-                    <button className="px-4 py-3 border border-amber-600 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors">
-                      <Heart className="w-5 h-5" />
-                    </button>
-                    <div className="relative share-menu-container">
-                      <button 
-                        onClick={() => setShowShareMenu(!showShareMenu)}
-                        className="px-4 py-3 border border-amber-600 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
-                      >
-                        <Share2 className="w-5 h-5" />
-                      </button>
-                      
-                      {/* Share Menu */}
-                      {showShareMenu && (
-                        <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl border border-gray-200 p-2 z-50 min-w-[200px]">
-                          <div className="space-y-1">
-                            <button
-                              onClick={() => handleShare('facebook')}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                              <Facebook className="w-5 h-5 text-blue-600" />
-                              <span className="text-sm">Facebook</span>
-                            </button>
-                            <button
-                              onClick={() => handleShare('twitter')}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                              <Twitter className="w-5 h-5 text-sky-500" />
-                              <span className="text-sm">Twitter</span>
-                            </button>
-                            <button
-                              onClick={() => handleShare('whatsapp')}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                              <MessageCircle className="w-5 h-5 text-green-600" />
-                              <span className="text-sm">WhatsApp</span>
-                            </button>
-                            <button
-                              onClick={() => handleShare('copy')}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                              <Link2 className="w-5 h-5" />
-                              <span className="text-sm">Copy Link</span>
-                            </button>
-                          </div>
+                <div className="flex items-start justify-between mb-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{product.name}</h1>
+                  <div className="flex gap-2">
+                    {product.isNew && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        New
+                      </span>
+                    )}
+                    {product.isSale && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Sale
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${
+                          i < Math.floor(product.rating) 
+                            ? 'text-amber-400 fill-current' 
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                    <span className="text-sm text-gray-600 ml-2">
+                      {product.rating} ({product.reviews} reviews)
+                    </span>
+                  </div>
+                  {product.inStock ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      In Stock
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      Out of Stock
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-baseline gap-3 mb-6">
+
+                </div>
+                
+                <p className="text-gray-700 mb-6">{product.description}</p>
+                
+                {/* Product Details Section - Enhanced UI */}
+                <div className="border-t border-b border-gray-200 py-6 mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-4 text-lg">Product Specifications</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-gray-600">Category:</span>
+                        <span className="font-medium">{product.category}</span>
+                      </div>
+                      {product.subcategory && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-gray-600">Subcategory:</span>
+                          <span className="font-medium">{product.subcategory}</span>
+                        </div>
+                      )}
+                      {product.metalType && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-gray-600">Metal Type:</span>
+                          <span className="font-medium">{product.metalType}</span>
+                        </div>
+                      )}
+                      {product.goldWeight && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-gray-600">Gold Weight:</span>
+                          <span className="font-medium">{product.goldWeight}</span>
+                        </div>
+                      )}
+                      {product.orderDuration && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-gray-600">Order Duration:</span>
+                          <span className="font-medium">{product.orderDuration}</span>
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-                {product.rating && (
-                  <div className="flex items-center gap-1 mb-6">
-                    <span className="text-amber-600">★</span>
-                    <span className="text-sm text-gray-600">{product.rating}</span>
-                  </div>
-                )}
-                
-                <p className="text-lg text-gray-600 leading-relaxed">{product.description}</p>
-              </div>
-
-              {/* Product Details - Always Open */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="w-full flex items-center justify-between p-4 bg-gray-50">
-                  <h3 className="text-lg font-semibold text-gray-900 jimthompson">Product Details</h3>
-                </div>
-                <div className="p-6 bg-white space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <span className="text-sm font-medium text-gray-600 block mb-1">Category</span>
-                      <p className="text-base font-semibold text-gray-900">{category.charAt(0).toUpperCase() + category.slice(1)}</p>
+                    
+                    {/* Enhanced Diamond Details Section */}
+                    <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+                      <h4 className="font-semibold text-amber-800 mb-3 flex items-center">
+                        <span className="w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
+                        Diamond Specifications
+                      </h4>
+                      <div className="space-y-3">
+                        {product.diamondDetails && (
+                          <div className="flex justify-between py-2 border-b border-amber-100">
+                            <span className="text-amber-700">Details:</span>
+                            <span className="font-medium text-amber-900">{product.diamondDetails}</span>
+                          </div>
+                        )}
+                        {product.diamondQuantity && product.diamondQuantity !== 'N/A' && (
+                          <div className="flex justify-between py-2 border-b border-amber-100">
+                            <span className="text-amber-700">Quantity:</span>
+                            <span className="font-medium text-amber-900">{displayValue(product.diamondQuantity)}</span>
+                          </div>
+                        )}
+                        {product.diamondSize && (
+                          <div className="flex justify-between py-2 border-b border-amber-100">
+                            <span className="text-amber-700">Size:</span>
+                            <span className="font-medium text-amber-900">{product.diamondSize}</span>
+                          </div>
+                        )}
+                        {product.diamondWeight && (
+                          <div className="flex justify-between py-2 border-b border-amber-100">
+                            <span className="text-amber-700">Weight:</span>
+                            <span className="font-medium text-amber-900">{product.diamondWeight}</span>
+                          </div>
+                        )}
+                        {product.diamondQuality && (
+                          <div className="flex justify-between py-2 border-b border-amber-100">
+                            <span className="text-amber-700">Quality:</span>
+                            <span className="font-medium text-amber-900">{product.diamondQuality}</span>
+                          </div>
+                        )}
+                        {product.otherGemstones && (
+                          <div className="flex justify-between py-2 border-b border-amber-100">
+                            <span className="text-amber-700">Other Gemstones:</span>
+                            <span className="font-medium text-amber-900">{product.otherGemstones}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Sub Category</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.subcategory)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Metal Type</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.metalType)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Gold Weight</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.goldWeight)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Details</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondDetails)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Quantity</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondQuantity)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Size</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondSize)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Weight</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondWeight)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Diamond Quality</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.diamondQuality)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Other Gemstones</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.otherGemstones)}</p>
-                      </div>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Order Duration</span>
-                        <p className="text-base font-semibold text-gray-900">{displayValue(product.orderDuration)}</p>
-                      </div>
                   </div>
                 </div>
-              </div>
+                
+                <div className="flex flex-wrap gap-4">
+                  <button
+                    onClick={handleAddToCart}
+                    className="flex-1 min-w-[200px] bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    Book an Appointment
+                  </button>
+                  <button className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <Heart className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div className="relative share-menu-container">
+                    <button
+                      onClick={() => setShowShareMenu(!showShareMenu)}
+                      className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <Share2 className="w-5 h-5 text-gray-600" />
+                    </button>
 
-              {/* Product Description Accordion */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setIsDescriptionOpen(!isDescriptionOpen)}
-                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 jimthompson">Description</h3>
-                  {isDescriptionOpen ? (
-                    <ChevronUp className="w-5 h-5 text-gray-600" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-600" />
-                  )}
-                </button>
-                {isDescriptionOpen && (
-                  <div className="p-4 bg-white">
-                    <p className="text-gray-700 leading-relaxed">{product.description}</p>
+                    {showShareMenu && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                        <button
+                          onClick={() => handleShare('facebook')}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Facebook className="w-4 h-4" />
+                          Facebook
+                        </button>
+                        <button
+                          onClick={() => handleShare('twitter')}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Twitter className="w-4 h-4" />
+                          Twitter
+                        </button>
+                        <button
+                          onClick={() => handleShare('whatsapp')}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          WhatsApp
+                        </button>
+                        <button
+                          onClick={() => handleShare('copy')}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Link2 className="w-4 h-4" />
+                          Copy Link
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                <button
-                  onClick={handleAddToCart}
-                  className="flex-1 bg-amber-600 text-white py-4 px-8 rounded-lg hover:bg-amber-700 transition-colors font-medium text-lg flex items-center justify-center gap-2"
-                >
-                  Book an Inquiry
-                </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Reviews Section - After Product Details */}
+      {/* Product Information Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white rounded-xl p-8 space-y-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-gray-900 jimthompson">Customer Reviews ({reviews.length})</h3>
-            <button 
-              onClick={() => setShowReviewModal(true)}
-              className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setIsDescriptionOpen(true)}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                isDescriptionOpen
+                  ? 'border-amber-600 text-amber-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
             >
-              Write a Review
+              Description
             </button>
-          </div>
-          
-          {reviews.length > 0 ? (
-            <div className="space-y-6">
-              {reviews.map((review) => {
-                const initials = review.customerName
-                  .split(' ')
-                  .map((n: string) => n[0])
-                  .join('')
-                  .toUpperCase();
-                const colors = ['bg-amber-600', 'bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-pink-600'];
-                const colorIndex = review.customerName.length % colors.length;
-                
-                return (
-                  <div key={review.id} className="border-b border-gray-200 pb-6 last:border-b-0">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 ${colors[colorIndex]} rounded-full flex items-center justify-center text-white font-bold text-lg`}>
-                        {initials}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-semibold text-gray-900">{review.customerName}</h4>
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`w-5 h-5 ${i < review.rating ? 'fill-amber-600 text-amber-600' : 'text-gray-300'}`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-3">
-                          {new Date(review.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </p>
-                        <p className="text-gray-700 leading-relaxed">{review.comment}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <button
+              onClick={() => setIsDescriptionOpen(false)}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                !isDescriptionOpen
+                  ? 'border-amber-600 text-amber-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Reviews ({reviews.length})
+            </button>
+          </nav>
+        </div>
+
+        <div className="py-8">
+          {isDescriptionOpen ? (
+            <div className="prose max-w-none">
+              <p className="text-gray-700">{product.details}</p>
             </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg mb-4">No reviews yet. Be the first to review this product!</p>
+            <div>
+              {reviews.length > 0 ? (
+                <div className="space-y-6">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                            <span className="font-medium text-amber-800">
+                              {review.customerName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{review.customerName}</h4>
+                            <div className="flex items-center gap-1 mt-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating 
+                                      ? 'text-amber-400 fill-current' 
+                                      : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-700">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
+                  <p className="text-gray-500 mb-6">Be the first to review this product</p>
+                  <button
+                    onClick={() => setShowReviewModal(true)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                  >
+                    Write a Review
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Just For You - Product Recommendations */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h3 className="text-3xl font-bold text-gray-900 mb-8 text-center jimthompson">Just For You</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-          {products.length > 0 && products.slice(0, 4).map((recProduct) => (
-            <Link
-              key={recProduct.id}
-              href={`/products/${recProduct.category}/${recProduct.id}`}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group"
-            >
-              <div className="relative aspect-square overflow-hidden bg-gray-100">
-                <Image
-                  src={recProduct.image}
-                  alt={recProduct.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/placeholder.png';
-                  }}
-                />
-              </div>
-              <div className="p-4">
-                <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">{recProduct.name}</h4>
-                <p className="text-lg font-bold text-amber-600">${recProduct.price}</p>
-              </div>
-            </Link>
-          ))}
+      {/* Recommended Products */}
+      {products.length > 0 && (
+        <div className="bg-gray-50 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-8">You May Also Like</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200">
+                  <div className="relative h-64 bg-gray-100">
+                    {product.image ? (
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-gray-400">No image</span>
+                      </div>
+                    )}
+                    {product.isNew && (
+                      <div className="absolute top-3 left-3 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                        New
+                      </div>
+                    )}
+                    {product.isSale && (
+                      <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                        Sale
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-medium text-gray-900 line-clamp-1 mb-1">{product.name}</h3>
+                    <p className="text-sm text-gray-500 mb-2">{product.category}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-amber-400 fill-current" />
+                        <span className="text-xs text-gray-600">{product.rating}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Review Modal */}
       {showReviewModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-[10000]">
-            <div className="p-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6 jimthompson">Write a Review</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Write a Review</h3>
+                <button
+                  onClick={() => setShowReviewModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
               <form onSubmit={handleSubmitReview}>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={reviewForm.customerName}
-                      onChange={(e) => setReviewForm({ ...reviewForm, customerName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      placeholder="Enter your name"
-                    />
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Name
+                  </label>
+                  <input
+                    type="text"
+                    value={reviewForm.customerName}
+                    onChange={(e) => setReviewForm({...reviewForm, customerName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    required
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rating
+                  </label>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewForm({...reviewForm, rating: star})}
+                        className="text-2xl focus:outline-none"
+                      >
+                        <Star
+                          className={`w-6 h-6 ${
+                            star <= reviewForm.rating 
+                              ? 'text-amber-400 fill-current' 
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Rating *
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setReviewForm({ ...reviewForm, rating: star })}
-                          className="focus:outline-none"
-                        >
-                          <Star 
-                            className={`w-8 h-8 transition-colors ${
-                              star <= reviewForm.rating ? 'fill-amber-600 text-amber-600' : 'text-gray-300'
-                            }`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Review *
-                    </label>
-                    <textarea
-                      required
-                      rows={6}
-                      value={reviewForm.comment}
-                      onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
-                      placeholder="Share your experience with this product..."
-                    />
-                  </div>
-                  
-                  <div className="flex gap-4">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-amber-600 text-white py-4 px-8 rounded-lg hover:bg-amber-700 transition-colors font-medium text-lg"
-                    >
-                      Submit Review
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowReviewModal(false);
-                        setReviewForm({ customerName: '', rating: 5, comment: '' });
-                      }}
-                      className="px-6 py-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                </div>
+                
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Review
+                  </label>
+                  <textarea
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm({...reviewForm, comment: e.target.value})}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    required
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowReviewModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                  >
+                    Submit Review
+                  </button>
                 </div>
               </form>
             </div>
@@ -729,136 +977,158 @@ export default function ProductDetailPage() {
 
       {/* Cart Modal */}
       {showCartModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-[10000]">
-            <div className="p-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6 jimthompson">Book an Appointment</h2>
-              <form onSubmit={handleCartSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    required
-                    value={personalDetails.name}
-                    onChange={(e) => setPersonalDetails({...personalDetails, name: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={personalDetails.email}
-                    onChange={(e) => setPersonalDetails({...personalDetails, email: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    required
-                    value={personalDetails.phone}
-                    onChange={(e) => setPersonalDetails({...personalDetails, phone: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="culture" className="block text-sm font-medium text-gray-700 mb-1">Cultural Background</label>
-                  <select
-                    id="culture"
-                    value={personalDetails.culture}
-                    onChange={(e) => setPersonalDetails({...personalDetails, culture: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent text-black"
-                  >
-                    <option value="">None</option>
-                    <option value="Newari">Newari</option>
-                    <option value="Brahmin/Chhetri">Brahmin/Chhetri</option>
-                    <option value="Tamang">Tamang</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Appointment Type</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setPersonalDetails({...personalDetails, appointmentType: 'online'})}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        personalDetails.appointmentType === 'online'
-                          ? 'border-amber-600 bg-amber-50'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Book an Appointment</h3>
+                <button
+                  onClick={() => setShowCartModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleCartSubmit}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={personalDetails.name}
+                      onChange={(e) => setPersonalDetails({...personalDetails, name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      value={personalDetails.email}
+                      onChange={(e) => setPersonalDetails({...personalDetails, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={personalDetails.phone}
+                      onChange={(e) => setPersonalDetails({...personalDetails, phone: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cultural Background
+                    </label>
+                    <select
+                      value={personalDetails.culture}
+                      onChange={(e) => setPersonalDetails({...personalDetails, culture: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     >
-                      <div className="text-center">
-                        <div className="font-semibold text-gray-900 mb-1">Online Meeting</div>
-                        <div className="text-sm text-gray-600">Video call appointment</div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPersonalDetails({...personalDetails, appointmentType: 'instore'})}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        personalDetails.appointmentType === 'instore'
-                          ? 'border-amber-600 bg-amber-50'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="text-center">
-                        <div className="font-semibold text-gray-900 mb-1">In-Store Visit</div>
-                        <div className="text-sm text-gray-600">Visit our showroom</div>
-                      </div>
-                    </button>
+                      <option value="">Select Culture</option>
+                      <option value="None">None</option>
+                      <option value="Newari">Newari</option>
+                      <option value="Brahmin/Chhetri">Brahmin/Chhetri</option>
+                      <option value="Tamang">Tamang</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Appointment Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPersonalDetails({...personalDetails, appointmentType: 'online'})}
+                        className={`py-2 px-4 border rounded-lg text-sm font-medium transition-colors ${
+                          personalDetails.appointmentType === 'online'
+                            ? 'border-amber-600 bg-amber-50 text-amber-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Online
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPersonalDetails({...personalDetails, appointmentType: 'in-person'})}
+                        className={`py-2 px-4 border rounded-lg text-sm font-medium transition-colors ${
+                          personalDetails.appointmentType === 'in-person'
+                            ? 'border-amber-600 bg-amber-50 text-amber-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        In Person
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Preferred Date
+                      </label>
+                      <input
+                        type="date"
+                        value={personalDetails.preferredDate}
+                        onChange={(e) => setPersonalDetails({...personalDetails, preferredDate: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Preferred Time
+                      </label>
+                      <input
+                        type="time"
+                        value={personalDetails.preferredTime}
+                        onChange={(e) => setPersonalDetails({...personalDetails, preferredTime: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Additional Notes
+                    </label>
+                    <textarea
+                      value={personalDetails.additionalNotes}
+                      onChange={(e) => setPersonalDetails({...personalDetails, additionalNotes: e.target.value})}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                      placeholder="Any special requests or requirements..."
+                    />
                   </div>
                 </div>
-                <div>
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Preferred Date</label>
-                  <input
-                    type="date"
-                    id="date"
-                    required
-                    value={personalDetails.preferredDate}
-                    onChange={(e) => setPersonalDetails({...personalDetails, preferredDate: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">Preferred Time</label>
-                  <input
-                    type="time"
-                    id="time"
-                    required
-                    value={personalDetails.preferredTime}
-                    onChange={(e) => setPersonalDetails({...personalDetails, preferredTime: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
-                  <textarea
-                    id="notes"
-                    rows={4}
-                    value={personalDetails.additionalNotes}
-                    onChange={(e) => setPersonalDetails({...personalDetails, additionalNotes: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex gap-4">
+                
+                <div className="flex justify-end gap-3 mt-6">
                   <button
                     type="button"
                     onClick={() => setShowCartModal(false)}
-                    className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-amber-600 text-white py-3 rounded-lg hover:bg-amber-700 transition-colors font-medium"
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
                   >
-                    Book Appointment
+                    Submit Appointment
                   </button>
                 </div>
               </form>

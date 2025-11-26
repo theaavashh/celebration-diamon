@@ -69,6 +69,8 @@ export default function DashboardLayout({
   showBackButton = false,
   showBreadcrumb = true
 }: DashboardLayoutProps) {
+  console.log('DashboardLayout rendered with props:', { title, showBackButton, showBreadcrumb });
+  
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -77,6 +79,8 @@ export default function DashboardLayout({
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const router = useRouter();
   const { user, logout } = useAuth();
+  
+  console.log('User state:', { user, isLoading: !user });
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -110,6 +114,7 @@ export default function DashboardLayout({
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (path.includes('/dashboard/categories') || 
+          path.includes('/dashboard/subcategories') ||
           path.includes('/dashboard/services') || 
           path.includes('/dashboard/stores') ||
         path.includes('/dashboard/terms') ||
@@ -148,6 +153,8 @@ export default function DashboardLayout({
       // Handle child navigation
       if (itemId === 'categories') {
         router.push('/dashboard/categories');
+      } else if (itemId === 'subcategories') {
+        router.push('/dashboard/subcategories');
       } else if (itemId === 'services') {
         router.push('/dashboard/services');
       } else if (itemId === 'stores') {
@@ -192,8 +199,8 @@ export default function DashboardLayout({
         router.push('/dashboard/hero-section');
       } else if (itemId === 'promotional-banners') {
         router.push('/dashboard/promotional-banners');
-      } else if (itemId === 'categories') {
-        router.push('/dashboard/categories');
+      } else if (itemId === 'site-settings') {
+        router.push('/dashboard/settings');
       } else if (itemId === 'testimonials') {
         router.push('/dashboard/testimonials');
       } else if (itemId === 'popup-banner') {
@@ -293,6 +300,7 @@ export default function DashboardLayout({
       children: [
         { id: "all-products", label: "All Products", icon: Package2 },
         { id: "categories", label: "Categories", icon: FolderOpen },
+        { id: "subcategories", label: "Subcategories", icon: FolderOpen },
         { id: "inventory", label: "Inventory Management", icon: Layers }
       ]
     },
@@ -412,7 +420,7 @@ export default function DashboardLayout({
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8">
                 <Image
-                  src="/image.png"
+                  src="/celeb.jpg"
                   alt="Logo"
                   width={32}
                   height={32}
@@ -662,8 +670,8 @@ export default function DashboardLayout({
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <span className="hidden sm:inline">Welcome back, {user?.firstName || 'Admin'}</span>
-                    <span className="sm:hidden">{user?.firstName || 'Admin'}</span>
+                    <span className="hidden sm:inline">Welcome back, {user?.fullname || 'Admin'}</span>
+                    <span className="sm:hidden">{user?.fullname || 'Admin'}</span>
                     {userMenuOpen ? (
                       <ChevronUp className="w-4 h-4" />
                     ) : (
