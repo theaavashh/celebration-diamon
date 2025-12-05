@@ -53,8 +53,16 @@ const generateToken = (adminId: string): string => {
   );
 };
 
+// Import CSRF token generator
+import { generateCsrfToken } from '../middleware/csrfMiddleware';
+
+// Define interface for login response data (without token for security)
+interface LoginResponseData {
+  admin: Partial<Admin>;
+}
+
 // Login
-router.post('/login', loginValidation, async (req: Request<{}, ApiResponse<{ admin: Partial<Admin>; token: string }>, LoginRequest>, res: Response<ApiResponse<{ admin: Partial<Admin>; token: string }>>) => {
+router.post('/login', loginValidation, async (req: Request<{}, ApiResponse<LoginResponseData>, LoginRequest>, res: Response<ApiResponse<LoginResponseData>>) => {
   try {
     // Check for validation errors
     const errors = validationResult(req);
@@ -62,7 +70,7 @@ router.post('/login', loginValidation, async (req: Request<{}, ApiResponse<{ adm
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array()
+        error: errors.array()[0].msg
       });
     }
 
@@ -103,22 +111,23 @@ router.post('/login', loginValidation, async (req: Request<{}, ApiResponse<{ adm
     // Return admin data (without password)
     const { password: _, ...adminData } = admin;
 
-    // Set httpOnly cookie for secure token storage
+    // Set httpOnly cookie for secure token storage with enhanced security
     const isProduction = process.env['NODE_ENV'] === 'production';
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: isProduction, // Only send over HTTPS in production
-      sameSite: 'strict',
+      sameSite: isProduction ? 'strict' : 'lax', // Use 'strict' in production for better CSRF protection
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
+      domain: isProduction ? process.env['COOKIE_DOMAIN'] || '' : '', // Allow specifying domain for production
     });
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        admin: adminData,
-        // Don't send token in response body for security
+        admin: adminData
+        // Token is securely stored in httpOnly cookie, not sent in response body
       }
     });
   } catch (error) {
@@ -139,7 +148,7 @@ router.post('/register', registerValidation, async (req: Request<{}, ApiResponse
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array()
+        error: errors.array()[0].msg
       });
     }
 
@@ -319,84 +328,53 @@ router.post('/retailer/create', retailerAdminValidation, async (req: Request, re
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array()
+        error: errors.array()[0].msg
       });
     }
 
-    const { 
-      fullname, 
-      username, 
-      email, 
-      password, 
-      shopName,
-      panVatNo,
-      phone,
-      address,
-      city,
-      state,
-      zipCode,
-      country,
-      status = 'active'
-    } = req.body;
-
-    // Check if retailer already exists
-    const existingRetailer = await prisma.retailer.findFirst({
-      where: {
-        OR: [
-          { email: email.toLowerCase() },
-          { username }
-        ]
-      }
-    });
-
-    if (existingRetailer) {
-      return res.status(400).json({
-        success: false,
-        message: 'Retailer with this email or username already exists'
-      });
-    }
-
-    // Hash password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create retailer (user/agent who will access retailer portal)
-    const retailer = await prisma.retailer.create({
-      data: {
-        name: fullname,
-        username,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        shopName,
-        panVatNo,
-        phone,
-        address,
-        city,
-        state,
-        zipCode,
-        country,
-        status: status || 'active',
-        totalOrders: 0,
-        totalRevenue: 0,
-        lastLogin: null
-      }
-    });
-
-    // Return retailer data (without password)
-    const { password: _, ...retailerData } = retailer;
-
-    res.status(201).json({
-      success: true,
-      message: 'Retailer created successfully',
-      data: {
-        retailer: retailerData
-      }
+    // Since the Retailer model has been removed, we'll return an error
+    return res.status(400).json({
+      success: false,
+      message: 'Retailer registration is temporarily unavailable'
     });
   } catch (error) {
     console.error('Retailer creation error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error during retailer creation'
+    });
+  }
+});
+
+// Get CSRF token
+router.get('/csrf-token', (req, res) => {
+  try {
+    console.log('Generating CSRF token for request');
+    console.log('Request IP:', req.ip);
+    console.log('Node environment:', process.env.NODE_ENV);
+    
+    // Determine session identifier for token generation
+    let sessionIdentifier;
+    if (process.env.NODE_ENV === 'development') {
+      sessionIdentifier = 'development-session';
+    } else {
+      sessionIdentifier = req.ip || 'anonymous';
+    }
+    console.log('Generation session identifier:', sessionIdentifier);
+    
+    const token = generateCsrfToken(req, res);
+    console.log('Generated CSRF token:', token);
+    
+    res.json({
+      success: true,
+      data: { csrfToken: token },
+      message: 'CSRF token generated successfully'
+    });
+  } catch (error) {
+    console.error('CSRF token generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate CSRF token'
     });
   }
 });
@@ -476,12 +454,14 @@ router.get('/me', async (req: Request, res: Response<ApiResponse<Partial<Admin>>
 // Logout endpoint
 router.post('/logout', async (req: Request, res: Response<ApiResponse<{ message: string }>>) => {
   try {
-    // Clear the auth cookie
+    // Clear the auth cookie with enhanced security settings
+    const isProduction = process.env['NODE_ENV'] === 'production';
     res.clearCookie('authToken', {
       httpOnly: true,
-      secure: process.env['NODE_ENV'] === 'production',
-      sameSite: 'strict',
+      secure: isProduction,
+      sameSite: isProduction ? 'strict' : 'lax',
       path: '/',
+      domain: isProduction ? process.env['COOKIE_DOMAIN'] || '' : '',
     });
 
     res.json({

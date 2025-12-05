@@ -3,13 +3,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchCsrfToken, getCsrfToken } from '@/lib/csrfClient';
 import RichTextEditor from './RichTextEditor';
+import DynamicDropdown from './DynamicDropdown';
+import { productAttributeService } from '@/services/productAttributeService';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
+// Enhanced Product interface with proper typing
 interface Product {
   id: string;
   productCode: string;
@@ -18,24 +22,43 @@ interface Product {
   fullDescription?: string;
   category: string;
   subCategory?: string;
+  jewelryType?: string;
   price: number;
   imageUrl?: string;
   isActive: boolean;
-  status?: string; // "draft", "active", "inactive"
+  status: 'draft' | 'active' | 'inactive';
+  
+  // Gold Fields
   goldWeight?: string;
-  diamondDetails?: string;
-  diamondQuantity?: number;
-  diamondSize?: string;
-  diamondWeight?: string;
-  diamondQuality?: string;
-  otherGemstones?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  
+  // Diamond Fields
+  diamondType?: string;
+  diamondShapeCut?: string;
+  diamondColorGrade?: string;
+  diamondClarityGrade?: string;
+  diamondCutGrade?: string;
+  diamondMetalDetails?: string;
+  diamondCertification?: string;
+  diamondOrigin?: string;
+  diamondCaratWeight?: string;
+  
+  // Platinum Fields
+  platinumWeight?: string;
+  platinumType?: string;
+  
+  // Silver Fields
+  silverWeight?: string;
+  silverType?: string;
+  
+  // Additional Fields
   orderDuration?: string;
-  metalType?: string;
-  stoneType?: string;
-  settingType?: string;
-  size?: string;
-  color?: string;
-  finish?: string;
   digitalBrowser?: boolean;
   website?: boolean;
   distributor?: boolean;
@@ -44,10 +67,10 @@ interface Product {
   seoDescription?: string;
   seoKeywords?: string;
   seoSlug?: string;
-  images?: ProductImage[]; // Add this for multiple images
-  videoUrl?: string; // Add videoUrl property
-  stoneWeight?: string; // Add stone weight field
-  caret?: string; // Add caret field
+  images?: ProductImage[];
+  videoUrl?: string;
+  stoneWeight?: string;
+  caret?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,7 +92,7 @@ interface ProductFormProps {
   onSuccess: () => void;
 }
 
-// Add this interface for our preview data
+// Enhanced ProductPreviewData interface
 interface ProductPreviewData {
   id?: string;
   productCode: string;
@@ -78,23 +101,42 @@ interface ProductPreviewData {
   fullDescription?: string;
   category: string;
   subCategory?: string;
+  jewelryType?: string;
   price: number;
   isActive: boolean;
-  status: string; // "draft", "active", "inactive"
+  status: 'draft' | 'active' | 'inactive';
+  
+  // Gold Fields
   goldWeight?: string;
-  diamondDetails?: string;
-  diamondQuantity?: number;
-  diamondSize?: string;
-  diamondWeight?: string;
-  diamondQuality?: string;
-  otherGemstones?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  
+  // Diamond Fields
+  diamondType?: string;
+  diamondShapeCut?: string;
+  diamondColorGrade?: string;
+  diamondClarityGrade?: string;
+  diamondCutGrade?: string;
+  diamondMetalDetails?: string;
+  diamondCertification?: string;
+  diamondOrigin?: string;
+  diamondCaratWeight?: string;
+  
+  // Platinum Fields
+  platinumWeight?: string;
+  platinumType?: string;
+  
+  // Silver Fields
+  silverWeight?: string;
+  silverType?: string;
+  
+  // Additional Fields
   orderDuration?: string;
-  metalType?: string;
-  stoneType?: string;
-  settingType?: string;
-  size?: string;
-  color?: string;
-  finish?: string;
   digitalBrowser: boolean;
   website: boolean;
   distributor: boolean;
@@ -106,13 +148,12 @@ interface ProductPreviewData {
   imageUrl?: string;
   images?: ProductImage[];
   videoUrl?: string;
-  stoneWeight?: string; // Add stone weight field
-  caret?: string; // Add caret field
+  stoneWeight?: string;
+  caret?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-// Add interface for Category
 interface Category {
   id: string;
   title: string;
@@ -124,7 +165,6 @@ interface Category {
   updatedAt: string;
 }
 
-// Add interface for Subcategory
 interface Subcategory {
   id: string;
   name: string;
@@ -136,31 +176,48 @@ interface Subcategory {
   updatedAt: string;
 }
 
-// Validation schema
+// Enhanced validation schema with better error messages
 const productSchema = z.object({
   productCode: z.string().optional(),
-  name: z.string().optional(),
-  description: z.string().optional(),
+  name: z.string().min(1, 'Product name is required'),
+  description: z.string().min(1, 'Description is required'),
   fullDescription: z.string().optional(),
-  category: z.string().optional(),
+  category: z.string().min(1, 'Category is required'),
   subCategory: z.string().optional(),
-  price: z.string().optional(),
+  jewelryType: z.string().optional(),
+  price: z.string().min(1, 'Price is required'),
   isActive: z.boolean(),
-  status: z.enum(["draft", "active", "inactive"]).default("draft"),
+  status: z.enum(['draft', 'active', 'inactive']).default('draft'),
+  
+  // Gold Fields
   goldWeight: z.string().optional(),
-  diamondDetails: z.string().optional(),
-  diamondQuantity: z.string().optional(),
-  diamondSize: z.string().optional(),
-  diamondWeight: z.string().optional(),
-  diamondQuality: z.string().optional(),
-  otherGemstones: z.string().optional(),
-  orderDuration: z.string().optional(),
-  metalType: z.string().optional(),
-  stoneType: z.string().optional(),
-  settingType: z.string().optional(),
-  size: z.string().optional(),
-  color: z.string().optional(),
-  finish: z.string().optional(),
+  goldPurity: z.string().optional(),
+  goldType: z.string().optional(),
+  goldCraftsmanship: z.string().optional(),
+  goldDesignDescription: z.string().optional(),
+  goldFinishedType: z.string().optional(),
+  goldStones: z.string().optional(),
+  goldStoneQuality: z.string().optional(),
+  
+  // Diamond Fields
+  diamondType: z.string().optional(),
+  diamondShapeCut: z.string().optional(),
+  diamondColorGrade: z.string().optional(),
+  diamondClarityGrade: z.string().optional(),
+  diamondCutGrade: z.string().optional(),
+  diamondMetalDetails: z.string().optional(),
+  diamondCertification: z.string().optional(),
+  diamondOrigin: z.string().optional(),
+  diamondCaratWeight: z.string().optional(),
+  
+  // Platinum Fields
+  platinumWeight: z.string().optional(),
+  platinumType: z.string().optional(),
+  
+  // Silver Fields
+  silverWeight: z.string().optional(),
+  silverType: z.string().optional(),
+  
   digitalBrowser: z.boolean(),
   website: z.boolean(),
   distributor: z.boolean(),
@@ -169,10 +226,10 @@ const productSchema = z.object({
   seoDescription: z.string().optional(),
   seoKeywords: z.string().optional(),
   seoSlug: z.string().optional(),
-  videoUrl: z.string().optional(), // Add video URL validation
-  stoneWeight: z.string().optional(), // Add stone weight validation
-  caret: z.string().optional(), // Add caret validation
-  // Images will be validated separately in the form submission handler
+  videoUrl: z.string().optional(),
+  stoneWeight: z.string().optional(),
+  caret: z.string().optional(),
+  orderDuration: z.string().optional()
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -180,20 +237,18 @@ type ProductFormData = z.infer<typeof productSchema>;
 export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess }: ProductFormProps) {
   const { isAuthenticated } = useAuth();
   
-  // Add state for categories and subcategories
+  // State management
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [filteredSubcategories, setFilteredSubcategories] = useState<Subcategory[]>([]);
-  
-  // Add state for preview modal
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<ProductPreviewData | null>(null);
   
-  // Refs for image cropping
+  // Image cropping refs
   const imgRef = useRef<HTMLImageElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   
-  // React Hook Form setup
+  // Form setup with React Hook Form
   const {
     control,
     handleSubmit: handleFormSubmit,
@@ -202,7 +257,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     setValue,
     watch,
     getValues
-  } = useForm({
+  } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       productCode: '',
@@ -211,23 +266,40 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       fullDescription: '',
       category: '',
       subCategory: '',
+      jewelryType: '',
       price: '',
       isActive: true,
       status: 'draft',
+      
+      // Gold Fields
       goldWeight: '',
-      diamondDetails: '',
-      diamondQuantity: '',
-      diamondSize: '',
-      diamondWeight: '',
-      diamondQuality: '',
-      otherGemstones: '',
-      orderDuration: '',
-      metalType: '',
-      stoneType: '',
-      settingType: '',
-      size: '',
-      color: '',
-      finish: '',
+      goldPurity: '',
+      goldType: '',
+      goldCraftsmanship: '',
+      goldDesignDescription: '',
+      goldFinishedType: '',
+      goldStones: '',
+      goldStoneQuality: '',
+      
+      // Diamond Fields
+      diamondType: '',
+      diamondShapeCut: '',
+      diamondColorGrade: '',
+      diamondClarityGrade: '',
+      diamondCutGrade: '',
+      diamondMetalDetails: '',
+      diamondCertification: '',
+      diamondOrigin: '',
+      diamondCaratWeight: '',
+      
+      // Platinum Fields
+      platinumWeight: '',
+      platinumType: '',
+      
+      // Silver Fields
+      silverWeight: '',
+      silverType: '',
+      
       digitalBrowser: false,
       website: false,
       distributor: false,
@@ -236,10 +308,28 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       seoDescription: '',
       seoKeywords: '',
       seoSlug: '',
-      videoUrl: '' // Add videoUrl to reset
+      videoUrl: '',
+      stoneWeight: '',
+      caret: '',
+      orderDuration: '',
     }
   });
   
+  // Watch category field for subcategory filtering
+  const watchCategory = watch('category');
+  
+  // Image and video state
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
+  
+  // Image cropping state
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [croppingImageIndex, setCroppingImageIndex] = useState<number | null>(null);
+  const [croppingImageUrl, setCroppingImageUrl] = useState<string>('');
+
   // Fetch categories and subcategories
   useEffect(() => {
     const fetchCategoriesAndSubcategories = async () => {
@@ -257,7 +347,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json();
-          console.log('Categories API response:', categoriesData);
           setCategories(categoriesData.data || []);
         }
         
@@ -272,19 +361,18 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         
         if (subcategoriesResponse.ok) {
           const subcategoriesData = await subcategoriesResponse.json();
-          console.log('Subcategories API response:', subcategoriesData);
           setSubcategories(subcategoriesData.data || []);
         }
       } catch (error) {
         console.error('Error fetching categories and subcategories:', error);
+        toast.error('Failed to load categories and subcategories');
       }
     };
     
     fetchCategoriesAndSubcategories();
   }, []);
-  
+
   // Filter subcategories when category changes
-  const watchCategory = watch('category');
   useEffect(() => {
     if (watchCategory) {
       const filtered = subcategories.filter(sub => sub.categoryId === watchCategory);
@@ -293,35 +381,14 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       setFilteredSubcategories([]);
     }
   }, [watchCategory, subcategories]);
-  
-  // State is now managed by React Hook Form, removing the old state management
-  // const [productForm, setProductForm] = useState({/* ... */});
-  const [selectedImages, setSelectedImages] = useState<File[]>([]); // Changed to array
-  const [previewImages, setPreviewImages] = useState<string[]>([]); // Changed to array
-  // State for video handling
-  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
-  const [videoPreview, setVideoPreview] = useState<string>('');
-  
-  // State for image cropping
-  const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
-  const [croppingImageIndex, setCroppingImageIndex] = useState<number | null>(null);
-  const [croppingImageUrl, setCroppingImageUrl] = useState<string>('');
-  
-  // Handle form changes
-  const handleFormChange = (field: keyof ProductFormData, value: any) => {
-    setValue(field, value);
-  };
 
-  // Handle image selection (multiple images)
+  // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const fileList = Array.from(files);
-      // Instead of replacing, append new files to existing ones
       setSelectedImages(prevImages => [...prevImages, ...fileList]);
       
-      // Create preview URLs for all selected images and append to existing previews
       const previewUrls = fileList.map(file => URL.createObjectURL(file));
       setPreviewImages(prevPreviews => [...prevPreviews, ...previewUrls]);
     }
@@ -331,7 +398,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   const handleCropImage = (index: number) => {
     setCroppingImageIndex(index);
     setCroppingImageUrl(previewImages[index]);
-    // Initialize crop with a centered crop
     setCrop({
       unit: '%',
       width: 50,
@@ -341,7 +407,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     });
   };
 
-  // Complete cropping and update the image
+  // Complete image cropping
   const handleCompleteCrop = () => {
     if (imgRef.current && completedCrop && croppingImageIndex !== null) {
       const canvas = document.createElement('canvas');
@@ -375,13 +441,11 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         completedCrop.height
       );
       
-      // Convert canvas to blob and create a new file
       canvas.toBlob((blob) => {
         if (blob) {
           const fileName = `cropped-${Date.now()}.png`;
           const croppedFile = new File([blob], fileName, { type: 'image/png' });
           
-          // Update the selected images and preview
           const newSelectedImages = [...selectedImages];
           const newPreviewImages = [...previewImages];
           
@@ -391,7 +455,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
           setSelectedImages(newSelectedImages);
           setPreviewImages(newPreviewImages);
           
-          // Close cropping modal
           setCroppingImageIndex(null);
           setCroppingImageUrl('');
           setCrop(undefined);
@@ -403,7 +466,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     }
   };
 
-  // Reset form
+  // Reset form to initial state
   const resetForm = () => {
     reset({
       productCode: '',
@@ -412,22 +475,40 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       fullDescription: '',
       category: '',
       subCategory: '',
+      jewelryType: '',
       price: '',
       isActive: true,
+      status: 'draft',
+      
+      // Gold Fields
       goldWeight: '',
-      diamondDetails: '',
-      diamondQuantity: '',
-      diamondSize: '',
-      diamondWeight: '',
-      diamondQuality: '',
-      otherGemstones: '',
-      orderDuration: '',
-      metalType: '',
-      stoneType: '',
-      settingType: '',
-      size: '',
-      color: '',
-      finish: '',
+      goldPurity: '',
+      goldType: '',
+      goldCraftsmanship: '',
+      goldDesignDescription: '',
+      goldFinishedType: '',
+      goldStones: '',
+      goldStoneQuality: '',
+      
+      // Diamond Fields
+      diamondType: '',
+      diamondShapeCut: '',
+      diamondColorGrade: '',
+      diamondClarityGrade: '',
+      diamondCutGrade: '',
+      diamondMetalDetails: '',
+      diamondCertification: '',
+      diamondOrigin: '',
+      diamondCaratWeight: '',
+      
+      // Platinum Fields
+      platinumWeight: '',
+      platinumType: '',
+      
+      // Silver Fields
+      silverWeight: '',
+      silverType: '',
+      
       digitalBrowser: false,
       website: false,
       distributor: false,
@@ -436,14 +517,16 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       seoDescription: '',
       seoKeywords: '',
       seoSlug: '',
-      videoUrl: '' // Add videoUrl to reset
+      videoUrl: '',
+      stoneWeight: '',
+      caret: '',
+      orderDuration: ''
     });
     setSelectedImages([]);
     setPreviewImages([]);
     setSelectedVideoFile(null);
     setVideoPreview('');
     
-    // Reset cropping state
     setCroppingImageIndex(null);
     setCroppingImageUrl('');
     setCrop(undefined);
@@ -453,18 +536,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   // Populate form when editing
   useEffect(() => {
     if (editingProduct && categories.length > 0 && subcategories.length > 0) {
-      // Debug: Check if category exists in loaded categories
-      const categoryMatch = categories.find(cat => cat.id === editingProduct.category);
-      const subCategoryMatch = subcategories.find(sub => sub.id === editingProduct.subCategory);
-      
-      console.log('Editing product category ID:', editingProduct.category);
-      console.log('Editing product subCategory ID:', editingProduct.subCategory);
-      console.log('Matching category:', categoryMatch);
-      console.log('Matching subcategory:', subCategoryMatch);
-      console.log('All categories:', categories);
-      console.log('All subcategories:', subcategories);
-      console.log('Editing product fullDescription:', editingProduct.fullDescription);
-      
       reset({
         productCode: editingProduct.productCode || '',
         name: editingProduct.name || '',
@@ -472,29 +543,44 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         fullDescription: editingProduct.fullDescription || '',
         category: editingProduct.category || '',
         subCategory: editingProduct.subCategory || '',
+        jewelryType: editingProduct.jewelryType || '',
         price: editingProduct.price?.toString() || '',
         isActive: editingProduct.isActive,
-        status: (editingProduct.status as 'draft' | 'active' | 'inactive' | undefined) || 'draft',
+        status: editingProduct.status || 'draft',
+        
+        // Gold Fields
         goldWeight: editingProduct.goldWeight || '',
-        diamondDetails: editingProduct.diamondDetails || '',
-        stoneWeight: editingProduct.stoneWeight || '', // Add stone weight field
-        caret: editingProduct.caret || '', // Add caret field
-        diamondQuantity: editingProduct.diamondQuantity?.toString() || '',
-        diamondSize: editingProduct.diamondSize || '',
-        diamondWeight: editingProduct.diamondWeight || '',
-        diamondQuality: editingProduct.diamondQuality || '',
-        otherGemstones: editingProduct.otherGemstones || '',
-        orderDuration: editingProduct.orderDuration || '',
-        metalType: editingProduct.metalType || '',
-        stoneType: editingProduct.stoneType || '',
-        settingType: editingProduct.settingType || '',
-        size: editingProduct.size || '',
-        color: editingProduct.color || '',
-        finish: editingProduct.finish || '',
+        goldPurity: editingProduct.goldPurity || '',
+        goldType: editingProduct.goldType || '',
+        goldCraftsmanship: editingProduct.goldCraftsmanship || '',
+        goldDesignDescription: editingProduct.goldDesignDescription || '',
+        goldFinishedType: editingProduct.goldFinishedType || '',
+        goldStones: editingProduct.goldStones || '',
+        goldStoneQuality: editingProduct.goldStoneQuality || '',
+        
+        // Diamond Fields
+        diamondType: editingProduct.diamondType || '',
+        diamondShapeCut: editingProduct.diamondShapeCut || '',
+        diamondColorGrade: editingProduct.diamondColorGrade || '',
+        diamondClarityGrade: editingProduct.diamondClarityGrade || '',
+        diamondCutGrade: editingProduct.diamondCutGrade || '',
+        diamondMetalDetails: editingProduct.diamondMetalDetails || '',
+        diamondCertification: editingProduct.diamondCertification || '',
+        diamondOrigin: editingProduct.diamondOrigin || '',
+        diamondCaratWeight: editingProduct.diamondCaratWeight || '',
+        
+        // Platinum Fields
+        platinumWeight: editingProduct.platinumWeight || '',
+        platinumType: editingProduct.platinumType || '',
+        
+        // Silver Fields
+        silverWeight: editingProduct.silverWeight || '',
+        silverType: editingProduct.silverType || '',
+        
         digitalBrowser: editingProduct.digitalBrowser || false,
         website: editingProduct.website || false,
         distributor: editingProduct.distributor || false,
-        culture: (editingProduct as any).culture || '',
+        culture: editingProduct.culture || '',
         seoTitle: editingProduct.seoTitle || '',
         seoDescription: editingProduct.seoDescription || '',
         seoKeywords: editingProduct.seoKeywords || '',
@@ -502,26 +588,21 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       });
       setSelectedImages([]);
       
-      // Set preview images from existing product images
+      // Set preview images
       if (editingProduct.images && editingProduct.images.length > 0) {
-        // Use the image URLs for preview
         const imageUrls = editingProduct.images
           .filter(img => img.isActive)
           .sort((a, b) => a.order - b.order)
           .map(img => {
-            // Handle different URL formats properly
             if (img.url.startsWith('http')) {
-              // Already a full URL
               return img.url;
             } else if (img.url.startsWith('/')) {
-              // Absolute path from domain root
               const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
               const fullUrl = baseUrl.endsWith('/') ? 
                 `${baseUrl.slice(0, -1)}${img.url}` : 
                 `${baseUrl}${img.url}`;
               return fullUrl;
             } else {
-              // Relative path or filename
               const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
               const basePath = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
               const fullUrl = `${basePath}${img.url}`;
@@ -530,17 +611,14 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
           });
         setPreviewImages(imageUrls);
       } else if (editingProduct.imageUrl) {
-        // Fallback to single image URL if no images array
         let fullImageUrl = editingProduct.imageUrl;
         if (!editingProduct.imageUrl.startsWith('http')) {
           const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
           if (editingProduct.imageUrl.startsWith('/')) {
-            // Absolute path from domain root
             fullImageUrl = baseUrl.endsWith('/') ? 
               `${baseUrl.slice(0, -1)}${editingProduct.imageUrl}` : 
               `${baseUrl}${editingProduct.imageUrl}`;
           } else {
-            // Relative path or filename
             const basePath = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
             fullImageUrl = `${basePath}${editingProduct.imageUrl}`;
           }
@@ -550,9 +628,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         setPreviewImages([]);
       }
       
-      // Set video preview if editing and product has a video
-      if (editingProduct && (editingProduct as any).videoUrl) {
-        setVideoPreview((editingProduct as any).videoUrl);
+      // Set video preview
+      if (editingProduct.videoUrl) {
+        setVideoPreview(editingProduct.videoUrl);
       } else {
         setVideoPreview('');
       }
@@ -562,30 +640,19 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     }
   }, [editingProduct, reset, categories, subcategories]);
 
-  // Handle form submission with React Hook Form
+  // Handle form submission
   const onSubmit = async (data: ProductFormData) => {
     try {
       const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/products`;
       
-      // Check if user is authenticated
       if (!isAuthenticated) {
         toast.error('Authentication required. Please log in again.');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
         return;
       }
       
-      // Try to get token from localStorage as fallback (for API calls that need Bearer token)
-      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      
-      // Images are now optional for new products
-      // if (!editingProduct && selectedImages.length === 0) {
-      //   toast.error('At least one product image is required');
-      //   return;
-      // }
-      
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append('productCode', data.productCode || '');
       formData.append('name', data.name || '');
@@ -595,29 +662,43 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       }
       formData.append('category', data.category || '');
       formData.append('subCategory', data.subCategory || '');
-      // Only append price if it has a value (make it optional)
+      if (data.jewelryType) {
+        formData.append('jewelryType', data.jewelryType);
+      }
       if (data.price && data.price.trim() !== '') {
         formData.append('price', data.price);
       }
       formData.append('isActive', data.isActive.toString());
       formData.append('status', data.status);
+      
+      // Gold Fields
       formData.append('goldWeight', data.goldWeight || '');
-
-      formData.append('diamondDetails', data.diamondDetails || '');
-      formData.append('stoneWeight', data.stoneWeight || ''); // Add stone weight field
-      formData.append('caret', data.caret || ''); // Add caret field
-      formData.append('diamondQuantity', data.diamondQuantity || '');
-      formData.append('diamondSize', data.diamondSize || '');
-      formData.append('diamondWeight', data.diamondWeight || '');
-      formData.append('diamondQuality', data.diamondQuality || '');
-      formData.append('otherGemstones', data.otherGemstones || '');
-      formData.append('orderDuration', data.orderDuration || '');
-      formData.append('metalType', data.metalType || '');
-      formData.append('stoneType', data.stoneType || '');
-      formData.append('settingType', data.settingType || '');
-      formData.append('size', data.size || '');
-      formData.append('color', data.color || '');
-      formData.append('finish', data.finish || '');
+      formData.append('goldPurity', data.goldPurity || '');
+      formData.append('goldType', data.goldType || '');
+      formData.append('goldCraftsmanship', data.goldCraftsmanship || '');
+      formData.append('goldDesignDescription', data.goldDesignDescription || '');
+      formData.append('goldFinishedType', data.goldFinishedType || '');
+      formData.append('goldStones', data.goldStones || '');
+      formData.append('goldStoneQuality', data.goldStoneQuality || '');
+      
+      // Diamond Fields
+      formData.append('diamondType', data.diamondType || '');
+      formData.append('diamondShapeCut', data.diamondShapeCut || '');
+      formData.append('diamondColorGrade', data.diamondColorGrade || '');
+      formData.append('diamondClarityGrade', data.diamondClarityGrade || '');
+      formData.append('diamondCutGrade', data.diamondCutGrade || '');
+      formData.append('diamondMetalDetails', data.diamondMetalDetails || '');
+      formData.append('diamondCertification', data.diamondCertification || '');
+      formData.append('diamondOrigin', data.diamondOrigin || '');
+      formData.append('diamondCaratWeight', data.diamondCaratWeight || '');
+      
+      // Platinum Fields
+      formData.append('platinumWeight', data.platinumWeight || '');
+      formData.append('platinumType', data.platinumType || '');
+      
+      // Silver Fields
+      formData.append('silverWeight', data.silverWeight || '');
+      formData.append('silverType', data.silverType || '');
       formData.append('digitalBrowser', data.digitalBrowser.toString());
       formData.append('website', data.website.toString());
       formData.append('distributor', data.distributor.toString());
@@ -640,19 +721,14 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       
       // Handle image uploads
       if (selectedImages.length > 0) {
-        // If new images are selected, upload them
-        console.log('Uploading new images:', selectedImages.length);
         selectedImages.forEach((image, index) => {
           formData.append('images', image);
         });
       } else if (editingProduct && editingProduct.images && editingProduct.images.length > 0) {
-        // If editing and no new images are selected, preserve the existing image URLs
-        console.log('Preserving existing image URLs:', editingProduct.images.length);
         const imageUrls = editingProduct.images
           .filter(img => img.isActive)
           .sort((a, b) => a.order - b.order)
           .map(img => img.url);
-        // Only append imageUrls if there are images to preserve
         if (imageUrls.length > 0) {
           formData.append('imageUrls', JSON.stringify(imageUrls));
         }
@@ -667,21 +743,67 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       const method = editingProduct ? 'PUT' : 'POST';
       const url = editingProduct ? `${apiUrl}/${editingProduct.id}` : apiUrl;
       
+      console.log('Making API request:', { method, url, formData });
+      
+      // Ensure we have a CSRF token
+      const token = await fetchCsrfToken();
+      if (!token) {
+        console.error('Failed to fetch CSRF token');
+        toast.error('Authentication failed. Please refresh the page and try again.');
+        return;
+      }
+      
       const response = await fetch(url, {
         method,
         body: formData,
-        // Don't set Content-Type header when using FormData
-        credentials: 'include', // Send cookies
+        credentials: 'include',
+        headers: {
+          'x-csrf-token': token
+        }
       });
       
-      const result = await response.json();
+      console.log('API response received:', { status: response.status, statusText: response.statusText, headers: Object.fromEntries(response.headers.entries()) });
+      
+      let result;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+        console.log('JSON response body:', result);
+      } else {
+        const text = await response.text();
+        console.log('Text response body:', text);
+        result = {
+          success: response.ok,
+          message: response.ok ? 'Success' : `HTTP ${response.status}: ${response.statusText}`,
+          data: text
+        };
+      }
       
       if (response.ok && result.success) {
+        Object.keys(data).forEach(key => {
+          if ([
+            'diamondType', 'diamondShapeCut', 'diamondColorGrade', 'diamondClarityGrade', 
+            'diamondCutGrade', 'diamondMetalDetails', 'diamondCertification', 'diamondOrigin',
+            'diamondCaratWeight', 'goldPurity', 'goldType', 'goldCraftsmanship', 
+            'goldDesignDescription', 'goldFinishedType', 'goldStones', 'goldStoneQuality',
+            'platinumType', 'silverType'
+          ].includes(key)) {
+            const value = data[key as keyof ProductFormData];
+            if (value && typeof value === 'string') {
+              productAttributeService.addToCache(key as any, value);
+            }
+          }
+        });
+        
         toast.success(editingProduct ? 'Product updated successfully!' : 'Product created successfully!');
         onSuccess();
         onClose();
       } else {
         console.error('API error:', result);
+        console.error('Request URL:', url);
+        console.error('Request method:', method);
+        console.error('Response status:', response.status);
+        console.error('Response headers:', Object.fromEntries(response.headers.entries()));
         toast.error(result.message || (editingProduct ? 'Failed to update product' : 'Failed to create product'));
       }
     } catch (error) {
@@ -743,7 +865,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Name
+                  Product Name *
                 </label>
                 <Controller
                   name="name"
@@ -764,7 +886,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
+                Description *
               </label>
               <Controller
                 name="description"
@@ -773,7 +895,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   <textarea
                     {...field}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
-                    rows={6}
+                    rows={10}
                     placeholder="Enter product description"
                   />
                 )}
@@ -790,11 +912,11 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 name="fullDescription"
                 control={control}
                 render={({ field }) => {
-                  console.log('Full description field value:', field.value);
                   return (
                     <RichTextEditor
                       value={field.value || ''}
                       onChange={field.onChange}
+                      height="500px"
                     />
                   );
                 }}
@@ -803,10 +925,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             </div>
 
             {/* Category and Pricing */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
+                  Category *
                 </label>
                 <Controller
                   name="category"
@@ -855,7 +977,29 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price
+                  Jewelry Type
+                </label>
+                <Controller
+                  name="jewelryType"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.jewelryType ? 'border-red-500' : 'border-gray-300'}`}
+                      value={field.value || ''}
+                    >
+                      <option value="">Select Jewelry Type</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Kids">Kids</option>
+                    </select>
+                  )}
+                />
+                {errors.jewelryType && <p className="text-red-500 text-sm mt-1">{errors.jewelryType.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price *
                 </label>
                 <Controller
                   name="price"
@@ -875,30 +1019,28 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             </div>
 
             {/* Culture */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cultural Background
-                </label>
-                <Controller
-                  name="culture"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      {...field}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.culture ? 'border-red-500' : 'border-gray-300'}`}
-                      value={field.value || ''}
-                    >
-                      <option value="">Select Culture</option>
-                      <option value="None">None</option>
-                      <option value="Newari">Newari</option>
-                      <option value="Brahmin/Chhetri">Brahmin/Chhetri</option>
-                      <option value="Tamang">Tamang</option>
-                    </select>
-                  )}
-                />
-                {errors.culture && <p className="text-red-500 text-sm mt-1">{errors.culture.message}</p>}
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cultural Background
+              </label>
+              <Controller
+                name="culture"
+                control={control}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.culture ? 'border-red-500' : 'border-gray-300'}`}
+                    value={field.value || ''}
+                  >
+                    <option value="">Select Culture</option>
+                    <option value="None">None</option>
+                    <option value="Newari">Newari</option>
+                    <option value="Brahmin/Chhetri">Brahmin/Chhetri</option>
+                    <option value="Tamang">Tamang</option>
+                  </select>
+                )}
+              />
+              {errors.culture && <p className="text-red-500 text-sm mt-1">{errors.culture.message}</p>}
             </div>
 
             {/* Product Images */}
@@ -998,14 +1140,249 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     </button>
                   </div>
                 )}
-
               </div>
             </div>
 
-            {/* Jewelry Specific Details */}
+            {/* Diamond Details */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Jewelry Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Diamond Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Diamond Type
+                  </label>
+                  <Controller
+                    name="diamondType"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondType"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter diamond type"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondType ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondType && <p className="text-red-500 text-sm mt-1">{errors.diamondType.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Diamond Shape/Cut
+                  </label>
+                  <Controller
+                    name="diamondShapeCut"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondShapeCut"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter shape/cut"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondShapeCut ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondShapeCut && <p className="text-red-500 text-sm mt-1">{errors.diamondShapeCut.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Color Grade
+                  </label>
+                  <Controller
+                    name="diamondColorGrade"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondColorGrade"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter color grade"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondColorGrade ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondColorGrade && <p className="text-red-500 text-sm mt-1">{errors.diamondColorGrade.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Origin
+                  </label>
+                  <Controller
+                    name="diamondOrigin"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondOrigin"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter origin"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondOrigin ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondOrigin && <p className="text-red-500 text-sm mt-1">{errors.diamondOrigin.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Clarity
+                  </label>
+                  <Controller
+                    name="diamondClarityGrade"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondClarityGrade"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter clarity"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondClarityGrade ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondClarityGrade && <p className="text-red-500 text-sm mt-1">{errors.diamondClarityGrade.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cut Grade
+                  </label>
+                  <Controller
+                    name="diamondCutGrade"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondCutGrade"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter cut grade"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondCutGrade ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondCutGrade && <p className="text-red-500 text-sm mt-1">{errors.diamondCutGrade.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Metal Details
+                  </label>
+                  <Controller
+                    name="diamondMetalDetails"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondMetalDetails"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter metal details"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondMetalDetails ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondMetalDetails && <p className="text-red-500 text-sm mt-1">{errors.diamondMetalDetails.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Certification
+                  </label>
+                  <Controller
+                    name="diamondCertification"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondCertification"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter certification"
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondCertification ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondCertification && <p className="text-red-500 text-sm mt-1">{errors.diamondCertification.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Carat Weight
+                  </label>
+                  <Controller
+                    name="diamondCaratWeight"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="diamondCaratWeight"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter carat weight"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondCaratWeight ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.diamondCaratWeight && <p className="text-red-500 text-sm mt-1">{errors.diamondCaratWeight.message}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Gold Details */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Gold Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Gold Purity
+                  </label>
+                  <Controller
+                    name="goldPurity"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="goldPurity"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter gold purity"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldPurity ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.goldPurity && <p className="text-red-500 text-sm mt-1">{errors.goldPurity.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Gold Type
+                  </label>
+                  <Controller
+                    name="goldType"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="goldType"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                         forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter gold type"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldType ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.goldType && <p className="text-red-500 text-sm mt-1">{errors.goldType.message}</p>}
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Gold Weight
@@ -1014,197 +1391,217 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     name="goldWeight"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldWeight ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="4 gms approx"
-                        />
-                        {errors.goldWeight && <p className="text-red-500 text-sm mt-1">{errors.goldWeight.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="goldWeight"
+                        value={field.value || ''}
+                         forceDropdown={true}
+                        allowCustomValue={true}
+                        onChange={field.onChange}
+                        placeholder="Select or enter gold weight"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldWeight ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.goldWeight && <p className="text-red-500 text-sm mt-1">{errors.goldWeight.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Metal Type
+                    Craftsmanship
                   </label>
                   <Controller
-                    name="metalType"
+                    name="goldCraftsmanship"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.metalType ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="14k/18k"
-                        />
-                        {errors.metalType && <p className="text-red-500 text-sm mt-1">{errors.metalType.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="goldCraftsmanship"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter craftsmanship"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldCraftsmanship ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.goldCraftsmanship && <p className="text-red-500 text-sm mt-1">{errors.goldCraftsmanship.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Details
+                    Design Description
                   </label>
                   <Controller
-                    name="diamondDetails"
+                    name="goldDesignDescription"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondDetails ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="-"
-                        />
-                        {errors.diamondDetails && <p className="text-red-500 text-sm mt-1">{errors.diamondDetails.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="goldDesignDescription"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select or enter design description"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldDesignDescription ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.goldDesignDescription && <p className="text-red-500 text-sm mt-1">{errors.goldDesignDescription.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stone Weight
+                    Finished Type
                   </label>
                   <Controller
-                    name="stoneWeight"
+                    name="goldFinishedType"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.stoneWeight ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Stone weight"
-                        />
-                        {errors.stoneWeight && <p className="text-red-500 text-sm mt-1">{errors.stoneWeight.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="goldFinishedType"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                         forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter finished type"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldFinishedType ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.goldFinishedType && <p className="text-red-500 text-sm mt-1">{errors.goldFinishedType.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Caret
+                    Stones
                   </label>
                   <Controller
-                    name="caret"
+                    name="goldStones"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.caret ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Caret measurement"
-                        />
-                        {errors.caret && <p className="text-red-500 text-sm mt-1">{errors.caret.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="goldStones"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter stones"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldStones ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.goldStones && <p className="text-red-500 text-sm mt-1">{errors.goldStones.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Quantity
+                    Stone Quality
                   </label>
                   <Controller
-                    name="diamondQuantity"
+                    name="goldStoneQuality"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="number"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondQuantity ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="0"
-                        />
-                        {errors.diamondQuantity && <p className="text-red-500 text-sm mt-1">{errors.diamondQuantity.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="goldStoneQuality"
+                        value={field.value || ''}
+                         forceDropdown={true}
+                        allowCustomValue={true}
+                        onChange={field.onChange}
+                        placeholder="Select or enter stone quality"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldStoneQuality ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.goldStoneQuality && <p className="text-red-500 text-sm mt-1">{errors.goldStoneQuality.message}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Platinum Details */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Platinum Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Platinum Weight
+                  </label>
+                  <Controller
+                    name="platinumWeight"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="platinumWeight"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                         forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter platinum weight"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.platinumWeight ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.platinumWeight && <p className="text-red-500 text-sm mt-1">{errors.platinumWeight.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Diamond Size
+                    Platinum Type
                   </label>
                   <Controller
-                    name="diamondSize"
+                    name="platinumType"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondSize ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Size"
-                        />
-                        {errors.diamondSize && <p className="text-red-500 text-sm mt-1">{errors.diamondSize.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="platinumType"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter platinum type"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.platinumType ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
+                  {errors.platinumType && <p className="text-red-500 text-sm mt-1">{errors.platinumType.message}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Silver Details */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Silver Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Silver Weight
+                  </label>
+                  <Controller
+                    name="silverWeight"
+                    control={control}
+                    render={({ field }) => (
+                      <DynamicDropdown
+                        attribute="silverWeight"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter silver weight"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.silverWeight ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                    )}
+                  />
+                  {errors.silverWeight && <p className="text-red-500 text-sm mt-1">{errors.silverWeight.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stone Type
+                    Silver Type
                   </label>
                   <Controller
-                    name="stoneType"
+                    name="silverType"
                     control={control}
                     render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.stoneType ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Diamond, Ruby, etc."
-                        />
-                        {errors.stoneType && <p className="text-red-500 text-sm mt-1">{errors.stoneType.message}</p>}
-                      </>
+                      <DynamicDropdown
+                        attribute="silverType"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        forceDropdown={true}
+                        allowCustomValue={true}
+                        placeholder="Select or enter silver type"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.silverType ? 'border-red-500' : 'border-gray-300'}`}
+                      />
                     )}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Setting Type
-                  </label>
-                  <Controller
-                    name="settingType"
-                    control={control}
-                    render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.settingType ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Prong, Bezel, etc."
-                        />
-                        {errors.settingType && <p className="text-red-500 text-sm mt-1">{errors.settingType.message}</p>}
-                      </>
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Other Gemstones
-                  </label>
-                  <Controller
-                    name="otherGemstones"
-                    control={control}
-                    render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.otherGemstones ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Other gemstones used"
-                        />
-                        {errors.otherGemstones && <p className="text-red-500 text-sm mt-1">{errors.otherGemstones.message}</p>}
-                      </>
-                    )}
-                  />
+                  {errors.silverType && <p className="text-red-500 text-sm mt-1">{errors.silverType.message}</p>}
                 </div>
               </div>
             </div>
@@ -1213,67 +1610,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Size
-                  </label>
-                  <Controller
-                    name="size"
-                    control={control}
-                    render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.size ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Ring size, etc."
-                        />
-                        {errors.size && <p className="text-red-500 text-sm mt-1">{errors.size.message}</p>}
-                      </>
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color
-                  </label>
-                  <Controller
-                    name="color"
-                    control={control}
-                    render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.color ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Gold color"
-                        />
-                        {errors.color && <p className="text-red-500 text-sm mt-1">{errors.color.message}</p>}
-                      </>
-                    )}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Finish
-                  </label>
-                  <Controller
-                    name="finish"
-                    control={control}
-                    render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.finish ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Polished, Matte, etc."
-                        />
-                        {errors.finish && <p className="text-red-500 text-sm mt-1">{errors.finish.message}</p>}
-                      </>
-                    )}
-                  />
-                </div>
-                {/* Status Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
@@ -1294,6 +1630,31 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     )}
                   />
                   {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Estimated Order Period */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Estimated Order Period</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estimated Order Period
+                  </label>
+                  <Controller
+                    name="orderDuration"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.orderDuration ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Enter estimated order period (e.g., 2-3 weeks)"
+                      />
+                    )}
+                  />
+                  {errors.orderDuration && <p className="text-red-500 text-sm mt-1">{errors.orderDuration.message}</p>}
                 </div>
               </div>
             </div>
@@ -1378,7 +1739,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   />
                   {errors.seoTitle && <p className="text-red-500 text-sm mt-1">{errors.seoTitle.message}</p>}
                 </div>
-                <div>
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     SEO Slug
                   </label>
@@ -1390,12 +1751,33 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                         {...field}
                         type="text"
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.seoSlug ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="URL slug"
+                        placeholder="Enter SEO slug"
                       />
                     )}
                   />
                   {errors.seoSlug && <p className="text-red-500 text-sm mt-1">{errors.seoSlug.message}</p>}
                 </div>
+
+                {/* Video URL */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Video URL
+                  </label>
+                  <Controller
+                    name="videoUrl"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="text"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.videoUrl ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Enter video URL"
+                      />
+                    )}
+                  />
+                  {errors.videoUrl && <p className="text-red-500 text-sm mt-1">{errors.videoUrl.message}</p>}
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     SEO Description
@@ -1448,7 +1830,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               <button
                 type="button"
                 onClick={() => {
-                  // Get current form data for preview
                   const formData = getValues();
                   const previewProduct: ProductPreviewData = {
                     id: editingProduct?.id,
@@ -1458,23 +1839,41 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     fullDescription: formData.fullDescription,
                     category: formData.category || '',
                     subCategory: formData.subCategory,
+                    jewelryType: formData.jewelryType,
                     price: formData.price ? parseFloat(formData.price) : 0,
                     isActive: formData.isActive,
-                    status: formData.status || 'draft',
+                    status: (formData.status as 'draft' | 'active' | 'inactive') || 'draft',
+                    
+                    // Gold Fields
                     goldWeight: formData.goldWeight,
-                    diamondDetails: formData.diamondDetails,
-                    diamondQuantity: formData.diamondQuantity ? parseInt(formData.diamondQuantity) : undefined,
-                    diamondSize: formData.diamondSize,
-                    diamondWeight: formData.diamondWeight,
-                    diamondQuality: formData.diamondQuality,
-                    otherGemstones: formData.otherGemstones,
+                    goldPurity: formData.goldPurity,
+                    goldType: formData.goldType,
+                    goldCraftsmanship: formData.goldCraftsmanship,
+                    goldDesignDescription: formData.goldDesignDescription,
+                    goldFinishedType: formData.goldFinishedType,
+                    goldStones: formData.goldStones,
+                    goldStoneQuality: formData.goldStoneQuality,
+                    
+                    // Diamond Fields
+                    diamondType: formData.diamondType,
+                    diamondShapeCut: formData.diamondShapeCut,
+                    diamondColorGrade: formData.diamondColorGrade,
+                    diamondClarityGrade: formData.diamondClarityGrade,
+                    diamondCutGrade: formData.diamondCutGrade,
+                    diamondMetalDetails: formData.diamondMetalDetails,
+                    diamondCertification: formData.diamondCertification,
+                    diamondOrigin: formData.diamondOrigin,
+                    diamondCaratWeight: formData.diamondCaratWeight,
+                    
+                    // Platinum Fields
+                    platinumWeight: formData.platinumWeight,
+                    platinumType: formData.platinumType,
+                    
+                    // Silver Fields
+                    silverWeight: formData.silverWeight,
+                    silverType: formData.silverType,
+                    
                     orderDuration: formData.orderDuration,
-                    metalType: formData.metalType,
-                    stoneType: formData.stoneType,
-                    settingType: formData.settingType,
-                    size: formData.size,
-                    color: formData.color,
-                    finish: formData.finish,
                     digitalBrowser: formData.digitalBrowser,
                     website: formData.website,
                     distributor: formData.distributor,
@@ -1483,357 +1882,48 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     seoDescription: formData.seoDescription,
                     seoKeywords: formData.seoKeywords,
                     seoSlug: formData.seoSlug,
-                    stoneWeight: formData.stoneWeight, // Add stone weight field
-                    caret: formData.caret, // Add caret field
-                    // For images, prioritize previewImages if available, otherwise use editingProduct images
-                    imageUrl: previewImages.length > 0 ? previewImages[0] : editingProduct?.imageUrl,
-                    images: previewImages.length > 0 
-                      ? previewImages.map((url, index) => ({
-                          id: `preview-${index}`,
-                          url,
-                          altText: '',
-                          order: index,
-                          isActive: true,
-                          createdAt: new Date().toISOString(),
-                          updatedAt: new Date().toISOString()
-                        })) 
-                      : editingProduct?.images,
-                    videoUrl: formData.videoUrl || editingProduct?.videoUrl,
-                    createdAt: editingProduct?.createdAt,
-                    updatedAt: editingProduct?.updatedAt
+                    stoneWeight: formData.stoneWeight,
+                    caret: formData.caret,
+                    imageUrl: previewImages.length > 0 ? previewImages[0] : '',
+                    images: previewImages.map((url, index) => ({
+                      id: `preview-${index}`,
+                      url,
+                      altText: `Preview ${index + 1}`,
+                      order: index,
+                      isActive: true,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString()
+                    })),
+                    videoUrl: videoPreview || undefined,
+                    createdAt: editingProduct?.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
                   };
                   setPreviewData(previewProduct);
                   setIsPreviewOpen(true);
                 }}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 disabled={formIsSubmitting}
               >
                 Preview
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 disabled={formIsSubmitting}
               >
-                {formIsSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Add Product')}
+                {formIsSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Create Product')}
               </button>
             </div>
           </form>
         </div>
-      </div>
 
-      {/* Preview Modal */}
-      {isPreviewOpen && previewData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Product Preview</h2>
-                <button
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="text-black">
-                  <h3 className="text-xl font-semibold mb-4">{previewData.name}</h3>
-                  <p className="mb-4">{previewData.description}</p>
-                  
-                  {previewData.fullDescription && (
-                    <div className="mb-4">
-                      <h4 className="font-medium mb-2">Full Description:</h4>
-                      <div 
-                        className="prose max-w-none"
-                        dangerouslySetInnerHTML={{ __html: previewData.fullDescription || '' }} 
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <span className="font-medium">Category:</span>
-                      <span className="ml-2">
-                        {categories.find(c => c.id === previewData.category)?.title || previewData.category}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Subcategory:</span>
-                      <span className="ml-2">
-                        {subcategories.find(s => s.id === previewData.subCategory)?.name || previewData.subCategory}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Price:</span>
-                      <span className="ml-2">Rs. {previewData.price.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Status:</span>
-                      <span className="ml-2 capitalize">{previewData.status}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    {previewData.goldWeight && (
-                      <div>
-                        <span className="font-medium">Gold Weight:</span>
-                        <span className="ml-2">{previewData.goldWeight}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.diamondDetails && (
-                      <div>
-                        <span className="font-medium">Diamond Details:</span>
-                        <span className="ml-2">{previewData.diamondDetails}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.diamondQuantity !== undefined && (
-                      <div>
-                        <span className="font-medium">Diamond Quantity:</span>
-                        <span className="ml-2">{previewData.diamondQuantity}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.diamondSize && (
-                      <div>
-                        <span className="font-medium">Diamond Size:</span>
-                        <span className="ml-2">{previewData.diamondSize}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.diamondWeight && (
-                      <div>
-                        <span className="font-medium">Diamond Weight:</span>
-                        <span className="ml-2">{previewData.diamondWeight}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.diamondQuality && (
-                      <div>
-                        <span className="font-medium">Diamond Quality:</span>
-                        <span className="ml-2">{previewData.diamondQuality}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.stoneWeight && (
-                      <div>
-                        <span className="font-medium">Stone Weight:</span>
-                        <span className="ml-2">{previewData.stoneWeight}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.caret && (
-                      <div>
-                        <span className="font-medium">Caret:</span>
-                        <span className="ml-2">{previewData.caret}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.otherGemstones && (
-                      <div>
-                        <span className="font-medium">Other Gemstones:</span>
-                        <span className="ml-2">{previewData.otherGemstones}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.metalType && (
-                      <div>
-                        <span className="font-medium">Metal Type:</span>
-                        <span className="ml-2">{previewData.metalType}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.stoneType && (
-                      <div>
-                        <span className="font-medium">Stone Type:</span>
-                        <span className="ml-2">{previewData.stoneType}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.settingType && (
-                      <div>
-                        <span className="font-medium">Setting Type:</span>
-                        <span className="ml-2">{previewData.settingType}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.size && (
-                      <div>
-                        <span className="font-medium">Size:</span>
-                        <span className="ml-2">{previewData.size}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.color && (
-                      <div>
-                        <span className="font-medium">Color:</span>
-                        <span className="ml-2">{previewData.color}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.finish && (
-                      <div>
-                        <span className="font-medium">Finish:</span>
-                        <span className="ml-2">{previewData.finish}</span>
-                      </div>
-                    )}
-                    
-                    {previewData.orderDuration && (
-                      <div>
-                        <span className="font-medium">Order Duration:</span>
-                        <span className="ml-2">{previewData.orderDuration}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <span className="font-medium">Digital Browser:</span>
-                      <span className="ml-2">{previewData.digitalBrowser ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Website:</span>
-                      <span className="ml-2">{previewData.website ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium">Distributor:</span>
-                      <span className="ml-2">{previewData.distributor ? 'Yes' : 'No'}</span>
-                    </div>
-                  </div>
-                  
-                  {previewData.culture && (
-                    <div className="mb-2">
-                      <span className="font-medium">Cultural Background:</span>
-                      <span className="ml-2">{previewData.culture}</span>
-                    </div>
-                  )}
-                  
-                  {(previewData.seoTitle || previewData.seoDescription || previewData.seoKeywords || previewData.seoSlug) && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h4 className="font-medium mb-2">SEO Information:</h4>
-                      <div className="grid grid-cols-1 gap-2">
-                        {previewData.seoTitle && (
-                          <div>
-                            <span className="font-medium">Title:</span>
-                            <span className="ml-2">{previewData.seoTitle}</span>
-                          </div>
-                        )}
-                        {previewData.seoSlug && (
-                          <div>
-                            <span className="font-medium">Slug:</span>
-                            <span className="ml-2">{previewData.seoSlug}</span>
-                          </div>
-                        )}
-                        {previewData.seoDescription && (
-                          <div>
-                            <span className="font-medium">Description:</span>
-                            <span className="ml-2">{previewData.seoDescription}</span>
-                          </div>
-                        )}
-                        {previewData.seoKeywords && (
-                          <div>
-                            <span className="font-medium">Keywords:</span>
-                            <span className="ml-2">{previewData.seoKeywords}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="text-black">
-                  {previewData.images && previewData.images.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {previewData.images.map((image, index) => (
-                        <img 
-                          key={index}
-                          src={image.url} 
-                          alt={`Product ${index + 1}`} 
-                          className="w-full h-auto object-contain rounded-lg"
-                        />
-                      ))}
-                    </div>
-                  ) : previewData.imageUrl ? (
-                    <img 
-                      src={previewData.imageUrl} 
-                      alt="Product" 
-                      className="w-full h-auto object-contain rounded-lg"
-                    />
-                  ) : (
-                    <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-auto flex items-center justify-center">
-                      <span className="text-gray-500">No image available</span>
-                    </div>
-                  )}
-                  
-                  {previewData.videoUrl && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Product Video:</h4>
-                      <video 
-                        src={previewData.videoUrl} 
-                        controls 
-                        className="w-full h-auto object-contain rounded-lg"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image Cropping Modal */}
-      {croppingImageIndex !== null && (
-        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Crop Image</h2>
-                <button
-                  onClick={() => {
-                    setCroppingImageIndex(null);
-                    setCroppingImageUrl('');
-                    setCrop(undefined);
-                    setCompletedCrop(undefined);
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="flex flex-col items-center">
-                <ReactCrop
-                  crop={crop}
-                  onChange={(c) => setCrop(c)}
-                  onComplete={(c) => setCompletedCrop(c)}
-                  minWidth={50}
-                >
-                  <img
-                    ref={imgRef}
-                    src={croppingImageUrl}
-                    alt="Crop preview"
-                    className="max-h-[60vh]"
-                  />
-                </ReactCrop>
-                
-                <div className="flex justify-end space-x-4 mt-6">
+        {/* Image Cropping Modal */}
+        {croppingImageIndex !== null && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Crop Image</h3>
                   <button
                     onClick={() => {
                       setCroppingImageIndex(null);
@@ -1841,22 +1931,187 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       setCrop(undefined);
                       setCompletedCrop(undefined);
                     }}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="text-gray-500 hover:text-gray-700"
                   >
-                    Cancel
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
-                  <button
-                    onClick={handleCompleteCrop}
-                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                </div>
+                
+                <div className="flex flex-col items-center">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)}
+                    onComplete={(c) => setCompletedCrop(c)}
+                    aspect={1}
+                    minWidth={100}
+                    minHeight={100}
                   >
-                    Apply Crop
-                  </button>
+                    <img
+                      ref={imgRef}
+                      src={croppingImageUrl}
+                      alt="Crop preview"
+                      className="max-h-[70vh]"
+                      onLoad={() => {
+                        const img = imgRef.current;
+                        if (img) {
+                          const { width, height } = img;
+                          const crop = centerCrop(
+                            makeAspectCrop(
+                              {
+                                unit: '%',
+                                width: 50,
+                                height: 50
+                              },
+                              1,
+                              width,
+                              height
+                            ),
+                            width,
+                            height
+                          );
+                          setCrop(crop);
+                        }
+                      }}
+                    />
+                  </ReactCrop>
+                  
+                  <div className="mt-4 flex space-x-2">
+                    <button
+                      onClick={handleCompleteCrop}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Apply Crop
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCroppingImageIndex(null);
+                        setCroppingImageUrl('');
+                        setCrop(undefined);
+                        setCompletedCrop(undefined);
+                      }}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Product Preview Modal */}
+        {isPreviewOpen && previewData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Product Preview</h2>
+                  <button
+                    onClick={() => setIsPreviewOpen(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">{previewData.name}</h3>
+                    <p className="text-gray-600">{previewData.description}</p>
+                  </div>
+                  
+                  {previewData.images && previewData.images.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {previewData.images.map((image, index) => (
+                        <img
+                          key={image.id}
+                          src={image.url}
+                          alt={image.altText || `Product image ${index + 1}`}
+                          className="w-full h-auto object-contain rounded-lg border border-gray-300"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold">Basic Information</h4>
+                      <div className="mt-2 space-y-1">
+                        <p><span className="font-medium">Product Code:</span> {previewData.productCode || 'N/A'}</p>
+                        <p><span className="font-medium">Category:</span> {previewData.category || 'N/A'}</p>
+                        <p><span className="font-medium">Sub Category:</span> {previewData.subCategory || 'N/A'}</p>
+                        <p><span className="font-medium">Jewelry Type:</span> {previewData.jewelryType || 'N/A'}</p>
+                        <p><span className="font-medium">Price:</span> ${previewData.price.toFixed(2)}</p>
+                        <p><span className="font-medium">Status:</span> {previewData.status}</p>
+                      </div>
+                    </div>
+                    
+                    {previewData.goldWeight && (
+                      <div>
+                        <h4 className="font-semibold">Gold Details</h4>
+                        <div className="mt-2 space-y-1">
+                          <p><span className="font-medium">Gold Weight:</span> {previewData.goldWeight}</p>
+                          <p><span className="font-medium">Gold Purity:</span> {previewData.goldPurity || 'N/A'}</p>
+                          <p><span className="font-medium">Gold Type:</span> {previewData.goldType || 'N/A'}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {previewData.diamondType && (
+                      <div>
+                        <h4 className="font-semibold">Diamond Details</h4>
+                        <div className="mt-2 space-y-1">
+                          <p><span className="font-medium">Diamond Type:</span> {previewData.diamondType}</p>
+                          <p><span className="font-medium">Diamond Shape/Cut:</span> {previewData.diamondShapeCut || 'N/A'}</p>
+                          <p><span className="font-medium">Color Grade:</span> {previewData.diamondColorGrade || 'N/A'}</p>
+                          <p><span className="font-medium">Clarity:</span> {previewData.diamondClarityGrade || 'N/A'}</p>
+                          <p><span className="font-medium">Cut Grade:</span> {previewData.diamondCutGrade || 'N/A'}</p>
+                          <p><span className="font-medium">Carat Weight:</span> {previewData.diamondCaratWeight || 'N/A'}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {previewData.platinumWeight && (
+                      <div>
+                        <h4 className="font-semibold">Platinum Details</h4>
+                        <div className="mt-2 space-y-1">
+                          <p><span className="font-medium">Platinum Weight:</span> {previewData.platinumWeight}</p>
+                          <p><span className="font-medium">Platinum Type:</span> {previewData.platinumType || 'N/A'}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {previewData.silverWeight && (
+                      <div>
+                        <h4 className="font-semibold">Silver Details</h4>
+                        <div className="mt-2 space-y-1">
+                          <p><span className="font-medium">Silver Weight:</span> {previewData.silverWeight}</p>
+                          <p><span className="font-medium">Silver Type:</span> {previewData.silverType || 'N/A'}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <h4 className="font-semibold">SEO Information</h4>
+                      <div className="mt-2 space-y-1">
+                        <p><span className="font-medium">SEO Title:</span> {previewData.seoTitle || 'N/A'}</p>
+                        <p><span className="font-medium">SEO Slug:</span> {previewData.seoSlug || 'N/A'}</p>
+                        <p><span className="font-medium">SEO Description:</span> {previewData.seoDescription || 'N/A'}</p>
+                        <p><span className="font-medium">SEO Keywords:</span> {previewData.seoKeywords || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,19 +1,10 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
-import RichTextEditor from '@/components/RichTextEditor';
-import { Save, Eye, EyeOff, Plus, Edit, Trash2, X } from 'lucide-react';
-
-interface HelpCenter {
-  id: string;
-  title: string;
-  content: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import { HelpCenter } from '@/types';
+import { apiGet, apiPost, apiPut, apiDelete, handleAuthError } from '@/lib/apiClient';
 
 export default function HelpCenterPage() {
   const [helpCenters, setHelpCenters] = useState<HelpCenter[]>([]);
@@ -26,33 +17,23 @@ export default function HelpCenterPage() {
     isActive: true
   });
 
-  // Fetch help centers
   const fetchHelpCenters = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/all`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
+      const result = await apiGet<HelpCenter[]>(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/all`);
       
-      if (response.ok) {
-        const data = await response.json();
-        setHelpCenters(data.data || []);
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+      if (result.success) {
+        setHelpCenters(result.data || []);
       } else {
-        console.error('Failed to fetch help centers, status:', response.status);
-        toast.error('Failed to fetch help center');
+        if (result.message === 'Access denied. No token provided.' || result.message?.includes('Session expired')) {
+          toast.error('Session expired. Please log in again.');
+          // Redirect to home page - the AuthContext will handle this
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        } else {
+          toast.error(result.message || 'Failed to fetch help center');
+        }
       }
     } catch (error) {
       console.error('Error fetching help centers:', error);
@@ -106,38 +87,27 @@ export default function HelpCenterPage() {
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const url = editingHelpCenter
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/${editingHelpCenter.id}`
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin`;
 
-      const method = editingHelpCenter ? 'PUT' : 'POST';
+      const result = editingHelpCenter 
+        ? await apiPut(url, helpCenterForm)
+        : await apiPost(url, helpCenterForm);
 
-      const response = await fetch(url, {
-        method,
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(helpCenterForm)
-      });
-
-      if (response.ok) {
+      if (result.success) {
         toast.success(editingHelpCenter ? 'Help center updated successfully' : 'Help center created successfully');
         setIsModalOpen(false);
         fetchHelpCenters();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.message || 'Failed to save help center');
+        if (result.message === 'Access denied. No token provided.' || result.message?.includes('Session expired')) {
+          toast.error('Session expired. Please log in again.');
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        } else {
+          toast.error(result.message || 'Failed to save help center');
+        }
       }
     } catch (error) {
       console.error('Error saving help center:', error);
@@ -152,28 +122,20 @@ export default function HelpCenterPage() {
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
+      const result = await apiDelete(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/${id}`);
 
-      if (response.ok) {
+      if (result.success) {
         toast.success('Help center deleted successfully');
         fetchHelpCenters();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
       } else {
-        toast.error('Failed to delete help center');
+        if (result.message === 'Access denied. No token provided.' || result.message?.includes('Session expired')) {
+          toast.error('Session expired. Please log in again.');
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        } else {
+          toast.error(result.message || 'Failed to delete help center');
+        }
       }
     } catch (error) {
       console.error('Error deleting help center:', error);
@@ -187,33 +149,23 @@ export default function HelpCenterPage() {
       const helpCenter = helpCenters.find(h => h.id === id);
       if (!helpCenter) return;
 
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/${id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify({
-          ...helpCenter,
-          isActive: !helpCenter.isActive
-        })
+      const result = await apiPut(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/help-center/admin/${id}`, {
+        ...helpCenter,
+        isActive: !helpCenter.isActive
       });
 
-      if (response.ok) {
+      if (result.success) {
         toast.success('Status updated successfully');
         fetchHelpCenters();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
       } else {
-        toast.error('Failed to update status');
+        if (result.message === 'Access denied. No token provided.' || result.message?.includes('Session expired')) {
+          toast.error('Session expired. Please log in again.');
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        } else {
+          toast.error(result.message || 'Failed to update status');
+        }
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -228,172 +180,166 @@ export default function HelpCenterPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Help Center</h1>
-            <p className="text-gray-600 mt-1">Manage your help center content</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Manage your help center content
+            </p>
           </div>
           <button
             onClick={openModal}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            <Plus className="w-5 h-5" />
-            Create New
+            <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            Add Help Center
           </button>
         </div>
 
-        {/* Help Centers List */}
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading help center...</p>
-          </div>
-        ) : helpCenters.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-            <p className="text-gray-600 mb-4">No help center content found</p>
-            <button
-              onClick={openModal}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Create Help Center
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {helpCenters.map((helpCenter) => (
-              <div
-                key={helpCenter.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
-              >
-                <div className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{helpCenter.title}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          helpCenter.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+        {/* Help Centers Table */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : helpCenters.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No help centers</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Get started by creating a new help center.
+              </p>
+              <div className="mt-6">
+                <button
+                  onClick={openModal}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  New Help Center
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {helpCenters.map((helpCenter) => (
+                <li key={helpCenter.id}>
+                  <div className="px-4 py-4 flex items-center justify-between sm:px-6">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center">
+                        <p className="text-sm font-medium text-indigo-600 truncate">
+                          {helpCenter.title}
+                        </p>
+                        <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${helpCenter.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                           {helpCenter.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>
-                      
-                      <div className="text-sm text-gray-500 mb-4">
-                        Last updated: {new Date(helpCenter.updatedAt).toLocaleDateString()}
+                      <div className="mt-2 flex items-center text-sm text-gray-500">
+                        <span className="truncate">{helpCenter.content.substring(0, 100)}...</span>
                       </div>
-
-                      {/* Content Preview */}
-                      <div 
-                        className="prose prose-sm max-w-none text-gray-700 mb-4 line-clamp-3"
-                        dangerouslySetInnerHTML={{ __html: helpCenter.content.substring(0, 200) + '...' }}
-                      />
                     </div>
-
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="ml-4 flex-shrink-0 flex space-x-2">
                       <button
                         onClick={() => handleToggleStatus(helpCenter.id)}
-                        className={`p-2 rounded-lg ${
-                          helpCenter.isActive 
-                            ? 'text-orange-600 hover:bg-orange-50' 
-                            : 'text-green-600 hover:bg-green-50'
-                        }`}
-                        title={helpCenter.isActive ? 'Deactivate' : 'Activate'}
+                        className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-full ${helpCenter.isActive ? 'bg-red-100 text-red-800 hover:bg-red-200' : 'bg-green-100 text-green-800 hover:bg-green-200'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
                       >
-                        {helpCenter.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {helpCenter.isActive ? 'Deactivate' : 'Activate'}
                       </button>
                       <button
                         onClick={() => openEditModal(helpCenter)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        title="Edit"
+                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
-                        <Edit className="w-4 h-4" />
+                        Edit
                       </button>
                       <button
                         onClick={() => handleDelete(helpCenter.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Delete"
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-full text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Delete
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {/* Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <form onSubmit={handleSubmit} className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {editingHelpCenter ? 'Edit Help Center' : 'Create New Help Center'}
-                  </h2>
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    {editingHelpCenter ? 'Edit Help Center' : 'Add Help Center'}
+                  </h3>
                   <button
-                    type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-500"
                   >
-                    <X className="w-6 h-6" />
+                    <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-
-                <div className="space-y-6">
+                <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Title *
+                    <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                      Title
                     </label>
                     <input
                       type="text"
+                      id="title"
                       value={helpCenterForm.title}
                       onChange={(e) => handleFormChange('title', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                      required
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Content *
+                    <label htmlFor="content" className="block text-sm font-medium text-gray-700">
+                      Content
                     </label>
-                    <RichTextEditor
+                    <textarea
+                      id="content"
+                      rows={6}
                       value={helpCenterForm.content}
-                      onChange={(value) => handleFormChange('content', value)}
+                      onChange={(e) => handleFormChange('content', e.target.value)}
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
-
                   <div className="flex items-center">
                     <input
-                      type="checkbox"
                       id="isActive"
+                      name="isActive"
+                      type="checkbox"
                       checked={helpCenterForm.isActive}
                       onChange={(e) => handleFormChange('isActive', e.target.checked)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                    <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                      Active (Only one active help center will be displayed on the frontend)
+                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
+                      Active
                     </label>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Save className="w-4 h-4" />
-                    {editingHelpCenter ? 'Update' : 'Create'}
-                  </button>
-                </div>
-              </form>
+                  <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                    <button
+                      type="submit"
+                      className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm"
+                    >
+                      {editingHelpCenter ? 'Update' : 'Create'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}

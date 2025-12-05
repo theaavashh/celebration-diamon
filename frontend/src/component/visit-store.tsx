@@ -94,65 +94,85 @@ const VisitStore = () => {
   const currentStore = stores[currentIndex];
 
   return (
-    <section className="w-full flex justify-center py-4 sm:py-6 md:py-8 px-4">
-      <div className="relative w-full max-w-[95vw] h-[500px] sm:h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden rounded-lg">
-        {/* Media - Image or Video */}
-        {currentStore.mediaType === 'video' && currentStore.videoUrl ? (
-          <video
-            src={currentStore.videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover transition-opacity duration-500"
-          />
-        ) : (
-          <Image
-            src={getImageUrl(currentStore.imageUrl)}
-            alt={currentStore.title}
-            fill
-            className="object-cover transition-transform duration-500 hover:scale-105"
-            onError={(e) => {
-              e.currentTarget.src = '/store.png';
-            }}
-          />
-        )}
-        
-        {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-black/20" />
-        
-        {/* Text Content Overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center space-y-6">
-            {/* Main heading */}
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold jimthompson text-white leading-tight">
-              {currentStore.title}
-            </h2>
-            
-            {/* Location */}
-            <div className="space-y-4">
-              <h3 className="text-2xl sm:text-3xl lg:text-4xl text-white">{currentStore.location}</h3>
+    <section className="w-full py-8 sm:py-12 md:py-16 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          
+          {/* Left Column - Image/Video */}
+          <div className="relative w-full h-[400px] sm:h-[500px] md:h-[600px] rounded-2xl overflow-hidden shadow-2xl">
+            {/* Media - Image or Video */}
+            {currentStore.mediaType === 'video' && currentStore.videoUrl ? (
+              <video
+                src={currentStore.videoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Image
+                src={getImageUrl(currentStore.imageUrl)}
+                alt={currentStore.title}
+                fill
+                className="object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = '/store.png';
+                }}
+              />
+            )}
+          </div>
+          
+          {/* Right Column - Text Content */}
+          <div className="space-y-8">
+            <div className="space-y-6">
+              {/* Main heading */}
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold jimthompson text-gray-900 leading-tight">
+                {currentStore.title}
+              </h2>
+              
+              {/* Location */}
+              <h3 className="text-xl sm:text-2xl md:text-3xl text-amber-600 font-medium">
+                {currentStore.location}
+              </h3>
+              
+              {/* Description */}
+              <p className="text-gray-600 text-lg sm:text-xl max-w-2xl">
+                Experience the artistry and craftsmanship of our diamond jewelry in person. 
+                Visit our store to explore our exclusive collections and receive personalized consultation 
+                from our expert jewelers.
+              </p>
             </div>
+            
+            {/* CTA Button */}
+            <div className="pt-4">
+              <button className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 group">
+                Plan Your Visit
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Navigation dots (if multiple stores) */}
+            {stores.length > 1 && (
+              <div className="flex items-center gap-2 pt-4">
+                {stores.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      index === currentIndex 
+                        ? 'bg-amber-600 w-8' 
+                        : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
+                    aria-label={`Go to store ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Navigation dots (if multiple stores) */}
-        {stores.length > 1 && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
-            {stores.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  index === currentIndex 
-                    ? 'bg-white w-8' 
-                    : 'bg-white/50 hover:bg-white/75'
-                }`}
-                aria-label={`Go to store ${index + 1}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </section>
   );

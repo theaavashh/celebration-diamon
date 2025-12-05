@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from '@/components/ProductForm';
+import ProductPreviewModal from '@/components/ProductPreviewModal';
 import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X } from 'lucide-react';
 
 interface ProductImage {
@@ -31,12 +32,22 @@ interface Product {
   stock: number;
   isActive: boolean;
   status: string; // "draft", "active", "inactive"
+  // Gold Fields
   goldWeight?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  // Diamond Fields
   diamondDetails?: string;
   diamondQuantity?: number;
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
+  // Other Fields
   stoneWeight?: string;
   caret?: string;
   otherGemstones?: string;
@@ -57,6 +68,9 @@ interface Product {
   seoSlug?: string;
   briefDescription?: string;
   fullDescription?: string;
+  // Silver Fields
+  silverWeight?: string;
+  silverPurity?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,14 +161,11 @@ export default function ProductsPage() {
   // Handle delete product
   const handleDelete = async (id: string) => {
     try {
-      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      
       const response = await fetch(getApiUrl(`/products/${id}`), {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+          'Content-Type': 'application/json'
         }
       });
 
@@ -164,10 +175,9 @@ export default function ProductsPage() {
         setDeleteConfirm({ isOpen: false, product: null }); // Close modal
       } else if (response.status === 401) {
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to delete product');
@@ -248,14 +258,13 @@ export default function ProductsPage() {
 
   // Handle bulk delete confirmation
   const confirmBulkDelete = async () => {
-    const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
-    
     try {
       for (const id of selectedProducts) {
         await fetch(getApiUrl(`/products/${id}`), {
           method: 'DELETE',
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           }
         });
       }
@@ -273,14 +282,11 @@ export default function ProductsPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
-      const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      
       const response = await fetch(getApiUrl(`/products/${id}/toggle`), {
         method: 'PATCH',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+          'Content-Type': 'application/json'
         }
       });
 
@@ -289,10 +295,9 @@ export default function ProductsPage() {
         fetchProducts();
       } else if (response.status === 401) {
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to update product status');
@@ -333,7 +338,7 @@ export default function ProductsPage() {
         console.error('User is not authenticated');
         toast.error('Authentication required. Please log in again.');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
         setIsLoading(false);
         return;
@@ -367,11 +372,10 @@ export default function ProductsPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        // Clear tokens and redirect to login
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Clear tokens and redirect to home page
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         console.error('Failed to fetch products, status:', response.status);
@@ -589,13 +593,7 @@ export default function ProductsPage() {
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-100">
                       <span className="text-black">Status:</span>
-                      <span className={`font-medium ${
-                        previewProduct!.status === 'active' 
-                          ? 'text-green-600' 
-                          : previewProduct!.status === 'inactive' 
-                            ? 'text-red-600' 
-                            : 'text-yellow-600'
-                      }`}>
+                      <span className="font-medium text-black">
                         {previewProduct!.status.charAt(0).toUpperCase() + previewProduct!.status.slice(1)}
                       </span>
                     </div>
@@ -631,6 +629,70 @@ export default function ProductsPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Gold Details */}
+                {(previewProduct.goldWeight || 
+                  previewProduct.goldPurity || 
+                  previewProduct.goldType || 
+                  previewProduct.goldCraftsmanship ||
+                  previewProduct.goldDesignDescription ||
+                  previewProduct.goldFinishedType ||
+                  previewProduct.goldStones ||
+                  previewProduct.goldStoneQuality) && (
+                  <div className="border border-gray-200 rounded-lg">
+                    <div className="px-6 py-4 space-y-3">
+                      <h3 className="text-xl font-semibold text-black mb-4">Gold Details</h3>
+                      {previewProduct.goldWeight && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Gold Weight:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldWeight}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldPurity && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Gold Purity:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldPurity}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldType && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Gold Type:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldType}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldCraftsmanship && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Craftsmanship:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldCraftsmanship}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldDesignDescription && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Design Description:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldDesignDescription}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldFinishedType && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Finished Type:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldFinishedType}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldStones && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Stones:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldStones}</span>
+                        </div>
+                      )}
+                      {previewProduct.goldStoneQuality && (
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Stone Quality:</span>
+                          <span className="font-medium text-black">{previewProduct!.goldStoneQuality}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Diamond Details */}
                 {(previewProduct.diamondDetails || 
@@ -1582,7 +1644,7 @@ export default function ProductsPage() {
             </div>
           </div>
         )}
-        {isPreviewOpen && previewProduct && <PreviewModal />}
+        {isPreviewOpen && previewProduct && <ProductPreviewModal isOpen={isPreviewOpen} onClose={() => { setIsPreviewOpen(false); setPreviewProduct(null); }} product={previewProduct} categories={categories} subcategories={subcategories} />}
       </div>
     </DashboardLayout>
   );

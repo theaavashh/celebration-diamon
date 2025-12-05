@@ -11,6 +11,7 @@ import { setupQuoteWebSocket } from './websocket/quoteWebSocket';
 
 // Import routes
 import bannerRoutes from './routes/bannerRoutes';
+import midBannerRoutes from './routes/midBannerRoutes';
 import heroRoutes from './routes/heroRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import subcategoryRoutes from './routes/subcategoryRoutes';
@@ -43,6 +44,7 @@ import termsRoutes from './routes/termsRoutes';
 import privacyPolicyRoutes from './routes/privacyPolicyRoutes';
 import helpCenterRoutes from './routes/helpCenterRoutes';
 import returnPolicyRoutes from './routes/returnPolicyRoutes';
+import attributeOptionRoutes from './routes/attributeOptionRoutes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -69,7 +71,7 @@ app.use(cors({
   origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept', 'x-csrf-token']
 }));
 
 // Security middleware
@@ -87,10 +89,22 @@ const limiter = rateLimit({
     error: 'Too many requests from this IP, please try again later.'
   }
 });
-app.use('/api/', limiter);
+
+// Apply rate limiting to all routes except attribute-options for development
+// For development, disable rate limiting completely to avoid issues during testing
+if (process.env['NODE_ENV'] === 'development') {
+  console.log('⚠️  Rate limiting disabled in development mode');
+} else {
+  app.use('/api/', limiter);
+}
 
 // Cookie parser middleware (must come before routes)
 app.use(cookieParser());
+
+// CSRF protection middleware
+import { csrfValidate } from './middleware/csrfMiddleware';
+// Apply CSRF protection to all routes except GET, HEAD, OPTIONS
+app.use(csrfValidate);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -121,6 +135,7 @@ app.get('/health', (_req, res) => {
 
 // API routes
 app.use('/api/banners', bannerRoutes);
+app.use('/api/mid-banners', midBannerRoutes);
 app.use('/api/hero', heroRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
@@ -153,6 +168,7 @@ app.use('/api/terms', termsRoutes);
 app.use('/api/privacy-policy', privacyPolicyRoutes);
 app.use('/api/help-center', helpCenterRoutes);
 app.use('/api/return-policy', returnPolicyRoutes);
+app.use('/api/attribute-options', attributeOptionRoutes);
 
 // Root endpoint
 app.get('/', (_req, res) => {
@@ -164,6 +180,7 @@ app.get('/', (_req, res) => {
       banners: '/api/banners',
       auth: '/api/auth',
       products: '/api/products',
+      'attribute-options': '/api/attribute-options',
       health: '/health'
     }
   });
@@ -188,4 +205,5 @@ httpServer.listen(PORT, () => {
   console.log(`📝 Available routes:`);
   console.log(`   - /api/admins`);
   console.log(`   - /api/roles`);
+  console.log(`   - /api/attribute-options`);
 });

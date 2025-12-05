@@ -1,100 +1,77 @@
 "use client";
-import React, { useEffect, useState } from 'react'
-import { getApiBaseUrl } from '@/lib/api';
 
-const Section = () => {
-  const [homepageContent, setHomepageContent] = useState<{ title: string; description: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+import Link from "next/link";
+import { motion } from "framer-motion";
 
-  useEffect(() => {
-    const fetchHomepageContent = async () => {
-      try {
-        const response = await fetch(`${getApiBaseUrl()}/content/homepage`);
-        const data = await response.json();
-        if (data.success && data.content) {
-          setHomepageContent({
-            title: data.content.title,
-            description: data.content.description
-          });
-        }
-      } catch (error) {
-        console.error("Failed to fetch homepage content:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHomepageContent();
-  }, []);
-
-  if (loading) {
-    return (
-      <section className="w-full py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-16 bg-gradient-to-br from-blue-50 via-white to-amber-50/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            <div className="lg:col-span-4">
-              <div className="h-16 bg-gray-200 rounded-lg animate-pulse"></div>
-            </div>
-            <div className="lg:col-span-8">
-              <div className="h-6 bg-gray-200 rounded animate-pulse mb-3"></div>
-              <div className="h-6 bg-gray-200 rounded animate-pulse mb-3"></div>
-              <div className="h-6 bg-gray-200 rounded animate-pulse w-3/4"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
+export default function Banner() {
   return (
-    <section className="w-full py-12 sm:py-16 md:py-20 px-4 sm:px-6 md:px-16 bg-gradient-to-br from-blue-50 via-white to-amber-50/30 relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-red-500/10 to-transparent rounded-b-3xl"></div>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-amber-200/20 to-transparent rounded-full -translate-y-32 translate-x-32"></div>
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-200/20 to-transparent rounded-full translate-y-24 -translate-x-24"></div>
-      
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center">
-          {/* Left Column - Title */}
-          <div className="lg:col-span-5">
-            <div className="space-y-4">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl jimthompson font-bold text-gray-900 leading-tight">
-                {homepageContent?.title || "SUMMER STYLE"}
-                <br />
-                <span className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light italic">
-                  COLLECTION
-                </span>
-              </h2>
-              <div className="w-20 h-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full"></div>
-            </div>
-          </div>
-
-          {/* Right Column - Description */}
-          <div className="lg:col-span-7">
-            <div className="space-y-6">
-              <p className="text-sm sm:text-base md:text-lg text-gray-700 leading-relaxed max-w-2xl">
-                {homepageContent?.description || "Embrace the glow of the season with our radiant Summer Style Collection. From lightweight diamond accents to breezy gold pieces, discover jewelry designed to shine with your every summer moment."}
-              </p>
+    <section className="w-full py-8 sm:py-12 px-4 sm:px-6 md:px-16 bg-[#f4f4f9]">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mx-4">
+          <motion.div 
+            className="text-center lg:text-left lg:w-1/2"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black mb-3 jimthompson">
+              Exclusive Diamond Collection
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-800 mb-4 font-sans">
+              Discover our limited edition pieces crafted with precision and elegance
+            </p>
+            <Link href="/collections/exclusive">
+              <motion.button
+                className="inline-block bg-white text-amber-600 font-semibold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Explore Now
+              </motion.button>
+            </Link>
+          </motion.div>
+          
+          <motion.div 
+            className="lg:w-1/2 w-full"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            {/* Two Image Layout - Equal width, different heights */}
+            <div className="flex gap-4 w-full max-w-2xl mx-auto">
+              {/* Left Image - Shorter height */}
+              <div className="w-1/2 relative overflow-hidden group" style={{ height: '300px' }}>
+                <img 
+                  src="/ring.png" 
+                  alt="Premium Diamond Ring" 
+                  className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-0 bg-white/90 flex items-center justify-center group-hover:h-full transition-all duration-300 ease-in-out">
+                  <div className="text-center p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-150">
+                    <h3 className="text-base font-bold text-gray-900 mb-1">Diamond Rings</h3>
+                    <p className="text-gray-600 text-xs">Crafted to perfection</p>
+                  </div>
+                </div>
+              </div>
               
-              {/* Call to Action */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <button className="inline-flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm sm:text-base font-medium rounded-full hover:from-amber-600 hover:to-amber-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                  <span>Explore Collection</span>
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </button>
-                
-                <button className="inline-flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-300 text-gray-700 text-sm sm:text-base font-medium rounded-full hover:border-amber-500 hover:text-amber-600 transition-all duration-300">
-                  <span>Learn More</span>
-                </button>
+              {/* Right Image - Taller height */}
+              <div className="w-1/2 relative overflow-hidden group" style={{ height: '400px' }}>
+                <img 
+                  src="/ring.png" 
+                  alt="Elegant Necklace" 
+                  className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-0 bg-white/90 flex items-center justify-center group-hover:h-full transition-all duration-300 ease-in-out">
+                  <div className="text-center p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-150">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Necklaces</h3>
+                    <p className="text-gray-600">Timeless elegance</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
-  )
+  );
 }
-
-export default Section

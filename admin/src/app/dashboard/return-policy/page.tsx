@@ -48,7 +48,7 @@ export default function ReturnPolicyPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         console.error('Failed to fetch return policies, status:', response.status);
@@ -133,7 +133,7 @@ export default function ReturnPolicyPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -170,7 +170,7 @@ export default function ReturnPolicyPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to delete return policy');
@@ -210,7 +210,7 @@ export default function ReturnPolicyPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to update status');

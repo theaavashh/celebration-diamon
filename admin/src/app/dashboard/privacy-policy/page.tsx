@@ -30,12 +30,10 @@ export default function PrivacyPolicyPage() {
   const fetchPrivacyPolicies = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/all`, {
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
       
@@ -45,10 +43,9 @@ export default function PrivacyPolicyPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         console.error('Failed to fetch privacy policies, status:', response.status);
@@ -106,7 +103,6 @@ export default function PrivacyPolicyPage() {
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const url = editingPrivacyPolicy
         ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/${editingPrivacyPolicy.id}`
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin`;
@@ -117,8 +113,7 @@ export default function PrivacyPolicyPage() {
         method,
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(privacyPolicyForm)
       });
@@ -130,10 +125,9 @@ export default function PrivacyPolicyPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -152,12 +146,11 @@ export default function PrivacyPolicyPage() {
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
 
@@ -167,10 +160,9 @@ export default function PrivacyPolicyPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to delete privacy policy');
@@ -187,13 +179,11 @@ export default function PrivacyPolicyPage() {
       const privacyPolicy = privacyPolicies.find(p => p.id === id);
       if (!privacyPolicy) return;
 
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/${id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...privacyPolicy,
@@ -207,10 +197,9 @@ export default function PrivacyPolicyPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to update status');

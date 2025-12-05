@@ -182,16 +182,43 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       price,
       stock,
       isActive = true,
+      // Gold Fields
       goldWeight,
+      goldPurity,
+      goldType,
+      goldCraftsmanship,
+      goldDesignDescription,
+      goldFinishedType,
+      goldStones,
+      goldStoneQuality,
+      // Diamond Fields
+      diamondType,
+      diamondShapeCut,
+      diamondColorGrade,
+      diamondClarityGrade,
+      diamondCutGrade,
+      diamondMetalDetails,
+      diamondCertification,
+      diamondOrigin,
+      diamondCaratWeight,
       diamondDetails,
-      stoneWeight, // Add stone weight field
-      caret, // Add caret field
       diamondQuantity,
       diamondSize,
       diamondWeight,
       diamondQuality,
+      // Platinum Fields
+      platinumWeight,
+      platinumType,
+      // Silver Fields
+      silverWeight,
+      silverType,
+      // Other Fields
       otherGemstones,
       orderDuration,
+      stoneWeight,
+      caret,
+      jewelryType,
+      materialType,
       metalType,
       stoneType,
       settingType,
@@ -205,8 +232,17 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       seoTitle,
       seoDescription,
       seoKeywords,
-      seoSlug
+      seoSlug,
+      videoUrl
     } = req.body;
+    
+    // Validate required fields
+    if (!name || !category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and category are required fields'
+      });
+    }
     
     // Get uploaded file paths
     let imageUrls: string[] = [];
@@ -239,16 +275,43 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         stock: Number(stock) || 0,
         isActive: isActive === 'true' || isActive === true,
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
+        // Gold Fields
         goldWeight,
+        goldPurity,
+        goldType,
+        goldCraftsmanship,
+        goldDesignDescription,
+        goldFinishedType,
+        goldStones,
+        goldStoneQuality,
+        // Diamond Fields
+        diamondType,
+        diamondShapeCut,
+        diamondColorGrade,
+        diamondClarityGrade,
+        diamondCutGrade,
+        diamondMetalDetails,
+        diamondCertification,
+        diamondOrigin,
+        diamondCaratWeight,
         diamondDetails,
-        stoneWeight,
-        caret,
         diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
         diamondSize,
         diamondWeight,
         diamondQuality,
+        // Platinum Fields
+        platinumWeight,
+        platinumType,
+        // Silver Fields
+        silverWeight,
+        silverType,
+        // Other Fields
         otherGemstones,
         orderDuration,
+        stoneWeight,
+        caret,
+        jewelryType,
+        materialType,
         metalType,
         stoneType,
         settingType,
@@ -264,7 +327,8 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         seoKeywords: seoKeywords || null,
         seoSlug: seoSlug || null,
         // @ts-ignore - videoUrl exists in schema but TypeScript is not recognizing it
-        videoUrl: uploadedVideoUrl || null
+        videoUrl: uploadedVideoUrl || videoUrl || null,
+        status: 'draft' // Default status
       } as any
     });
     
@@ -299,11 +363,21 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
     });
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create product',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    // Provide more detailed error information
+    if (error instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create product',
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create product',
+        error: 'Unknown error occurred'
+      });
+    }
   }
 };
 
@@ -321,17 +395,44 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       price,
       stock,
       isActive,
-      status, // Add status field
+      status,
+      // Gold Fields
       goldWeight,
+      goldPurity,
+      goldType,
+      goldCraftsmanship,
+      goldDesignDescription,
+      goldFinishedType,
+      goldStones,
+      goldStoneQuality,
+      // Diamond Fields
+      diamondType,
+      diamondShapeCut,
+      diamondColorGrade,
+      diamondClarityGrade,
+      diamondCutGrade,
+      diamondMetalDetails,
+      diamondCertification,
+      diamondOrigin,
+      diamondCaratWeight,
       diamondDetails,
-      stoneWeight, // Add stone weight field
-      caret, // Add caret field
       diamondQuantity,
       diamondSize,
       diamondWeight,
       diamondQuality,
+      // Platinum Fields
+      platinumWeight,
+      platinumType,
+      // Silver Fields
+      silverWeight,
+      silverType,
+      // Other Fields
       otherGemstones,
       orderDuration,
+      stoneWeight,
+      caret,
+      jewelryType,
+      materialType,
       metalType,
       stoneType,
       settingType,
@@ -346,13 +447,25 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       seoDescription,
       seoKeywords,
       seoSlug,
-      videoUrl // Add videoUrl
+      videoUrl
     } = req.body;
     
     // Log incoming data for debugging
     console.log('Update product request for ID:', id);
     console.log('Request body:', req.body);
     console.log('Uploaded files:', req.files);
+    
+    // Validate product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { id }
+    });
+    
+    if (!existingProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
     
     // Convert string boolean to actual boolean if present
     if (isActive !== undefined) {
@@ -414,13 +527,12 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       // Update the main image URL for backward compatibility
       (req.body as any).imageUrl = imageUrls[0];
       
-      // Delete existing images for this product (soft delete approach)
-      await prisma.productImage.updateMany({
-        where: { productId: id },
-        data: { isActive: false }
+      // Get existing images for this product
+      const existingImages = await prisma.productImage.findMany({
+        where: { productId: id }
       });
       
-      // Create new image records
+      // Create new image records for uploaded images
       const productImages = imageUrls.map((url: string, index: number) => ({
         productId: id,
         url,
@@ -431,28 +543,61 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       await prisma.productImage.createMany({
         data: productImages
       });
+      
+      // Soft delete existing images
+      for (const image of existingImages) {
+        await prisma.productImage.update({
+          where: { id: image.id },
+          data: { isActive: false }
+        });
+      }
     } else if (preservedImageUrls && preservedImageUrls.length > 0) {
       // If image URLs are provided in the request body, update them
       console.log('Preserving existing image URLs:', preservedImageUrls);
       (req.body as any).imageUrl = preservedImageUrls[0]; // Keep for backward compatibility
       
-      // Delete existing images for this product (soft delete approach)
-      await prisma.productImage.updateMany({
-        where: { productId: id },
-        data: { isActive: false }
+      // Get existing images for this product
+      const existingImages = await prisma.productImage.findMany({
+        where: { productId: id }
       });
       
-      // Create new image records
-      const productImages = preservedImageUrls.map((url: string, index: number) => ({
-        productId: id,
-        url,
-        order: index,
-        isActive: true
-      }));
+      // Update existing images or create new ones as needed
+      for (let i = 0; i < preservedImageUrls.length; i++) {
+        const url = preservedImageUrls[i];
+        const existingImage = existingImages.find(img => img.url === url);
+        
+        if (existingImage) {
+          // Update existing image
+          await prisma.productImage.update({
+            where: { id: existingImage.id },
+            data: { 
+              order: i,
+              isActive: true
+            }
+          });
+        } else {
+          // Create new image record
+          await prisma.productImage.create({
+            data: {
+              productId: id,
+              url,
+              order: i,
+              isActive: true
+            }
+          });
+        }
+      }
       
-      await prisma.productImage.createMany({
-        data: productImages
-      });
+      // Soft delete images that are no longer in the list
+      const urlsToKeep = new Set(preservedImageUrls);
+      const imagesToDeactivate = existingImages.filter(img => !urlsToKeep.has(img.url));
+      
+      for (const image of imagesToDeactivate) {
+        await prisma.productImage.update({
+          where: { id: image.id },
+          data: { isActive: false }
+        });
+      }
     }
     
     console.log('Final update data:', {
@@ -465,16 +610,43 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       price,
       stock,
       isActive,
+      // Gold Fields
       goldWeight,
+      goldPurity,
+      goldType,
+      goldCraftsmanship,
+      goldDesignDescription,
+      goldFinishedType,
+      goldStones,
+      goldStoneQuality,
+      // Diamond Fields
+      diamondType,
+      diamondShapeCut,
+      diamondColorGrade,
+      diamondClarityGrade,
+      diamondCutGrade,
+      diamondMetalDetails,
+      diamondCertification,
+      diamondOrigin,
+      diamondCaratWeight,
       diamondDetails,
-      stoneWeight,
-      caret,
       diamondQuantity,
       diamondSize,
       diamondWeight,
       diamondQuality,
+      // Platinum Fields
+      platinumWeight,
+      platinumType,
+      // Silver Fields
+      silverWeight,
+      silverType,
+      // Other Fields
       otherGemstones,
       orderDuration,
+      stoneWeight,
+      caret,
+      jewelryType,
+      materialType,
       metalType,
       stoneType,
       settingType,
@@ -489,7 +661,7 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       seoDescription,
       seoKeywords,
       seoSlug,
-      videoUrl // Add videoUrl
+      videoUrl
     });
     
     const product = await prisma.product.update({
@@ -505,18 +677,45 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
         stock: Number(stock) || 0,
         isActive: isActive === 'true' || isActive === true,
         // @ts-ignore - status exists in schema but TypeScript is not recognizing it
-        status: status || 'draft', // Add status field with default to 'draft'
+        status: status || 'draft',
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
+        // Gold Fields
         goldWeight,
+        goldPurity,
+        goldType,
+        goldCraftsmanship,
+        goldDesignDescription,
+        goldFinishedType,
+        goldStones,
+        goldStoneQuality,
+        // Diamond Fields
+        diamondType,
+        diamondShapeCut,
+        diamondColorGrade,
+        diamondClarityGrade,
+        diamondCutGrade,
+        diamondMetalDetails,
+        diamondCertification,
+        diamondOrigin,
+        diamondCaratWeight,
         diamondDetails,
-        stoneWeight,
-        caret,
         diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
         diamondSize,
         diamondWeight,
         diamondQuality,
+        // Platinum Fields
+        platinumWeight,
+        platinumType,
+        // Silver Fields
+        silverWeight,
+        silverType,
+        // Other Fields
         otherGemstones,
         orderDuration,
+        stoneWeight,
+        caret,
+        jewelryType,
+        materialType,
         metalType,
         stoneType,
         settingType,
@@ -532,7 +731,7 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
         seoKeywords: seoKeywords || null,
         seoSlug: seoSlug || null,
         // @ts-ignore - videoUrl exists in schema but TypeScript is not recognizing it
-        videoUrl: videoUrl || null
+        videoUrl: uploadedVideoUrl || videoUrl || null
       } as any
     });
     
@@ -554,11 +753,21 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
     });
   } catch (error) {
     console.error('Error updating product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update product',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    // Provide more detailed error information
+    if (error instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update product',
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update product',
+        error: 'Unknown error occurred'
+      });
+    }
   }
 };
 
@@ -649,11 +858,9 @@ export const getProductCategories = async (req: Request, res: Response<ApiRespon
     const categoryIds = productCategories.map(c => c.category);
     const categories = await prisma.category.findMany({
       where: {
-        id: {
-          in: categoryIds
-        }
-      },
-      orderBy: { sortOrder: 'asc' }
+        id: { in: categoryIds },
+        isActive: true
+      }
     });
     
     res.json({
@@ -661,10 +868,10 @@ export const getProductCategories = async (req: Request, res: Response<ApiRespon
       data: categories
     });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.error('Error fetching product categories:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch categories',
+      message: 'Failed to fetch product categories',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

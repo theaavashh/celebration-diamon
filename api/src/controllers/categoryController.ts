@@ -51,6 +51,35 @@ export const getAdminCategories = async (req: Request, res: Response<ApiResponse
   }
 };
 
+// Get all categories with subcategories (admin)
+export const getAdminCategoriesWithSubcategories = async (req: Request, res: Response<ApiResponse<any[]>>) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        subcategories: {
+          orderBy: { sortOrder: 'asc' }
+        }
+      }
+    });
+    
+    console.log('Admin categories with subcategories response:', categories);
+
+    res.json({
+      success: true,
+      data: categories,
+      count: categories.length
+    });
+  } catch (error) {
+    console.error('Error fetching categories with subcategories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch categories with subcategories',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
 // Get category by ID
 export const getCategoryById = async (req: Request, res: Response<ApiResponse<Category>>) => {
   try {
@@ -85,23 +114,27 @@ export const createCategory = async (req: Request<{}, ApiResponse<Category>, Cre
   try {
     const {
       title,
+      iconUrl: iconUrlFromBody,
+      imageUrl: imageUrlFromBody,
       link,
       isActive = true,
       sortOrder = 0
     } = req.body;
 
     // Convert string boolean to actual boolean
-    const isActiveBoolean = isActive === 'true' || isActive === true;
+    const isActiveBoolean = typeof isActive === 'string' ? isActive === 'true' : isActive;
     
     // Convert string to number for sortOrder
     const sortOrderNumber = typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder || 0;
 
-    // Get uploaded file path
-    const imageUrl = req.file ? `/uploads/categories/${req.file.filename}` : null;
+    // Get uploaded file paths
+    const iconUrl = req.files && (req.files as any).icon ? `/uploads/categories/icons/${(req.files as any).icon[0].filename}` : (iconUrlFromBody || null);
+    const imageUrl = req.files && (req.files as any).image ? `/uploads/categories/images/${(req.files as any).image[0].filename}` : (imageUrlFromBody || null);
 
     const category = await prisma.category.create({
       data: {
         title,
+        iconUrl,
         imageUrl,
         link: link || null,
         isActive: isActiveBoolean,
@@ -128,28 +161,47 @@ export const createCategory = async (req: Request<{}, ApiResponse<Category>, Cre
 export const updateCategory = async (req: Request<{ id: string }, ApiResponse<Category>, UpdateCategoryRequest>, res: Response<ApiResponse<Category>>) => {
   try {
     const { id } = req.params;
-    const updateData: any = { ...req.body };
+    const {
+      title,
+      iconUrl: iconUrlFromBody,
+      imageUrl: imageUrlFromBody,
+      link,
+      isActive,
+      sortOrder
+    } = req.body;
 
-    // Convert string boolean to actual boolean if present
-    if (updateData.isActive !== undefined) {
-      updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
+    // Prepare update data
+    const updateData: any = {};
+
+    if (title !== undefined) updateData.title = title;
+    if (link !== undefined) updateData.link = link || null;
+    if (isActive !== undefined) {
+      updateData.isActive = typeof isActive === 'string' ? isActive === 'true' : isActive;
     }
-    
-    // Convert string to number for sortOrder
-    if (updateData.sortOrder !== undefined) {
-      updateData.sortOrder = typeof updateData.sortOrder === 'string' ? parseInt(updateData.sortOrder, 10) : updateData.sortOrder;
+    if (sortOrder !== undefined) {
+      updateData.sortOrder = typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder;
     }
 
-    // Get uploaded file path if new image is uploaded
-    const imageUrl = req.file ? `/uploads/categories/${req.file.filename}` : updateData.imageUrl;
+    // Get uploaded file paths if new files are uploaded
+    let iconUrl = iconUrlFromBody || null;
+    let imageUrl = imageUrlFromBody || null;
+
+    if (req.files) {
+      if ((req.files as any).icon) {
+        iconUrl = `/uploads/categories/icons/${(req.files as any).icon[0].filename}`;
+      }
+      if ((req.files as any).image) {
+        imageUrl = `/uploads/categories/images/${(req.files as any).image[0].filename}`;
+      }
+    }
+
+    // Add file URLs to update data if they exist
+    if (iconUrl !== undefined) updateData.iconUrl = iconUrl;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
 
     const category = await prisma.category.update({
       where: { id },
-      data: {
-        ...updateData,
-        imageUrl: imageUrl || null,
-        link: updateData.link || null
-      }
+      data: updateData
     });
 
     res.json({

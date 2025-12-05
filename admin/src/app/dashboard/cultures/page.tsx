@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Culture } from '@/types';
 import CultureForm from '@/components/CultureForm';
 import DashboardLayout from '@/components/DashboardLayout';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/apiClient';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
 
@@ -22,20 +23,13 @@ export default function CulturesPage() {
   const fetchCultures = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/cultures/admin`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch cultures');
+      const result = await apiGet<Culture[]>(`${API_BASE_URL}/api/cultures/admin`);
+      
+      if (result.success) {
+        setCultures(result.data || []);
+      } else {
+        throw new Error(result.message || 'Failed to fetch cultures');
       }
-
-      const data = await response.json();
-      setCultures(data);
     } catch (error) {
       console.error('Error fetching cultures:', error);
       setError('Failed to fetch cultures');
@@ -47,39 +41,31 @@ export default function CulturesPage() {
   const handleSave = async (cultureData: Omit<Culture, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       setIsSubmitting(true);
-      const token = localStorage.getItem('token');
       
       const url = editingCulture 
         ? `${API_BASE_URL}/api/cultures/${editingCulture.id}`
         : `${API_BASE_URL}/api/cultures`;
       
-      const method = editingCulture ? 'PUT' : 'POST';
+      const result = editingCulture 
+        ? await apiPut<Culture>(url, cultureData)
+        : await apiPost<Culture>(url, cultureData);
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cultureData),
-      });
+      if (result.success) {
+        const savedCulture = result.data;
+        
+        if (editingCulture) {
+          setCultures(prev => prev.map(culture => 
+            culture.id === editingCulture.id ? savedCulture! : culture
+          ));
+        } else {
+          setCultures(prev => [savedCulture!, ...prev]);
+        }
 
-      if (!response.ok) {
-        throw new Error(`Failed to ${editingCulture ? 'update' : 'create'} culture`);
-      }
-
-      const savedCulture = await response.json();
-      
-      if (editingCulture) {
-        setCultures(prev => prev.map(culture => 
-          culture.id === editingCulture.id ? savedCulture : culture
-        ));
+        setShowForm(false);
+        setEditingCulture(null);
       } else {
-        setCultures(prev => [savedCulture, ...prev]);
+        throw new Error(result.message || `Failed to ${editingCulture ? 'update' : 'create'} culture`);
       }
-
-      setShowForm(false);
-      setEditingCulture(null);
     } catch (error) {
       console.error('Error saving culture:', error);
       setError(`Failed to ${editingCulture ? 'update' : 'create'} culture`);
@@ -99,19 +85,13 @@ export default function CulturesPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/cultures/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const result = await apiDelete(`${API_BASE_URL}/api/cultures/${id}`);
 
-      if (!response.ok) {
-        throw new Error('Failed to delete culture');
+      if (result.success) {
+        setCultures(prev => prev.filter(culture => culture.id !== id));
+      } else {
+        throw new Error(result.message || 'Failed to delete culture');
       }
-
-      setCultures(prev => prev.filter(culture => culture.id !== id));
     } catch (error) {
       console.error('Error deleting culture:', error);
       setError('Failed to delete culture');
@@ -120,22 +100,16 @@ export default function CulturesPage() {
 
   const handleToggleStatus = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/cultures/${id}/toggle`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const result = await apiPut<Culture>(`${API_BASE_URL}/api/cultures/${id}/toggle`, {});
 
-      if (!response.ok) {
-        throw new Error('Failed to toggle culture status');
+      if (result.success) {
+        const updatedCulture = result.data;
+        setCultures(prev => prev.map(culture => 
+          culture.id === id ? updatedCulture! : culture
+        ));
+      } else {
+        throw new Error(result.message || 'Failed to toggle culture status');
       }
-
-      const updatedCulture = await response.json();
-      setCultures(prev => prev.map(culture => 
-        culture.id === id ? updatedCulture : culture
-      ));
     } catch (error) {
       console.error('Error toggling culture status:', error);
       setError('Failed to toggle culture status');

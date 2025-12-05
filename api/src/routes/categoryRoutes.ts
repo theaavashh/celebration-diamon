@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import {
   getAllCategories,
   getAdminCategories,
+  getAdminCategoriesWithSubcategories,
   getCategoryById,
   createCategory,
   updateCategory,
@@ -10,7 +11,7 @@ import {
   toggleCategoryStatus
 } from '../controllers/categoryController';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { uploadHeroImage } from '../middleware/upload';
+import upload from '../middleware/upload';
 
 const router = express.Router();
 
@@ -45,31 +46,10 @@ router.get('/:id', getCategoryById);
 
 // Admin routes (protected)
 router.get('/admin/all', authMiddleware, getAdminCategories);
-router.post('/', authMiddleware, uploadHeroImage, categoryValidation, createCategory);
-router.put('/:id', authMiddleware, uploadHeroImage, categoryValidation, updateCategory);
+router.get('/admin/with-subcategories', authMiddleware, getAdminCategoriesWithSubcategories);
+router.post('/', authMiddleware, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'image', maxCount: 1 }]), categoryValidation, createCategory);
+router.put('/:id', authMiddleware, upload.fields([{ name: 'icon', maxCount: 1 }, { name: 'image', maxCount: 1 }]), categoryValidation, updateCategory);
 router.delete('/:id', authMiddleware, deleteCategory);
 router.patch('/:id/toggle', authMiddleware, toggleCategoryStatus);
 
 export default router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

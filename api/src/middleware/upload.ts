@@ -17,12 +17,14 @@ const storage = multer.diskStorage({
     const fieldName = file.fieldname;
     let destination = 'uploads/';
     
-    if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
+    if (fieldName === 'icon' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
+      destination = 'uploads/categories/icons/';
+    } else if (fieldName === 'image' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
+      destination = 'uploads/categories/images/';
+    } else if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
       destination = 'uploads/hero/';
     } else if (fieldName === 'images' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {
       destination = 'uploads/products/';
-    } else if (fieldName === 'image' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
-      destination = 'uploads/categories/';
     } else if (fieldName === 'image' && (req.path.includes('/services') || req.originalUrl.includes('/services'))) {
       destination = 'uploads/services/';
     } else if (fieldName === 'image' && (req.path.includes('/testimonials') || req.originalUrl.includes('/testimonials'))) {

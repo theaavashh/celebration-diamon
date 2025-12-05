@@ -147,3 +147,12 @@ export interface FAQ {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface HelpCenter {
+  id: string;
+  title: string;
+  content: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

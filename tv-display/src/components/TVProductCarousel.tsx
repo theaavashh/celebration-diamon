@@ -287,7 +287,7 @@ export default function TVProductCarousel() {
                   transition={{ duration: 0.8, ease: "easeOut" }}
                 >
                   <motion.img
-                    src={currentProduct.images[0]}
+                    src={`${currentProduct.images[0]}?_t=${Date.now()}`}
                     alt={currentProduct.name}
                     className="max-w-4xl max-h-[80vh] object-contain rounded-2xl shadow-2xl"
                     animate={{

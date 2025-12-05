@@ -46,6 +46,7 @@ export interface Hero {
 export interface Category {
   id: string;
   title: string;
+  iconUrl: string | null;
   imageUrl: string | null;
   link: string | null;
   isActive: boolean;
@@ -239,16 +240,43 @@ export interface Product {
   stock: number;
   isActive: boolean;
   status: string;
+  // Gold Fields
   goldWeight?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  // Diamond Fields
+  diamondType?: string;
+  diamondShapeCut?: string;
+  diamondColorGrade?: string;
+  diamondClarityGrade?: string;
+  diamondCutGrade?: string;
+  diamondMetalDetails?: string;
+  diamondCertification?: string;
+  diamondOrigin?: string;
+  diamondCaratWeight?: string;
   diamondDetails?: string;
   diamondQuantity?: number;
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
-  stoneWeight?: string;
-  caret?: string;
+  // Platinum Fields
+  platinumWeight?: string;
+  platinumType?: string;
+  // Silver Fields
+  silverWeight?: string;
+  silverType?: string;
+  // Other Fields
   otherGemstones?: string;
   orderDuration?: string;
+  stoneWeight?: string;
+  caret?: string;
+  jewelryType?: string;
+  materialType?: string;
   metalType?: string;
   stoneType?: string;
   settingType?: string;
@@ -263,6 +291,7 @@ export interface Product {
   seoDescription?: string;
   seoKeywords?: string;
   seoSlug?: string;
+  videoUrl?: string;
   images?: ProductImage[];
   createdAt: Date;
   updatedAt: Date;
@@ -317,6 +346,7 @@ export interface ApiResponse<T> {
   message?: string;
   data?: T;
   error?: string;
+  stack?: string; // Add stack property for error stack traces
   count?: number;
   total?: number;
   pagination?: {
@@ -372,6 +402,7 @@ export interface UpdateHeroRequest extends Partial<CreateHeroRequest> {}
 
 export interface CreateCategoryRequest {
   title: string;
+  iconUrl?: string;
   imageUrl?: string;
   link?: string;
   isActive?: boolean;

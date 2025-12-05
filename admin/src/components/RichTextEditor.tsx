@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -15,27 +15,31 @@ import { LinkNode } from '@lexical/link';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { LexicalEditor, EditorState, $getSelection, $isRangeSelection } from 'lexical';
-import { $getRoot, $insertNodes } from 'lexical';
+import { $getRoot, $insertNodes, $createTextNode, $isParagraphNode } from 'lexical';
 import { $isHeadingNode, $createHeadingNode } from '@lexical/rich-text';
 import { $isListNode, $createListNode, $createListItemNode, INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from '@lexical/list';
 import { $setBlocksType } from '@lexical/selection';
 import { $createParagraphNode } from 'lexical';
+import { COMMAND_PRIORITY_CRITICAL, FORMAT_TEXT_COMMAND } from 'lexical';
+import debounce from 'lodash.debounce';
 
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
+  // Add height prop to allow customization
+  height?: string;
 }
 
 const theme = {
   text: {
-    bold: 'font-bold text-black',
-    italic: 'italic text-black',
-    underline: 'underline text-black',
-    strikethrough: 'line-through text-black',
+    bold: 'font-bold text-black !important',
+    italic: 'italic text-black !important',
+    underline: 'underline text-black !important',
+    strikethrough: 'line-through text-black !important',
   },
   heading: {
-    h2: 'text-2xl font-bold text-black',
-    h3: 'text-xl font-bold text-black',
+    h2: 'text-2xl font-bold text-black !important',
+    h3: 'text-xl font-bold text-black !important',
   },
   paragraph: 'mb-4 text-black',
   list: {
@@ -45,31 +49,31 @@ const theme = {
   quote: 'text-black',
 };
 
-function RichTextEditor({ value, onChange }: RichTextEditorProps) {
+function RichTextEditor({ value, onChange, height = '200px' }: RichTextEditorProps) {
   const [mounted, setMounted] = useState(false);
+  const [internalValue, setInternalValue] = useState<string>(value);
+  const editorRef = useRef<LexicalEditor | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
-        rows={10}
-        placeholder="Loading editor..."
-      />
-    );
-  }
+  // Update internal value when prop changes
+  useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
 
-  const handleChange = (editorState: EditorState, editor: LexicalEditor) => {
-    editorState.read(() => {
-      const htmlString = $generateHtmlFromNodes(editor, null);
-      onChange(htmlString);
-    });
-  };
+  const handleChange = useCallback(
+    debounce((editorState: EditorState, editor: LexicalEditor) => {
+      editorState.read(() => {
+        const htmlString = $generateHtmlFromNodes(editor, null);
+        // Update internal state and immediately trigger onChange
+        setInternalValue(htmlString);
+        onChange(htmlString);
+      });
+    }, 500), // Debounce for 500ms
+    [onChange]
+  );
 
   const initialConfig = {
     namespace: 'RichTextEditor',
@@ -84,6 +88,7 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
       QuoteNode,
       LinkNode,
     ],
+    editorState: null, // We'll handle initial content separately
   };
 
   return (
@@ -95,11 +100,11 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         <div className="relative bg-white">
           <RichTextPlugin
             contentEditable={
-              <ContentEditable className="min-h-[500px] px-3 py-2 outline-none text-black" style={{ color: '#000000' }} />
+              <ContentEditable className="px-3 py-2 outline-none text-black" style={{ color: '#000000', minHeight: height }} />
             }
             placeholder={
               <div className="absolute top-2 left-3 text-gray-400 pointer-events-none">
-                Enter detailed product description...
+                Enter content...
               </div>
             }
             ErrorBoundary={LexicalErrorBoundary}
@@ -114,20 +119,26 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
       </LexicalComposer>
       <style jsx global>{`
         .RichTextEditor__contentEditable {
-          min-height: 500px;
+          min-height: ${height};
           color: black !important;
         }
         .RichTextEditor__contentEditable p {
-          color: black;
+          color: black !important;
         }
         .RichTextEditor__contentEditable ul {
-          color: black;
+          color: black !important;
         }
         .RichTextEditor__contentEditable ol {
-          color: black;
+          color: black !important;
         }
         .RichTextEditor__contentEditable li {
-          color: black;
+          color: black !important;
+        }
+        .RichTextEditor__contentEditable strong {
+          font-weight: bold !important;
+        }
+        .RichTextEditor__contentEditable b {
+          font-weight: bold !important;
         }
       `}</style>
     </div>
@@ -138,35 +149,28 @@ function RichTextEditor({ value, onChange }: RichTextEditorProps) {
 function InitialContentPlugin({ html }: { html: string }) {
   const [editor] = useLexicalComposerContext();
   const isInitializedRef = useRef(false);
-  const previousHtmlRef = useRef<string>('');
   
   useEffect(() => {
-    // Check if html has changed since last render
-    if (html !== previousHtmlRef.current) {
-      editor.getEditorState().read(() => {
-        const root = $getRoot();
-        const isEmpty = root.isEmpty();
-        
-        // Initialize if editor is empty and html is not empty, or if html has changed
-        if ((isEmpty && html && html.trim() !== '') || (html !== previousHtmlRef.current && html && html.trim() !== '')) {
-          editor.update(() => {
-            const parser = new DOMParser();
-            const dom = parser.parseFromString(html, 'text/html');
-            const nodes = $generateNodesFromDOM(editor, dom);
-            const root = $getRoot();
-            root.clear();
-            root.append(...nodes);
-          }, { discrete: true });
-          isInitializedRef.current = true;
-        } else if (isEmpty) {
-          // Mark as initialized even if empty to prevent re-initialization
-          isInitializedRef.current = true;
-        }
-      });
-      previousHtmlRef.current = html;
+    // Skip if already initialized
+    if (isInitializedRef.current) {
+      return;
     }
-  }, [editor, html]);
-
+    
+    // Only initialize if we have content
+    if (html && html.trim() !== '') {
+      editor.update(() => {
+        const parser = new DOMParser();
+        const dom = parser.parseFromString(html, 'text/html');
+        const nodes = $generateNodesFromDOM(editor, dom);
+        const root = $getRoot();
+        root.clear();
+        root.append(...nodes);
+      }, { discrete: true });
+    }
+    
+    isInitializedRef.current = true;
+  }, [html, editor]);
+  
   return null;
 }
 
@@ -175,50 +179,17 @@ function TextFormatPlugin() {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    return editor.registerCommand<any>(
-      'formatBold' as any,
-      () => {
-        editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            selection.formatText('bold');
-          }
-        });
+    return editor.registerCommand(
+      FORMAT_TEXT_COMMAND,
+      (payload) => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+          return false;
+        }
+        selection.formatText(payload);
         return true;
       },
-      0
-    );
-  }, [editor]);
-
-  useEffect(() => {
-    return editor.registerCommand<any>(
-      'formatItalic' as any,
-      () => {
-        editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            selection.formatText('italic');
-          }
-        });
-        return true;
-      },
-      0
-    );
-  }, [editor]);
-
-  useEffect(() => {
-    return editor.registerCommand<any>(
-      'formatUnderline' as any,
-      () => {
-        editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            selection.formatText('underline');
-          }
-        });
-        return true;
-      },
-      0
+      COMMAND_PRIORITY_CRITICAL,
     );
   }, [editor]);
 
@@ -247,43 +218,35 @@ function FormatToolbar() {
         ? anchorNode 
         : anchorNode.getTopLevelElementOrThrow();
 
-      const elementKey = element.getKey();
-      const elementDOM = editor.getElementByKey(elementKey);
-
-      if (elementDOM !== null) {
-        if ($isHeadingNode(element)) {
-          setBlockType('heading');
-        } else if ($isListNode(element)) {
-          setBlockType('list');
-        } else {
-          setBlockType('paragraph');
-        }
+      if ($isHeadingNode(element)) {
+        const tag = element.getTag();
+        setBlockType(tag); // Set to specific heading tag (h1, h2, etc.)
+      } else if ($isListNode(element)) {
+        setBlockType('list');
+      } else {
+        setBlockType('paragraph');
       }
     }
   };
 
   useEffect(() => {
-    editor.registerUpdateListener(({ editorState }) => {
+    return editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
         updateToolbar();
       });
     });
-
-    return () => {
-      // Cleanup if needed
-    };
   }, [editor]);
 
   const formatBold = () => {
-    editor.dispatchCommand('formatBold' as any, undefined);
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
   };
 
   const formatItalic = () => {
-    editor.dispatchCommand('formatItalic' as any, undefined);
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
   };
 
   const formatUnderline = () => {
-    editor.dispatchCommand('formatUnderline' as any, undefined);
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
   };
 
   const formatParagraph = () => {
@@ -299,7 +262,19 @@ function FormatToolbar() {
     editor.update(() => {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
-        $setBlocksType(selection, () => $createHeadingNode('h2'));
+        // Check if we're already in a heading block
+        const anchorNode = selection.anchor.getNode();
+        const element = anchorNode.getKey() === 'root' 
+          ? anchorNode 
+          : anchorNode.getTopLevelElementOrThrow();
+        
+        if ($isHeadingNode(element) && element.getTag() === 'h2') {
+          // If already in h2, convert to paragraph
+          $setBlocksType(selection, () => $createParagraphNode());
+        } else {
+          // Otherwise, convert to h2
+          $setBlocksType(selection, () => $createHeadingNode('h2'));
+        }
       }
     });
   };
@@ -317,7 +292,7 @@ function FormatToolbar() {
       <button 
         className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 transition-colors ${isBold ? 'bg-amber-100 border-amber-300' : ''}`}
         onClick={formatBold} 
-        title="Bold (Ctrl+B)"
+        title="Bold (Ctrl+B)"                      
         style={{ color: 'black' }}
       >
         <strong className="text-black">B</strong>
@@ -342,7 +317,7 @@ function FormatToolbar() {
       <div className="h-6 w-px bg-gray-300 mx-1"></div>
       
       <button 
-        className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 transition-colors ${blockType === 'heading' ? 'bg-amber-100 border-amber-300' : ''}`}
+        className={`px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 transition-colors ${blockType === 'h2' ? 'bg-amber-100 border-amber-300' : ''}`}
         onClick={formatHeading}
         title="Heading"
         style={{ color: 'black' }}

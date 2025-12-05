@@ -1,10 +1,11 @@
 "use client"
 
 import React, { useState } from "react"
-import { ChevronRight } from "lucide-react"
+import { ChevronDown, Sparkles } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
 const FAQ = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null) // All questions closed by default
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   const faqItems = [
     {
@@ -34,80 +35,70 @@ const FAQ = () => {
   ]
 
   return (
-    <section className="w-full py-16 sm:py-20 md:py-16 px-8 sm:px-12 md:px-20 lg:px-24 bg-gradient-to-br from-amber-50/30 via-white to-gray-50/50 relative overflow-hidden">
-      {/* Decorative Background Elements */}
-      <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-amber-200/10 to-transparent rounded-full -translate-x-16 -translate-y-16"></div>
-      <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-amber-100/20 to-transparent rounded-full translate-x-24 translate-y-24"></div>
-      
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          {/* Left Column - Header */}
-          <div className="space-y-6 flex flex-col j">
-            <div className="space-y-4">
-              <p className="text-md jimthompson font-medium text-gray-500 uppercase tracking-wider">
-                Guidance Refined for the Discerning Mind
-              </p>
-              <h2 className="text-4xl sm:text-5xl md:text-6xl jimthompson font-bold text-gray-900 leading-tight">
-                Eternal Questions & Answer
-              </h2>
+    <section className="w-full py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-8 bg-gradient-to-br from-amber-50/30 via-white to-gray-50/50">
+      <div className="max-w-7xl mx-auto">
+        {/* Section Header */}
+        <div className="text-center mb-16">
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-amber-600" />
             </div>
-             {/* Bottom Section with Dots and Description - Left Side */}
-         <div className="flex justify-start md:mt-36">
-          <div className="space-y-6 max-w-xl">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-px bg-gray-300"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-            </div>
-            <p className="jimthompson text-xl leading-relaxed">
-              Our FAQ is crafted to answer your most important questions, offering peace of mind before you begin your jewelry journey.
-            </p>
           </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold jimthompson text-gray-900 mb-4">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto font-sans">
+            Everything you need to know about our diamonds and services
+          </p>
         </div>
-          </div>
 
-          {/* Right Column - FAQ Items */}
-          <div className="space-y-0">
+        {/* FAQ Container */}
+        <div className="max-w-4xl mx-auto">
+          <div className="space-y-4">
             {faqItems.map((item, index) => (
-              <div key={index} className="border-b border-gray-200 last:border-b-0">
+              <div 
+                key={index} 
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl"
+              >
                 <button
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                  className="w-full py-6 flex items-start justify-between text-left hover:bg-white/30 transition-colors duration-200 group"
+                  className="w-full p-6 text-left flex items-center justify-between group"
                 >
-                  <span className="text-xl jimthompson text-gray-800 group-hover:text-gray-900 transition-colors pr-4 leading-relaxed">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 font-sans group-hover:text-amber-700 transition-colors">
                     {item.question}
-                  </span>
-                  <div className="flex items-center flex-shrink-0 mt-1">
-                    <ChevronRight 
-                      className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${
-                        openIndex === index ? 'rotate-90' : ''
-                      }`}
+                  </h3>
+                  <motion.div
+                    animate={{ rotate: openIndex === index ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <ChevronDown 
+                      className="w-5 h-5 text-gray-500"
                     />
-                  </div>
+                  </motion.div>
                 </button>
                 
-                {/* Answer */}
-                {item.answer && (
-                  <div className={`overflow-hidden transition-all duration-300 ${
-                    openIndex === index ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                  }`}>
-                    <div className="pb-6">
-                      <p className="text-gray-600 leading-relaxed">
-                        {item.answer}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {/* Answer with Framer Motion animation */}
+                <AnimatePresence initial={false}>
+                  {openIndex === index && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-6 pb-6">
+                        <p className="text-gray-600 font-sans">
+                          {item.answer}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
         </div>
-
-       
-
-   
-      
       </div>
     </section>
   )

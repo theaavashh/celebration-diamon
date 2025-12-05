@@ -136,7 +136,7 @@ export default function TopBannerPage() {
         // Redirect after a short delay
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            window.location.href = '/';
           }
         }, 1500);
       } else {
@@ -216,7 +216,7 @@ export default function TopBannerPage() {
         // Redirect after a short delay
         setTimeout(() => {
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            window.location.href = '/';
           }
         }, 1500);
       } else {
@@ -305,7 +305,7 @@ export default function TopBannerPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         const responseText = await response.text();
@@ -360,7 +360,7 @@ export default function TopBannerPage() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to toggle banner status');

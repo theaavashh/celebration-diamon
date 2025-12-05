@@ -35,6 +35,9 @@ export default function HeroSectionPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Add state for delete confirmation modal
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingHeroId, setDeletingHeroId] = useState<string | null>(null);
 
   // Fetch hero sections
   const fetchHeroSections = async () => {
@@ -61,6 +64,14 @@ export default function HeroSectionPage() {
       ...prev,
       [field]: value
     }));
+    
+    // For heading field, also update the internal validation state
+    if (field === 'heading') {
+      // Trigger immediate validation check
+      setTimeout(() => {
+        // This gives the RichTextEditor time to update its internal state
+      }, 0);
+    }
   };
 
   // Handle image selection
@@ -90,6 +101,7 @@ export default function HeroSectionPage() {
         isActive: existingHero.isActive
       });
       setSelectedImage(null);
+      // Fix: Ensure the preview image is properly set when editing
       setPreviewImage(existingHero.imageUrl ? `http://localhost:5000${existingHero.imageUrl}` : null);
       setEditingHero(existingHero);
     } else {
@@ -135,8 +147,22 @@ export default function HeroSectionPage() {
   // Check if heading has content (for button disabled state)
   const hasHeadingContent = () => {
     if (!heroForm.heading) return false;
-    const headingText = stripHtmlTags(heroForm.heading).trim();
-    return headingText.length > 0;
+    // Handle both plain text and HTML content
+    let content = heroForm.heading;
+    
+    // If it looks like HTML, try to extract text content
+    if (content.includes('<') && content.includes('>')) {
+      try {
+        const tmp = document.createElement('DIV');
+        tmp.innerHTML = content;
+        content = tmp.textContent || tmp.innerText || '';
+      } catch (e) {
+        // If parsing fails, use the original content
+        console.warn('Failed to parse HTML content', e);
+      }
+    }
+    
+    return content.trim().length > 0;
   };
 
   // Handle create/edit hero section
@@ -146,9 +172,22 @@ export default function HeroSectionPage() {
     try {
       setIsSubmitting(true);
       
-      // Validate required fields - strip HTML to check if there's actual content
-      const headingText = stripHtmlTags(heroForm.heading || '').trim();
-      if (!headingText) {
+      // Validate required fields
+      let headingContent = heroForm.heading || '';
+      
+      // If it looks like HTML, extract text content for validation
+      if (headingContent.includes('<') && headingContent.includes('>')) {
+        try {
+          const tmp = document.createElement('DIV');
+          tmp.innerHTML = headingContent;
+          headingContent = tmp.textContent || tmp.innerText || '';
+        } catch (e) {
+          // If parsing fails, use the original content
+          console.warn('Failed to parse HTML content', e);
+        }
+      }
+      
+      if (!headingContent.trim()) {
         toast.error('Heading is required. Please enter a heading for your hero section.');
         setIsSubmitting(false);
         return;
@@ -169,34 +208,67 @@ export default function HeroSectionPage() {
         }
       }
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('heading', heroForm.heading);
-      formData.append('subHeading', heroForm.subHeading || '');
-      formData.append('description', heroForm.description || '');
-      formData.append('ctaTitle', heroForm.ctaTitle || '');
-      formData.append('ctaLink', ctaLink);
-      formData.append('isActive', heroForm.isActive.toString());
+      // Create data object for submission
+      const data: { [key: string]: string | Blob } = {
+        heading: heroForm.heading,
+        subHeading: heroForm.subHeading || '',
+        description: heroForm.description || '',
+        ctaTitle: heroForm.ctaTitle || '',
+        ctaLink: ctaLink,
+        isActive: heroForm.isActive.toString()
+      };
       
+      // Add existing image URL when editing and no new image is selected
+      if (editingHero && editingHero.imageUrl && !selectedImage) {
+        data.imageUrl = editingHero.imageUrl;
+      }
+      
+      let formData: FormData | { [key: string]: string | Blob } = data;
+      let headers: any = {};
+      
+      // Handle image upload
       if (selectedImage) {
+        // New image selected - use FormData
+        formData = new FormData();
+        formData.append('heading', data.heading);
+        formData.append('subHeading', data.subHeading);
+        formData.append('description', data.description);
+        formData.append('ctaTitle', data.ctaTitle);
+        formData.append('ctaLink', data.ctaLink);
+        formData.append('isActive', data.isActive);
         formData.append('image', selectedImage);
+        headers['Content-Type'] = 'multipart/form-data';
+      } else {
+        // No image selected - use JSON
+        headers['Content-Type'] = 'application/json';
       }
       
       if (editingHero) {
+        // Log the form data for debugging
+        console.log('Updating hero section with data:', {
+          id: editingHero.id,
+          data: formData,
+          headers: headers
+        });
+        
         await apiService.put<HeroSection>(`/hero/${editingHero.id}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: headers
         });
         toast.success('Hero section updated successfully!');
       } else {
         await apiService.post<HeroSection>('/hero', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: headers
         });
         toast.success('Hero section created successfully!');
       }
+
+      // Force refresh the hero sections
+      await fetchHeroSections();
       
-      fetchHeroSections();
+      // Close modal and reset state
       setIsModalOpen(false);
       setEditingHero(null);
+      
       // Reset form
       setHeroForm({
         heading: '',
@@ -208,12 +280,16 @@ export default function HeroSectionPage() {
       });
       setSelectedImage(null);
       setPreviewImage(null);
+      
+      // Show success message
+      toast.success('Hero section saved successfully!');
     } catch (error: any) {
       console.error('Error saving hero section:', error);
       console.error('Error details:', {
         message: error?.message,
         response: error?.response?.data,
-        status: error?.response?.status
+        status: error?.response?.status,
+        config: error?.config
       });
       
       // Extract error message from response
@@ -234,6 +310,13 @@ export default function HeroSectionPage() {
         errorMessage = validationErrors || errorMessage;
       }
       
+      // Add more specific error handling for different error types
+      if (error?.response?.status === 500) {
+        errorMessage = 'Server error occurred. Please try again later.';
+      } else if (error?.response?.status === 400) {
+        errorMessage = 'Invalid data provided. Please check your inputs.';
+      }
+      
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -242,8 +325,6 @@ export default function HeroSectionPage() {
 
   // Handle delete hero section
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this hero section?')) return;
-
     try {
       await apiService.delete(`/hero/${id}`);
       toast.success('Hero section deleted successfully!');
@@ -251,7 +332,17 @@ export default function HeroSectionPage() {
     } catch (error) {
       console.error('Error deleting hero section:', error);
       toast.error('Failed to delete hero section');
+    } finally {
+      // Close the delete confirmation modal
+      setIsDeleteModalOpen(false);
+      setDeletingHeroId(null);
     }
+  };
+
+  // Open delete confirmation modal
+  const openDeleteModal = (id: string) => {
+    setDeletingHeroId(id);
+    setIsDeleteModalOpen(true);
   };
 
   // Handle toggle status
@@ -283,7 +374,7 @@ export default function HeroSectionPage() {
             </button>
             {heroSections.length > 0 && (
               <button
-                onClick={() => handleDelete(heroSections[0].id)}
+                onClick={() => openDeleteModal(heroSections[0].id)}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
                 Delete Hero Section
@@ -408,6 +499,7 @@ export default function HeroSectionPage() {
                   <RichTextEditor
                     value={heroForm.heading}
                     onChange={(value) => handleFormChange('heading', value)}
+                    height="400px"
                   />
                   {!hasHeadingContent() && (
                     <p className="text-xs text-red-500 mt-1">Please enter a heading for your hero section</p>
@@ -436,6 +528,7 @@ export default function HeroSectionPage() {
                   <RichTextEditor
                     value={heroForm.description}
                     onChange={(value) => handleFormChange('description', value)}
+                    height="400px"
                   />
                 </div>
 
@@ -485,14 +578,15 @@ export default function HeroSectionPage() {
                         <img
                           src={previewImage}
                           alt="Preview"
-                          className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                          className="w-full object-contain rounded-lg border border-gray-300"
+                          style={{ height: 'auto', maxHeight: '400px' }}
                           onError={(e) => {
                             console.log('Preview image failed to load:', previewImage);
                             e.currentTarget.style.display = 'none';
                             e.currentTarget.nextElementSibling?.classList.remove('hidden');
                           }}
                         />
-                        <div className="w-full h-48 bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center text-gray-400 text-sm hidden">
+                        <div className="w-full bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center text-gray-400 text-sm hidden">
                           Failed to load image
                         </div>
                       </div>
@@ -539,6 +633,54 @@ export default function HeroSectionPage() {
                   ) : (
                     editingHero ? 'Update Hero Section' : 'Create Hero Section'
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-black">Confirm Deletion</h2>
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingHeroId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-black">
+                  Are you sure you want to delete this hero section? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletingHeroId(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (deletingHeroId) {
+                      handleDelete(deletingHeroId);
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
                 </button>
               </div>
             </div>

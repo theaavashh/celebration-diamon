@@ -50,7 +50,6 @@ import {
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -114,7 +113,6 @@ export default function DashboardLayout({
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (path.includes('/dashboard/categories') || 
-          path.includes('/dashboard/subcategories') ||
           path.includes('/dashboard/services') || 
           path.includes('/dashboard/stores') ||
         path.includes('/dashboard/terms') ||
@@ -153,8 +151,8 @@ export default function DashboardLayout({
       // Handle child navigation
       if (itemId === 'categories') {
         router.push('/dashboard/categories');
-      } else if (itemId === 'subcategories') {
-        router.push('/dashboard/subcategories');
+      } else if (itemId === 'attribute-options') {
+        router.push('/dashboard/attribute-options');
       } else if (itemId === 'services') {
         router.push('/dashboard/services');
       } else if (itemId === 'stores') {
@@ -300,7 +298,7 @@ export default function DashboardLayout({
       children: [
         { id: "all-products", label: "All Products", icon: Package2 },
         { id: "categories", label: "Categories", icon: FolderOpen },
-        { id: "subcategories", label: "Subcategories", icon: FolderOpen },
+        { id: "attribute-options", label: "Attribute Options", icon: Database },
         { id: "inventory", label: "Inventory Management", icon: Layers }
       ]
     },
@@ -390,30 +388,21 @@ export default function DashboardLayout({
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
         {/* Mobile sidebar overlay */}
-        <AnimatePresence>
-          {sidebarOpen && !isDesktop && (
-            <motion.div 
-              className="fixed inset-0 bg-black/50 z-40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-        </AnimatePresence>
+        {/* Removed animation wrapper */}
+        {sidebarOpen && !isDesktop && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
         {/* Sidebar */}
-        <motion.div 
-          className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg flex flex-col transition-transform duration-300 ease-in-out ${
+        <div 
+          className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg flex flex-col ${
             isDesktop ? 'w-64' : 'w-80'
           } ${
             isDesktop ? 'translate-x-0' : (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
           }`}
-          initial={false}
-          animate={{ 
-            x: isDesktop ? 0 : (sidebarOpen ? 0 : -320)
-          }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
         >
           {/* Fixed Header */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
@@ -442,25 +431,17 @@ export default function DashboardLayout({
             scrollbarWidth: 'none', 
             msOverflowStyle: 'none'
           }}>
-            <motion.div 
-              className="space-y-1"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            >
+            {/* Removed animation wrapper */}
+            <div className="space-y-1">
               {navigationItems.map((item, index) => {
                 const Icon = item.icon;
                 const isExpanded = expandedSections.includes(item.id);
                 const hasChildren = item.children && item.children.length > 0;
                 
                 return (
-                  <motion.div 
-                    key={item.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <motion.button
+                  // Removed animation wrapper
+                  <div key={item.id}>
+                    <button
                       onClick={() => {
                         if (hasChildren) {
                           toggleSection(item.id);
@@ -473,146 +454,119 @@ export default function DashboardLayout({
                           ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       }`}
-                      whileHover={{ x: isMobile ? 0 : 5 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.2 }}
                     >
                       <div className="flex items-center min-w-0 flex-1 ">
                         <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
                         <span className="truncate text-lg custom-font">{item.label}</span>
                       </div>
                       {hasChildren && (
-                        <motion.div
-                          animate={{ rotate: isExpanded ? 90 : 0 }}
-                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                        <div
                           className="flex-shrink-0 ml-2"
+                          style={{ transform: `rotate(${isExpanded ? 90 : 0}deg)` }}
                         >
                           <ChevronRight className="w-4 h-4" />
-                        </motion.div>
+                        </div>
                       )}
-                    </motion.button>
+                    </button>
                     
                     {/* Children */}
-                    <AnimatePresence>
-                      {hasChildren && isExpanded && (
-                        <motion.div 
-                          className="relative ml-6 mt-1 space-y-1"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3, ease: "easeInOut" }}
-                        >
-                          {/* Tree connector line */}
-                          <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+                    {/* Removed animation wrapper */}
+                    {hasChildren && isExpanded && (
+                      <div className="relative ml-6 mt-1 space-y-1">
+                        {/* Tree connector line */}
+                        <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+                        
+                        {item.children.map((child, index) => {
+                          const ChildIcon = child.icon;
+                          const isLast = index === item.children.length - 1;
+                          const hasGrandChildren = child.children && child.children.length > 0;
+                          const isChildExpanded = expandedSections.includes(child.id);
                           
-                          {item.children.map((child, index) => {
-                            const ChildIcon = child.icon;
-                            const isLast = index === item.children.length - 1;
-                            const hasGrandChildren = child.children && child.children.length > 0;
-                            const isChildExpanded = expandedSections.includes(child.id);
-                            
-                            return (
-                              <motion.div
-                                key={child.id}
-                                className="relative"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.2, delay: index * 0.05 }}
-                              >
-                                {/* Curved connector - horizontal line with curve */}
-                                <div className="absolute left-0 top-1/2 w-6 h-3  transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
-                                
-                                <motion.button
-                                  onClick={() => {
-                                    if (hasGrandChildren) {
-                                      // For Media item, we want to both navigate and expand
-                                      if (child.id === 'media') {
-                                        handleNavigation(child.id, item.id);
-                                        toggleSection(child.id);
-                                      } else {
-                                        toggleSection(child.id);
-                                      }
-                                    } else {
+                          return (
+                            // Removed animation wrapper
+                            <div
+                              key={child.id}
+                              className="relative"
+                            >
+                              {/* Curved connector - horizontal line with curve */}
+                              <div className="absolute left-0 top-1/2 w-6 h-3  transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
+                              
+                              <button
+                                onClick={() => {
+                                  if (hasGrandChildren) {
+                                    // For Media item, we want to both navigate and expand
+                                    if (child.id === 'media') {
                                       handleNavigation(child.id, item.id);
+                                      toggleSection(child.id);
+                                    } else {
+                                      toggleSection(child.id);
                                     }
-                                  }}
-                                  className={`w-full flex items-center pl-8 pr-3 py-3 custom-font font-semibold rounded-lg transition-colors relative ${
-                                    typeof window !== 'undefined' && window.location.pathname.includes(child.id)
-                                      ? 'bg-blue-50 text-blue-700'
-                                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                                  }`}
-                                  whileHover={{ x: isMobile ? 0 : 5 }}
-                                  whileTap={{ scale: 0.98 }}
-                                >
-                                  <ChildIcon className="w-4 h-4 mr-3 flex-shrink-0" />
-                                  <span className="truncate">{child.label}</span>
-                                  {hasGrandChildren && (
-                                    <motion.div
-                                      animate={{ rotate: isChildExpanded ? 90 : 0 }}
-                                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                                      className="flex-shrink-0 ml-2"
-                                    >
-                                      <ChevronRight className="w-3 h-3" />
-                                    </motion.div>
-                                  )}
-                                </motion.button>
+                                  } else {
+                                    handleNavigation(child.id, item.id);
+                                  }
+                                }}
+                                className={`w-full flex items-center pl-8 pr-3 py-3 custom-font font-semibold rounded-lg transition-colors relative ${
+                                  typeof window !== 'undefined' && window.location.pathname.includes(child.id)
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                }`}
+                              >
+                                <ChildIcon className="w-4 h-4 mr-3 flex-shrink-0" />
+                                <span className="truncate">{child.label}</span>
+                                {hasGrandChildren && (
+                                  <div
+                                    className="flex-shrink-0 ml-2"
+                                    style={{ transform: `rotate(${isChildExpanded ? 90 : 0}deg)` }}
+                                  >
+                                    <ChevronRight className="w-3 h-3" />
+                                  </div>
+                                )}
+                              </button>
 
-                                {/* Grand Children (Nested Submenu) */}
-                                <AnimatePresence>
-                                  {hasGrandChildren && isChildExpanded && (
-                                    <motion.div 
-                                      className="relative ml-6 mt-1 space-y-1"
-                                      initial={{ opacity: 0, height: 0 }}
-                                      animate={{ opacity: 1, height: "auto" }}
-                                      exit={{ opacity: 0, height: 0 }}
-                                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                                    >
-                                      {/* Tree connector line for nested items */}
-                                      <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
-                                      
-                                      {child.children.map((grandChild, grandIndex) => {
-                                        const GrandChildIcon = grandChild.icon;
+                              {/* Grand Children (Nested Submenu) */}
+                              {/* Removed animation wrapper */}
+                              {hasGrandChildren && isChildExpanded && (
+                                <div className="relative ml-6 mt-1 space-y-1">
+                                  {/* Tree connector line for nested items */}
+                                  <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+                                  
+                                  {child.children.map((grandChild, grandIndex) => {
+                                    const GrandChildIcon = grandChild.icon;
+                                    
+                                    return (
+                                      // Removed animation wrapper
+                                      <div
+                                        key={grandChild.id}
+                                        className="relative"
+                                      >
+                                        {/* Curved connector for nested items */}
+                                        <div className="absolute left-0 top-1/2 w-6 h-3 transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
                                         
-                                        return (
-                                          <motion.div
-                                            key={grandChild.id}
-                                            className="relative"
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ duration: 0.2, delay: grandIndex * 0.05 }}
-                                          >
-                                            {/* Curved connector for nested items */}
-                                            <div className="absolute left-0 top-1/2 w-6 h-3 transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
-                                            
-                                            <motion.button
-                                              onClick={() => handleNavigation(grandChild.id, child.id)}
-                                              className={`w-full flex items-center pl-8 pr-3 py-3 custom-font font-semibold rounded-lg transition-colors relative ${
-                                                typeof window !== 'undefined' && window.location.pathname.includes(grandChild.id)
-                                                  ? 'bg-blue-50 text-blue-700'
-                                                  : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
-                                              }`}
-                                              whileHover={{ x: isMobile ? 0 : 5 }}
-                                              whileTap={{ scale: 0.98 }}
-                                            >
-                                              <GrandChildIcon className="w-3 h-3 mr-3 flex-shrink-0" />
-                                              <span className="truncate">{grandChild.label}</span>
-                                            </motion.button>
-                                          </motion.div>
-                                        );
-                                      })}
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </motion.div>
-                            );
-                          })}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                                        <button
+                                          onClick={() => handleNavigation(grandChild.id, child.id)}
+                                          className={`w-full flex items-center pl-8 pr-3 py-3 custom-font font-semibold rounded-lg transition-colors relative ${
+                                            typeof window !== 'undefined' && window.location.pathname.includes(grandChild.id)
+                                              ? 'bg-blue-50 text-blue-700'
+                                              : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+                                          }`}
+                                        >
+                                          <GrandChildIcon className="w-3 h-3 mr-3 flex-shrink-0" />
+                                          <span className="truncate">{grandChild.label}</span>
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
-            </motion.div>
+            </div>
           </nav>
 
           {/* Fixed Footer */}
@@ -625,10 +579,10 @@ export default function DashboardLayout({
               Logout
             </button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Main content */}
-        <div className={`${isDesktop ? 'pl-64' : 'pl-0'} w-full transition-all duration-300`}>
+        <div className={`${isDesktop ? 'pl-64' : 'pl-0'} w-full`}>
           {/* Top bar */}
           <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6">
@@ -644,14 +598,12 @@ export default function DashboardLayout({
                   {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
                 {showBackButton && (
-                  <motion.button
+                  <button
                     onClick={() => router.back()}
                     className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                   >
                     <X className="w-5 h-5" />
-                  </motion.button>
+                  </button>
                 )}
                 {/* Show breadcrumbs instead of title when showBreadcrumb is true */}
                 {showBreadcrumb ? (
@@ -680,38 +632,33 @@ export default function DashboardLayout({
                   </button>
 
                   {/* User Dropdown Menu */}
-                  <AnimatePresence>
-                    {userMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                  {/* Removed animation wrapper */}
+                  {userMenuOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                    >
+                      <button
+                        onClick={() => {
+                          setShowChangePasswordModal(true);
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       >
-                        <button
-                          onClick={() => {
-                            setShowChangePasswordModal(true);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <Key className="w-4 h-4" />
-                          <span>Change Password</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleLogout();
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Logout</span>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        <Key className="w-4 h-4" />
+                        <span>Change Password</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -768,16 +715,14 @@ export default function DashboardLayout({
           )}
 
           {/* Page content */}
-          <motion.main 
+          {/* Removed animation wrapper */}
+          <main 
             className="p-4 sm:p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
           >
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
-          </motion.main>
+          </main>
         </div>
       </div>
     </ProtectedRoute>

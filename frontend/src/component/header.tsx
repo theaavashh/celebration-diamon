@@ -59,21 +59,21 @@ export default function Header() {
   return (
     <> 
       <motion.header 
-        className="sticky top-0 z-[250] shadow-sm bg-white"
+        className="sticky top-0 z-[250] shadow-sm bg-white mt-10"
         animate={{
-          top: isScrolled ? 0 : "40px" // Move to top when scrolled, leave space for banner when not scrolled
+          top: isScrolled ? 0 : "0px" // Changed from "40px" to "0px" since banner is removed
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
       >
-        <TopBanner />
-        <div className="pt-0 md:pt-0 w-[100vw] mx-10">
+       
+        <div className="pt-0 md:pt-0 w-full">
           {/* Main Header Row */}
-          <div className="flex justify-between py-6 px-5 pr-10">
+          <div className="flex justify-between items-center py-0 md:py-3 px-5">
             {/* Logo on the left - takes full height */}
-            <div className="flex items-center justify-center h-10 mt-5">
+            <div className="flex items-center justify-center h-10">
               <Link href="/" className="flex items-center justify-center">
                 <Image
-                  src="/celeb.jpg"
+                  src="/celeb.png"
                   alt="Celebration Diamond Logo"
                   width={180}
                   height={40}
@@ -83,7 +83,7 @@ export default function Header() {
             </div>
 
             {/* Right section - divided into two rows */}
-            <div className="flex flex-col h-20">
+            <div className="flex flex-col h-20 pt-5 md:pt-0">
               {/* First row - Search, Bag, Phone */}
               <div className="flex items-center space-x-3 justify-end h-10">
                 <button
@@ -94,28 +94,21 @@ export default function Header() {
                   <span className="hidden sm:inline">Search</span>
                 </button>
 
-                <div className="flex items-center gap-2 px-3 py-1">
-                  <FaShoppingBag className="w-5 h-5 text-black hover:text-gray-600" />
-                  <span className="hidden sm:inline">Bag</span>
-                </div>
-                |
-
-
                 <span className="hidden md:inline-flex gap-2 items-center px-3 py-1">
                   <FaPhone className="w-5 h-5" />  +9779709196495 (Nepal)
                 </span>
 
                 <button
-                  className="md:hidden text-black hover:text-gray-600"
+                  className="md:hidden text-black hover:text-gray-600 flex items-center justify-center"
                   onClick={() => setMobileMenuOpen(true)}
                   aria-label="Open menu"
                 >
-                  <FaBars className="w-6 h-6 mr-5" />
+                  <FaBars className="w-6 h-6" /> {/* Removed mr-5 */}
                 </button>
               </div>
 
               {/* Second row - Navigation - Centered exactly in middle */}
-              <nav className="hidden md:flex mt-5 pl-32 items-start justify-start space-x-7  h-10 w-[90vw]">
+              <nav className="hidden md:flex mt-5 pl-32 items-start justify-start space-x-7  h-10 w-full">
                 {NAV_ITEMS.map(({ name, href, icon: Icon }) => (
                   <Link
                     key={name}
@@ -148,7 +141,7 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 />
 
-                <aside className="relative ml-auto w-80 h-full bg-white shadow-2xl flex flex-col p-6 overflow-y-auto">
+                <aside className="relative ml-auto w-80 h-full shadow-2xl flex flex-col p-6 overflow-y-auto">
                   <button
                     className="flex items-center text-black mb-8 text-lg font-medium"
                     onClick={() => setMobileMenuOpen(false)}
@@ -224,68 +217,72 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 bg-[#ECE9E4] z-[999] overflow-y-auto"
+          className="fixed inset-0 bg-white z-[999] overflow-y-auto"
           initial="hidden"
           animate="visible"
           exit="exit"
           variants={SEARCH_VARIANTS}
         >
           <button
-            className="absolute top-6 right-8 text-3xl text-black"
+            className="absolute top-6 right-8 text-3xl text-black hover:text-gray-600 transition-colors"
             onClick={onClose}
             aria-label="Close"
           >
             &times;
           </button>
 
-          <div className="max-w-7xl mx-auto px-8 pt-20">
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-2xl text-black">🔍</span>
+          <div className="max-w-6xl mx-auto px-6 pt-16 pb-12">
+            <div className="flex items-center gap-4 mb-10">
+              <FaSearch className="text-2xl text-gray-400" />
               <input
                 type="text"
-                placeholder="Search"
-                className="w-full border-none outline-none text-xl bg-transparent"
+                placeholder="Search for products, categories, or keywords..."
+                className="w-full border-b-2 border-gray-200 outline-none text-xl bg-transparent pb-3 focus:border-amber-400 transition-colors"
                 autoFocus
               />
             </div>
-            <hr className="mb-8 border-[#ECE9E4]" />
 
-            <div className="flex gap-12 flex-col md:flex-row">
-              <div>
-                <h2 className="text-5xl font-serif font-bold mb-6 text-black">
+            <div className="flex gap-12 flex-col lg:flex-row">
+              <div className="lg:w-1/3">
+                <h2 className="text-3xl font-serif font-bold mb-6 text-black">
                   POPULAR <span className="italic font-normal">Searches</span>
                 </h2>
-                <ul className="space-y-4 text-lg">
+                <ul className="space-y-3">
                   {POPULAR_SEARCHES.map((item) => (
-                    <li key={item} className="font-semibold text-[#212122]">
+                    <li 
+                      key={item} 
+                      className="font-medium text-lg text-gray-700 hover:text-amber-600 cursor-pointer transition-colors py-2 border-b border-gray-100"
+                    >
                       {item}
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="flex-1">
-                <h2 className="text-5xl font-serif text-black font-bold mb-6">
-                  YOU <span className="italic font-normal">may</span> LIKE
+              <div className="lg:w-2/3">
+                <h2 className="text-3xl font-serif text-black font-bold mb-6">
+                  TRENDING <span className="italic font-normal">Products</span>
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {RECOMMENDATIONS.map((rec) => (
-                    <div key={rec.name} className="flex flex-col items-center">
-                      <Image
-                        src={rec.image}
-                        alt={rec.name}
-                        width={256}
-                        height={256}
-                        className="object-contain mb-4 bg-[#f8f6f3] rounded"
-                      />
+                    <div key={rec.name} className="flex flex-col group cursor-pointer">
+                      <div className="relative overflow-hidden rounded-lg mb-4 bg-gray-50">
+                        <Image
+                          src={rec.image}
+                          alt={rec.name}
+                          width={256}
+                          height={256}
+                          className="object-contain w-full h-48 transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
                       <div className="text-center">
-                        <div className="text-xs text-black mb-1">{rec.title}</div>
-                        <div className="font-bold text-lg mb-1">{rec.name}</div>
+                        <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider">{rec.title}</div>
+                        <div className="font-medium text-lg mb-1 text-gray-800 group-hover:text-amber-600 transition-colors">{rec.name}</div>
                         <div className="flex items-center justify-center gap-2">
                           {rec.oldPrice && (
-                            <span className="line-through text-black">{rec.oldPrice}</span>
+                            <span className="line-through text-gray-400 text-sm">{rec.oldPrice}</span>
                           )}
-                          <span className="font-semibold">{rec.price}</span>
+                          <span className="font-semibold text-amber-600">{rec.price}</span>
                         </div>
                       </div>
                     </div>

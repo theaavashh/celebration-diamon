@@ -44,7 +44,6 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "@/components/DashboardLayout";
 import RichTextEditor from "@/components/RichTextEditor";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -97,12 +96,10 @@ function DashboardContent() {
   const fetchDashboardStats = async () => {
     setIsLoadingStats(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/dashboard/stats`, {
         credentials: 'include', // Include cookies for authentication
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
       
@@ -112,10 +109,8 @@ function DashboardContent() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         console.error('Failed to fetch dashboard stats, status:', response.status);
@@ -133,12 +128,10 @@ function DashboardContent() {
   const fetchSeoReport = async () => {
     setIsLoadingSeo(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/seo/report`, {
         credentials: 'include', // Include cookies for authentication
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
       
@@ -148,10 +141,8 @@ function DashboardContent() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         console.error('Failed to fetch SEO report, status:', response.status);
@@ -287,9 +278,9 @@ function DashboardContent() {
       
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${editingBanner.id}`, {
         method: 'PUT',
+        credentials: 'include', // Use cookies for authentication
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(bannerDataToSend),
       });
@@ -333,15 +324,13 @@ function DashboardContent() {
     if (!bannerToDelete) return;
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      console.log('Deleting banner:', { id: bannerToDelete.id, hasToken: !!token });
+      console.log('Deleting banner:', { id: bannerToDelete.id });
       
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete.id}`, {
         method: 'DELETE',
-        credentials: 'include',
+        credentials: 'include', // Use cookies for authentication
         headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
 
@@ -362,10 +351,8 @@ function DashboardContent() {
         }
         console.error('Authentication failed:', { status: response.status, errorData, responseText });
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         const responseText = await response.text();
@@ -786,25 +773,7 @@ function DashboardContent() {
                       {/* Action Buttons */}
                       <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
                         <button 
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${banner.id}/toggle`, {
-                                method: 'PATCH',
-                                headers: {
-                                  'Authorization': `Bearer ${localStorage.getItem('token')}`
-                                }
-                              });
-                              if (response.ok) {
-                                toast.success(banner.isActive ? 'Banner deactivated' : 'Banner activated');
-                                fetchBanners(); // Refresh the list
-                              } else {
-                                toast.error('Failed to toggle banner status');
-                              }
-                            } catch (error) {
-                              console.error('Error toggling banner:', error);
-                              toast.error('Error toggling banner status');
-                            }
-                          }}
+                          onClick={() => toggleBannerStatus(banner.id, banner.isActive)}
                           className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 ${
                             banner.isActive 
                               ? 'text-orange-600 bg-orange-50 hover:bg-orange-100' 
@@ -906,316 +875,279 @@ function DashboardContent() {
   return (
     <>
       <DashboardLayout title="Dashboard" showBreadcrumb={true}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          {renderContent()}
-        </motion.div>
-      </AnimatePresence>
+      {/* Removed animation wrapper */}
+      <div>
+        {renderContent()}
+      </div>
 
       {/* Banner Creation Modal */}
-      <AnimatePresence>
-        {isBannerModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {editingBanner ? 'Edit Banner' : 'Create New Banner'}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setIsBannerModalOpen(false);
-                      setEditingBanner(null);
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
+      {/* Removed animation wrapper */}
+      {isBannerModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {editingBanner ? 'Edit Banner' : 'Create New Banner'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setIsBannerModalOpen(false);
+                    setEditingBanner(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
-                <div className="space-y-6">
-                  {/* Basic Information */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Banner Title *
-                      </label>
-                      <RichTextEditor
-                        value={bannerForm.title}
-                        onChange={(value) => {
-                          handleFormChange('title', value);
-                          handleFormChange('text', value); // Set text same as title
-                        }}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Use the rich text editor to format your banner content with custom styling</p>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-2">
-                        Priority
-                      </label>
-                      <input
-                        type="number"
-                        value={bannerForm.priority || 0}
-                        onChange={(e) => handleFormChange('priority', parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                        style={{ color: '#000000' }}
-                      />
-                      <p className="text-xs text-black mt-1">Higher numbers appear first</p>
-                    </div>
-                  </div>
-
-
-
-
-                  {/* Status */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={bannerForm.isActive}
-                      onChange={(e) => handleFormChange('isActive', e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
-                      Active (visible on website)
-                    </label>
-                  </div>
-
-                  {/* Preview */}
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preview
+                      Banner Title *
                     </label>
-                    <div className="p-4 rounded-lg border-2 border-dashed border-gray-200 bg-white">
-                      <div className="text-center">
-                        <div 
-                          className="text-sm font-medium text-gray-900"
-                          dangerouslySetInnerHTML={{ __html: bannerForm.title || 'Banner content will appear here' }}
-                        />
-                      </div>
-                    </div>
+                    <RichTextEditor
+                      value={bannerForm.title}
+                      onChange={(value) => {
+                        handleFormChange('title', value);
+                        handleFormChange('text', value); // Set text same as title
+                      }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Use the rich text editor to format your banner content with custom styling</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Priority
+                    </label>
+                    <input
+                      type="number"
+                      value={bannerForm.priority || 0}
+                      onChange={(e) => handleFormChange('priority', parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                      style={{ color: '#000000' }}
+                    />
+                    <p className="text-xs text-black mt-1">Higher numbers appear first</p>
                   </div>
                 </div>
 
-                {/* Form Actions */}
-                <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={() => setIsBannerModalOpen(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={editingBanner ? handleEditBanner : async () => {
-                      // Validate form before submission
-                      const titleError = validateTitle(bannerForm.title);
-                      if (titleError) {
-                        toast.error(titleError);
-                        return;
-                      }
-                      const textError = validateText(bannerForm.text);
-                      if (textError) {
-                        toast.error(textError);
-                        return;
-                      }
 
-                      try {
-                        const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners`;
-                        const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-                        
-                        // Strip HTML from title and text before sending to backend
-                        // This ensures validation works correctly and we store plain text
-                        const bannerDataToSend = {
-                          ...bannerForm,
-                          title: stripHtml(bannerForm.title),
-                          text: stripHtml(bannerForm.text)
-                        };
-                        
-                        console.log('Creating banner at:', apiUrl);
-                        console.log('Token available:', !!token);
-                        console.log('Banner form data:', bannerDataToSend);
-                        
-                        const headers: HeadersInit = {
-                          'Content-Type': 'application/json',
-                        };
-                        
-                        if (token) {
-                          headers['Authorization'] = `Bearer ${token}`;
-                        }
-                        
-                        const response = await fetch(apiUrl, {
-                          method: 'POST',
-                          credentials: 'include',
-                          headers,
-                          body: JSON.stringify(bannerDataToSend)
-                        });
 
-                        if (response.ok) {
-                          const result = await response.json();
-                          console.log('Banner created:', result);
-                          toast.success('Banner created successfully!');
-                          setIsBannerModalOpen(false);
-                          // Reset form
-                          setBannerForm({
-                            title: '',
-                            text: '',
-                            isActive: true,
-                            priority: 0
-                          });
-                          // Refresh banner list
-                          fetchBanners();
-                        } else if (response.status === 401) {
-                          const errorText = await response.text();
-                          let errorJson: any = {};
-                          try {
-                            errorJson = JSON.parse(errorText);
-                          } catch (e) {
-                            errorJson = { message: errorText || 'Invalid token' };
-                          }
-                          
-                          console.error('Authentication failed:', { status: response.status, errorJson, errorText });
-                          
-                          // Clear tokens
-                          localStorage.removeItem('token');
-                          localStorage.removeItem('adminToken');
-                          
-                          // Show error and redirect
-                          const errorMsg = errorJson.message || 'Invalid token';
-                          if (errorMsg.includes('Invalid token') || errorMsg.includes('expired')) {
-                            toast.error('Your session has expired. Please log in again.');
-                          } else {
-                            toast.error(errorMsg);
-                          }
-                          
-                          setTimeout(() => {
-                            if (typeof window !== 'undefined') {
-                              window.location.href = '/login';
-                            }
-                          }, 1500);
-                        } else {
-                          const errorText = await response.text();
-                          console.error('Error creating banner, status:', response.status);
-                          console.error('Error response text:', errorText);
-                          let errorMessage = 'Failed to create banner';
-                          try {
-                            const errorJson = JSON.parse(errorText);
-                            // Show specific validation errors if available
-                            if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
-                              const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
-                              errorMessage = validationErrors;
-                            } else {
-                              errorMessage = errorJson.message || errorMessage;
-                            }
-                            console.error('Error creating banner:', errorJson);
-                          } catch (e) {
-                            console.error('Could not parse error response as JSON');
-                          }
-                          toast.error(errorMessage);
-                        }
-                      } catch (error) {
-                        console.error('Error creating banner:', error);
-                        toast.error('Failed to create banner');
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                  >
-                    {editingBanner ? (
-                      <>
-                        <Package className="w-4 h-4" />
-                        Update Banner
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-4 h-4" />
-                        Create Banner
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-md w-full"
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Delete Banner</h2>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                {/* Status */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={bannerForm.isActive}
+                    onChange={(e) => handleFormChange('isActive', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
+                    Active (visible on website)
+                  </label>
                 </div>
 
-                <div className="mb-6">
-                  <p className="text-gray-600 mb-4">
-                    Are you sure you want to delete this banner? This action cannot be undone.
-                  </p>
-                  {bannerToDelete && (
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                {/* Preview */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Preview
+                  </label>
+                  <div className="p-4 rounded-lg border-2 border-dashed border-gray-200 bg-white">
+                    <div className="text-center">
                       <div 
-                        className="text-sm text-gray-700"
-                        dangerouslySetInnerHTML={{ __html: bannerToDelete.title }}
+                        className="text-sm font-medium text-gray-900"
+                        dangerouslySetInnerHTML={{ __html: bannerForm.title || 'Banner content will appear here' }}
                       />
                     </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteBanner}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    Delete Banner
-                  </button>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+              {/* Form Actions */}
+              <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setIsBannerModalOpen(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={editingBanner ? handleEditBanner : async () => {
+                    // Validate form before submission
+                    const titleError = validateTitle(bannerForm.title);
+                    if (titleError) {
+                      toast.error(titleError);
+                      return;
+                    }
+                    const textError = validateText(bannerForm.text);
+                    if (textError) {
+                      toast.error(textError);
+                      return;
+                    }
+
+                    try {
+                      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners`;
+                      // Using cookie-based authentication instead of localStorage
+                            // const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+                      
+                      // Strip HTML from title and text before sending to backend
+                      // This ensures validation works correctly and we store plain text
+                      const bannerDataToSend = {
+                        ...bannerForm,
+                        title: stripHtml(bannerForm.title),
+                        text: stripHtml(bannerForm.text)
+                      };
+                      
+                      console.log('Creating banner at:', apiUrl);
+                      console.log('Banner form data:', bannerDataToSend);
+                      
+                      const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(bannerDataToSend)
+                      });
+
+                      if (response.ok) {
+                        const result = await response.json();
+                        console.log('Banner created:', result);
+                        toast.success('Banner created successfully!');
+                        setIsBannerModalOpen(false);
+                        // Reset form
+                        setBannerForm({
+                          title: '',
+                          text: '',
+                          isActive: true,
+                          priority: 0
+                        });
+                        // Refresh banner list
+                        // fetchBanners(); // This function is not in scope here
+                      } else if (response.status === 401) {
+                        const errorText = await response.text();
+                        let errorJson: any = {};
+                        try {
+                          errorJson = JSON.parse(errorText);
+                        } catch (e) {
+                          errorJson = { message: errorText || 'Invalid token' };
+                        }
+                        
+                        console.error('Authentication failed:', { status: response.status, errorJson, errorText });
+                        
+                        // Using cookie-based authentication, no need to clear localStorage tokens
+                        
+                        // Show error and redirect
+                        const errorMsg = errorJson.message || 'Invalid token';
+                        if (errorMsg.includes('Invalid token') || errorMsg.includes('expired')) {
+                          toast.error('Your session has expired. Please log in again.');
+                        } else {
+                          toast.error(errorMsg);
+                        }
+                        
+                        setTimeout(() => {
+                          if (typeof window !== 'undefined') {
+                            window.location.href = '/';
+                          }
+                        }, 1500);
+                      } else {
+                        const errorText = await response.text();
+                        console.error('Error creating banner, status:', response.status);
+                        console.error('Error response text:', errorText);
+                        let errorMessage = 'Failed to create banner';
+                        try {
+                          const errorJson = JSON.parse(errorText);
+                          // Show specific validation errors if available
+                          if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
+                            const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
+                            errorMessage = validationErrors;
+                          } else {
+                            errorMessage = errorJson.message || errorMessage;
+                          }
+                          console.error('Error creating banner:', errorJson);
+                        } catch (e) {
+                          console.error('Could not parse error response as JSON');
+                        }
+                        toast.error(errorMessage);
+                      }
+                    } catch (error) {
+                      console.error('Error creating banner:', error);
+                      toast.error('Failed to create banner');
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  {editingBanner ? (
+                    <>
+                      <Package className="w-4 h-4" />
+                      Update Banner
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create Banner
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {/* Removed animation wrapper */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Delete Banner</h2>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to delete this banner? This action cannot be undone.
+                </p>
+                {bannerToDelete && (
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div 
+                      className="text-sm text-gray-700"
+                      dangerouslySetInnerHTML={{ __html: bannerToDelete.title }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteBanner}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Delete Banner
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </DashboardLayout>
       <Toaster position="top-right" />
     </>
@@ -1231,3 +1163,26 @@ export default function Dashboard() {
     </ProtectedRoute>
   );
 }
+
+// Toggle banner status
+const toggleBannerStatus = async (bannerId: string, currentStatus: boolean) => {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerId}/toggle`, {
+      method: 'PATCH',
+      credentials: 'include', // Use cookies for authentication
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    if (response.ok) {
+      toast.success(currentStatus ? 'Banner deactivated' : 'Banner activated');
+      // Refresh the list
+      // fetchBanners(); // This function is not in scope here
+    } else {
+      toast.error('Failed to toggle banner status');
+    }
+  } catch (error) {
+    console.error('Error toggling banner:', error);
+    toast.error('Error toggling banner status');
+  }
+};

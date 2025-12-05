@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { fetchCsrfToken } from '@/lib/csrfClient';
+
 interface LoginFormData {
   email: string;
   password: string;
@@ -21,14 +23,7 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const router = useRouter();
-  const { login, isAuthenticated } = useAuth();
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard");
-    }
-  }, [isAuthenticated, router]);
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const {
     register,
@@ -53,6 +48,33 @@ export default function AdminLogin() {
       email: "",
     },
   });
+
+  useEffect(() => {
+    // Fetch CSRF token when the login page loads
+    fetchCsrfToken();
+    
+    // Redirect if already authenticated
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, router]);
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f0efeb] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If already authenticated, don't show login form
+  if (isAuthenticated) {
+    return null;
+  }
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);

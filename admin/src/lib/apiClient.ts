@@ -1,122 +1,6 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import { getApiBaseUrl } from './api';
+// Utility functions for making authenticated API calls using cookies
+import { addCsrfToken, fetchCsrfToken, refreshCsrfTokenIfNeeded, getCsrfToken } from './csrfClient';
 
-// API Configuration
-const API_BASE_URL = getApiBaseUrl();
-
-// Create axios instance with default configuration
-const createApiClient = (): AxiosInstance => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000, // 30 seconds
-    withCredentials: true, // Important: send cookies with requests
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  // Request interceptor
-  client.interceptors.request.use(
-    (config) => {
-      // Use cookies for authentication (httpOnly cookies are sent automatically)
-      // Set credentials to include cookies in all requests
-      if (typeof window !== 'undefined') {
-        config.withCredentials = true;
-        
-        // Also add Bearer token if available (for compatibility)
-        const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-        if (token && config.headers) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-
-      // Log request in development
-      if (process.env.NODE_ENV === 'development') {
-        const fullUrl = `${config.baseURL}${config.url}`;
-        console.log(`🚀 ${config.method?.toUpperCase()} ${fullUrl}`, {
-          baseURL: config.baseURL,
-          url: config.url,
-          params: config.params,
-          data: config.data,
-          headers: config.headers,
-        });
-      }
-
-      return config;
-    },
-    (error: AxiosError) => {
-      console.error('Request interceptor error:', error);
-      return Promise.reject(error);
-    }
-  );
-
-  // Response interceptor
-  client.interceptors.response.use(
-    (response: AxiosResponse) => {
-      // Log response in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-          status: response.status,
-          data: response.data,
-        });
-      }
-
-      return response;
-    },
-    (error: AxiosError) => {
-      // Handle common error scenarios
-      if (error.response) {
-        const { status, data } = error.response;
-        
-        switch (status) {
-          case 401:
-            // Unauthorized - clear tokens and redirect to login page
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('token');
-              localStorage.removeItem('adminToken');
-              window.location.href = '/login';
-            }
-            break;
-          case 403:
-            console.error('Forbidden: Insufficient permissions');
-            break;
-          case 400:
-            console.error('Bad request:', data);
-            break;
-          case 404:
-            console.error('Resource not found');
-            break;
-          case 422:
-            console.error('Validation error:', data);
-            break;
-          case 500:
-            console.error('Internal server error');
-            break;
-          default:
-            console.error(`HTTP Error ${status}:`, data);
-        }
-
-        console.error(` ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
-          status,
-          data,
-        });
-      } else if (error.request) {
-        console.error('Network error:', error.request);
-      } else {
-        console.error('Request setup error:', error.message);
-      }
-
-      return Promise.reject(error);
-    }
-  );
-
-  return client;
-};
-
-// Create default client
-export const apiClient = createApiClient();
-
-// API Response wrapper
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -132,78 +16,355 @@ export interface ApiResponse<T = any> {
   };
 }
 
-// Generic API methods
-export class ApiService {
-  private client: AxiosInstance;
+/**
+ * Make an authenticated GET request
+ */
+export async function apiGet<T>(url: string): Promise<ApiResponse<T>> {
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-  constructor(client: AxiosInstance = apiClient) {
-    this.client = client;
-  }
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.message || 'Request failed',
+        message: result.message || 'Request failed'
+      };
+    }
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.get<ApiResponse<T>>(url, config);
-    return response.data;
-  }
-
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.post<ApiResponse<T>>(url, data, config);
-    return response.data;
-  }
-
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.put<ApiResponse<T>>(url, data, config);
-    return response.data;
-  }
-
-  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.patch<ApiResponse<T>>(url, data, config);
-    return response.data;
-  }
-
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
-    const response = await this.client.delete<ApiResponse<T>>(url, config);
-    return response.data;
-  }
-}
-
-// Gallery-specific API service
-export class GalleryApiService extends ApiService {
-  private basePath = '/galleries';
-
-  async getGalleries(query?: any): Promise<ApiResponse<any[]>> {
-    return this.get(`${this.basePath}`, { params: query });
-  }
-
-  async getGallery(id: string): Promise<ApiResponse<any>> {
-    return this.get(`${this.basePath}/${id}`);
-  }
-
-  async createGallery(data: any): Promise<ApiResponse<any>> {
-    return this.post(`${this.basePath}`, data);
-  }
-
-  async updateGallery(id: string, data: any): Promise<ApiResponse<any>> {
-    return this.put(`${this.basePath}/${id}`, data);
-  }
-
-  async deleteGallery(id: string): Promise<ApiResponse<void>> {
-    return this.delete(`${this.basePath}/${id}`);
-  }
-
-  async toggleGalleryStatus(id: string): Promise<ApiResponse<any>> {
-    return this.patch(`${this.basePath}/${id}/toggle`);
-  }
-
-  // Admin endpoints
-  async getGalleriesAdmin(query?: any): Promise<ApiResponse<any[]>> {
-    return this.get(`${this.basePath}/admin`, { params: query });
+    return {
+      success: true,
+      data: result.data,
+      message: result.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      message: 'Network error'
+    };
   }
 }
 
-// Export gallery API service
-export const galleryApi = new GalleryApiService();
+/**
+ * Make an authenticated POST request
+ */
+export async function apiPost<T>(url: string, data?: any): Promise<ApiResponse<T>> {
+  try {
+    // Ensure we have a CSRF token
+    await fetchCsrfToken();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...addCsrfToken()
+      },
+      body: JSON.stringify(data)
+    });
 
-// Default API service
-export const apiService = new ApiService();
+    // If we get a CSRF error, try refreshing the token
+    if (response.status === 403) {
+      // Clone the response to avoid consuming the original body stream
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
+      if (result.message && result.message.includes('CSRF')) {
+        await refreshCsrfTokenIfNeeded();
+        // Retry the request with the new token
+        const retryResponse = await fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...addCsrfToken()
+          },
+          body: JSON.stringify(data)
+        });
+        return await handleResponse(retryResponse);
+      }
+    }
 
-export default apiClient;
+    return await handleResponse(response);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      message: 'Network error'
+    };
+  }
+}
+
+/**
+ * Make an authenticated POST request with FormData
+ */
+export async function apiPostFormData<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
+  try {
+    // Ensure we have a CSRF token
+    await fetchCsrfToken();
+    
+    // Debugging: Log the CSRF token
+    console.log('CSRF Token:', getCsrfToken());
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        ...addCsrfToken()
+        // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
+      },
+      body: formData
+    });
+
+    // Debugging: Log the response
+    console.log('Response status:', response.status);
+    console.log('Response headers:', [...response.headers.entries()]);
+    
+    // If we get a CSRF error, try refreshing the token
+    if (response.status === 403) {
+      // Clone the response to avoid consuming the original body stream
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
+      console.log('CSRF Error response:', result);
+      if (result.message && result.message.includes('CSRF')) {
+        await refreshCsrfTokenIfNeeded();
+        // Retry the request with the new token
+        const retryResponse = await fetch(url, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            ...addCsrfToken()
+            // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
+          },
+          body: formData
+        });
+        return await handleResponse(retryResponse);
+      }
+    }
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Error in apiPostFormData:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      message: 'Network error'
+    };
+  }
+}
+
+/**
+ * Make an authenticated PUT request
+ */
+export async function apiPut<T>(url: string, data?: any): Promise<ApiResponse<T>> {
+  try {
+    // Ensure we have a CSRF token
+    await fetchCsrfToken();
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...addCsrfToken()
+      },
+      body: JSON.stringify(data)
+    });
+
+    // If we get a CSRF error, try refreshing the token
+    if (response.status === 403) {
+      // Clone the response to avoid consuming the original body stream
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
+      if (result.message && result.message.includes('CSRF')) {
+        await refreshCsrfTokenIfNeeded();
+        // Retry the request with the new token
+        const retryResponse = await fetch(url, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...addCsrfToken()
+          },
+          body: JSON.stringify(data)
+        });
+        return await handleResponse(retryResponse);
+      }
+    }
+
+    return await handleResponse(response);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      message: 'Network error'
+    };
+  }
+}
+
+/**
+ * Make an authenticated PUT request with FormData
+ */
+export async function apiPutFormData<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
+  try {
+    // Ensure we have a CSRF token
+    await fetchCsrfToken();
+    
+    // Debugging: Log the CSRF token
+    console.log('CSRF Token:', getCsrfToken());
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        ...addCsrfToken()
+        // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
+      },
+      body: formData
+    });
+
+    // Debugging: Log the response
+    console.log('Response status:', response.status);
+    console.log('Response headers:', [...response.headers.entries()]);
+    
+    // If we get a CSRF error, try refreshing the token
+    if (response.status === 403) {
+      // Clone the response to avoid consuming the original body stream
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
+      console.log('CSRF Error response:', result);
+      if (result.message && result.message.includes('CSRF')) {
+        await refreshCsrfTokenIfNeeded();
+        // Retry the request with the new token
+        const retryResponse = await fetch(url, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            ...addCsrfToken()
+            // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
+          },
+          body: formData
+        });
+        return await handleResponse(retryResponse);
+      }
+    }
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Error in apiPutFormData:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      message: 'Network error'
+    };
+  }
+}
+
+/**
+ * Make an authenticated DELETE request
+ */
+export async function apiDelete<T>(url: string): Promise<ApiResponse<T>> {
+  try {
+    // Ensure we have a CSRF token
+    await fetchCsrfToken();
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...addCsrfToken()
+      }
+    });
+
+    // Handle case where DELETE returns no content (204)
+    if (response.status === 204) {
+      return {
+        success: true,
+        message: 'Deleted successfully'
+      };
+    }
+
+    // If we get a CSRF error, try refreshing the token
+    if (response.status === 403) {
+      // Clone the response to avoid consuming the original body stream
+      const clonedResponse = response.clone();
+      const result = await clonedResponse.json();
+      if (result.message && result.message.includes('CSRF')) {
+        await refreshCsrfTokenIfNeeded();
+        // Retry the request with the new token
+        const retryResponse = await fetch(url, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...addCsrfToken()
+          }
+        });
+        
+        // Handle case where DELETE returns no content (204) after retry
+        if (retryResponse.status === 204) {
+          return {
+            success: true,
+            message: 'Deleted successfully'
+          };
+        }
+        
+        return await handleResponse(retryResponse);
+      }
+    }
+
+    return await handleResponse(response);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      message: 'Network error'
+    };
+  }
+}
+
+/**
+ * Handle API response
+ */
+async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  const result = await response.json();
+  
+  if (!response.ok) {
+    return {
+      success: false,
+      error: result.message || 'Request failed',
+      message: result.message || 'Request failed'
+    };
+  }
+
+  return {
+    success: true,
+    data: result.data,
+    message: result.message
+  };
+}
+
+/**
+ * Handle authentication errors and redirect to login if needed
+ */
+export function handleAuthError(message: string | undefined): boolean {
+  if (message === 'Access denied. No token provided.' || 
+      message?.includes('Session expired') || 
+      message?.includes('Invalid token') ||
+      message?.includes('Unauthorized')) {
+    // Redirect to home page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+    return true;
+  }
+  return false;
+}

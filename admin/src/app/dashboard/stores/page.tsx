@@ -51,11 +51,10 @@ export default function StoresPage() {
   const fetchStores = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores/admin/all`, {
         credentials: 'include',
         headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
       
@@ -65,10 +64,8 @@ export default function StoresPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         // Get error details
@@ -213,14 +210,10 @@ export default function StoresPage() {
         : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores`;
 
       const method = editingStore ? 'PUT' : 'POST';
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
 
       const response = await fetch(url, {
         method,
         credentials: 'include',
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
         body: formData
       });
 
@@ -231,10 +224,8 @@ export default function StoresPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         // Try to get response text first to see what we're dealing with
@@ -247,38 +238,23 @@ export default function StoresPage() {
           console.log('Response headers:', Object.fromEntries(response.headers.entries()));
           
           if (responseText && responseText.trim()) {
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              // If JSON parsing fails, use the text as the error message
-              errorData = { message: responseText };
-            }
-      } else {
+            errorData = JSON.parse(responseText);
+          } else {
             errorData = { message: `Server error: ${response.status} ${response.statusText}` };
           }
-        } catch (e) {
-          console.error('Error reading response:', e);
-          errorData = { message: `Failed to read server response: ${response.status} ${response.statusText}` };
+        } catch (parseError) {
+          console.error('Error parsing response:', parseError);
+          errorData = { message: responseText || `Server error: ${response.status} ${response.statusText}` };
         }
         
-        // Handle validation errors
-        if (errorData.errors && Array.isArray(errorData.errors)) {
-          const errorMessages = errorData.errors.map((err: any) => err.msg || err.message || err).join(', ');
-          toast.error(errorMessages || 'Validation failed');
-        } else if (errorData.message) {
-          toast.error(errorData.message);
-      } else {
-          toast.error(`Failed to save store: ${response.status} ${response.statusText}`);
-        }
-        
-        console.error('Store creation/update error:', {
+        console.error('Failed to save store:', {
           status: response.status,
           statusText: response.statusText,
           errorData,
-          responseText,
-          hasResponseText: !!responseText,
-          responseTextLength: responseText?.length || 0
+          responseText
         });
+        
+        toast.error(errorData.message || `Failed to save store: ${response.status}`);
       }
     } catch (error) {
       console.error('Error saving store:', error);
@@ -306,10 +282,9 @@ export default function StoresPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to delete store');
@@ -323,12 +298,11 @@ export default function StoresPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores/${id}/toggle`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         }
       });
 
@@ -339,10 +313,9 @@ export default function StoresPage() {
       } else if (response.status === 401) {
         console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
+        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = '/';
         }
       } else {
         toast.error('Failed to toggle store status');

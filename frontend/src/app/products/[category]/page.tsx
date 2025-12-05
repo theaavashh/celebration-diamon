@@ -1,12 +1,20 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Filter, Grid, List, Search, Heart, ShoppingBag, X, User, MapPin, Settings, ArrowRight } from 'lucide-react';
+import { Filter, Search, X } from 'lucide-react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'next/navigation';
 
-// Product data structure
+// Interfaces
+interface Category {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  link: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -61,7 +69,8 @@ interface ApiProduct {
   orderDuration?: string;
 }
 
-const categoryTitles: { [key: string]: string } = {
+// Constants
+const CATEGORY_TITLES: Record<string, string> = {
   necklace: 'Diamond Necklaces',
   bracelet: 'Diamond Bracelets',
   earrings: 'Diamond Earrings',
@@ -70,7 +79,7 @@ const categoryTitles: { [key: string]: string } = {
   pendant: 'Diamond Pendants',
 };
 
-const categoryMapping: { [key: string]: string } = {
+const CATEGORY_MAPPING: Record<string, string> = {
   // Plural forms
   rings: 'Ring',
   necklaces: 'Necklace',
@@ -83,20 +92,9 @@ const categoryMapping: { [key: string]: string } = {
   bracelet: 'Bracelet',
   earring: 'Earring',
   pendant: 'Pendant',
-  // Case variations (normalized in code, but keeping for safety)
-  Ring: 'Ring',
-  Rings: 'Ring',
-  Necklace: 'Necklace',
-  Necklaces: 'Necklace',
-  Bracelet: 'Bracelet',
-  Bracelets: 'Bracelet',
-  Earring: 'Earring',
-  Earrings: 'Earring',
-  Pendant: 'Pendant',
-  Pendants: 'Pendant',
 };
 
-const categoryDescriptions: { [key: string]: string } = {
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   necklace: 'Discover our stunning collection of diamond necklaces, from delicate pendants to bold statement pieces',
   bracelet: 'Explore our exquisite collection of diamond bracelets, featuring elegant and timeless designs',
   earrings: 'Browse our beautiful collection of diamond earrings, from classic studs to dramatic chandeliers',
@@ -104,123 +102,130 @@ const categoryDescriptions: { [key: string]: string } = {
   pendant: 'Discover our collection of stunning diamond pendants, perfect for adding elegance to any outfit',
 };
 
+const SORT_OPTIONS = [
+  { value: 'featured', label: 'Featured' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'price-low-high', label: 'Price: Low to High' },
+  { value: 'price-high-low', label: 'Price: High to Low' },
+];
+
+const JIM_THOMPSON_SORT_MAPPING: Record<string, string> = {
+  'created-descending': 'newest',
+  'price-ascending': 'price-low-high',
+  'price-descending': 'price-high-low',
+  'manual': 'featured',
+};
+
 export default function CategoryPage() {
   const params = useParams();
   const categoryParam = params?.category as string | undefined;
   const category = categoryParam || '';
-  const displayName = categoryTitles[category] || `${category.charAt(0).toUpperCase() + category.slice(1)}`;
-  const displayDescription = categoryDescriptions[category] || `Browse our collection of ${displayName.toLowerCase()}`;
-
+  
+  // State
+  const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<string>('featured');
-  const [showCartModal, setShowCartModal] = useState(false);
-  const [cartStep, setCartStep] = useState<'service' | 'details'>('service');
-  const [showShareMenu, setShowShareMenu] = useState<string | null>(null);
-  const [selectedService, setSelectedService] = useState<string>('');
-  const [personalDetails, setPersonalDetails] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    preferredDate: '',
-    preferredTime: '',
-    additionalNotes: ''
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState({
+    priceRange: [0, 100000],
+    metal: [] as string[],
+    purity: [] as string[],
   });
 
-  // Fetch products from API
+  // Computed values
+  const matchingCategory = categories.find(cat => 
+    cat.title.toLowerCase() === category.toLowerCase() || 
+    cat.title.toLowerCase() === category.toLowerCase() + 's' ||
+    cat.title.toLowerCase() + 's' === category.toLowerCase()
+  );
+
+  const displayName = matchingCategory 
+    ? matchingCategory.title 
+    : (CATEGORY_TITLES[category] || `${category.charAt(0).toUpperCase() + category.slice(1)}`);
+    
+  const displayDescription = matchingCategory
+    ? `Browse our collection of ${matchingCategory.title.toLowerCase()}`
+    : (CATEGORY_DESCRIPTIONS[category] || `Browse our collection of ${displayName.toLowerCase()}`);
+
+  // Get unique filter options
+  const getUniqueOptions = (key: keyof Product) => {
+    return [...new Set(products.map(product => product[key]))] as string[];
+  };
+
+  const metalOptions = getUniqueOptions('metal');
+  const purityOptions = getUniqueOptions('purity');
+
+  // Fetch categories and products
   useEffect(() => {
     if (!category) {
-      console.warn('No category parameter found');
       setIsLoading(false);
       return;
     }
 
-    const fetchProducts = async () => {
+    const fetchCategoriesAndProducts = async () => {
       try {
         setIsLoading(true);
-        // Normalize category to lowercase for mapping lookup
-        const normalizedCategory = category.toLowerCase();
-        // Map frontend category to API category
-        const apiCategory = categoryMapping[normalizedCategory] || categoryMapping[category] || category;
-        console.log('=== PRODUCT FETCH DEBUG ===');
-        console.log('Raw category from URL:', category);
-        console.log('Normalized category:', normalizedCategory);
-        console.log('Mapped API category:', apiCategory);
         
+        // Fetch categories
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
-        const apiUrl = `${apiBaseUrl}/products?category=${encodeURIComponent(apiCategory)}&limit=100`;
-        console.log('API URL:', apiUrl);
+        const categoriesResponse = await fetch(`${apiBaseUrl}/categories`);
+        let fetchedCategories: Category[] = [];
         
-        let response;
-        try {
-          response = await fetch(apiUrl);
-        } catch (fetchError) {
-          console.error('=== FETCH ERROR ===');
-          console.error('Failed to connect to API:', fetchError);
-          console.error(`Make sure the API server is running on ${apiBaseUrl}`);
-          setProducts([]);
-          return;
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          if (categoriesData.success && categoriesData.data) {
+            fetchedCategories = categoriesData.data;
+            setCategories(fetchedCategories);
+          }
         }
         
+        // Find category ID
+        let categoryId = '';
+        const normalizedCategory = category.toLowerCase();
+        
+        const exactMatch = fetchedCategories.find(cat => 
+          cat.title.toLowerCase() === normalizedCategory || 
+          cat.title.toLowerCase() === normalizedCategory + 's' ||
+          cat.title.toLowerCase() + 's' === normalizedCategory
+        );
+        
+        if (exactMatch) {
+          categoryId = exactMatch.id;
+        } else {
+          const partialMatch = fetchedCategories.find(cat => 
+            cat.title.toLowerCase().includes(normalizedCategory)
+          );
+          
+          if (partialMatch) {
+            categoryId = partialMatch.id;
+          } else {
+            const apiCategory = CATEGORY_MAPPING[normalizedCategory] || CATEGORY_MAPPING[category] || category;
+            
+            const mappedMatch = fetchedCategories.find(cat => 
+              cat.title.toLowerCase() === apiCategory.toLowerCase()
+            );
+            
+            categoryId = mappedMatch ? mappedMatch.id : apiCategory;
+          }
+        }
+        
+        // Fetch products
+        const apiUrl = `${apiBaseUrl}/products?category=${encodeURIComponent(categoryId)}`;
+        const response = await fetch(apiUrl);
+        
         if (!response.ok) {
-          console.error('=== API RESPONSE ERROR ===');
-          console.error('Status:', response.status, response.statusText);
-          const errorText = await response.text();
-          console.error('Error response:', errorText);
           setProducts([]);
           return;
         }
         
         const data = await response.json();
-        console.log('=== API RESPONSE ===');
-        console.log('Full response:', data);
         
         if (data.success) {
           const productsData = data.data || [];
-          console.log('Products fetched:', productsData);
-          console.log('Number of products:', productsData.length);
-          
-          // Filter only active products (in case API doesn't filter)
           const activeProducts = productsData.filter((product: ApiProduct) => product.isActive !== false);
-          console.log('Active products:', activeProducts);
-          console.log('Active products count:', activeProducts.length);
           
-          if (activeProducts.length === 0) {
-            console.warn('No active products found for category:', apiCategory);
-            // Try fetching all products to see what categories exist
-            try {
-              const allResponse = await fetch(`${apiBaseUrl}/products?limit=100`);
-              if (allResponse.ok) {
-                const allData = await allResponse.json();
-                if (allData.success && allData.data) {
-                  console.log('All products in database:', allData.data.map((p: ApiProduct) => ({ 
-                    name: p.name, 
-                    category: p.category, 
-                    isActive: p.isActive 
-                  })));
-                  // Check if there are any products with the expected category
-                  const matchingProducts = allData.data.filter((p: ApiProduct) => 
-                    p.category && p.category.toLowerCase() === apiCategory.toLowerCase()
-                  );
-                  console.log(`Products with category "${apiCategory}":`, matchingProducts.map((p: ApiProduct) => ({
-                    name: p.name,
-                    category: p.category,
-                    isActive: p.isActive
-                  })));
-                }
-              }
-            } catch (err) {
-              console.error('Error fetching all products:', err);
-            }
-          }
-          
-          // Map API data to local Product interface
           const mappedProducts = activeProducts.map((product: ApiProduct) => ({
             id: product.id,
             name: product.name,
@@ -240,7 +245,7 @@ export default function CategoryPage() {
             inStock: product.stock > 0,
             isNew: product.isNew || false,
             isSale: product.isSale || false,
-            metal: 'Gold',
+            metal: product.metalType || 'Gold',
             purity: '18K',
             caratWeight: '1.00 CTW',
             clarity: 'VS2',
@@ -253,264 +258,369 @@ export default function CategoryPage() {
             certification: 'GIA',
             warranty: 'Lifetime'
           }));
-          console.log('Mapped products:', mappedProducts);
+          
           setProducts(mappedProducts);
         } else {
-          console.error('=== API RESPONSE ERROR ===');
-          console.error('API returned success: false');
-          console.error('Response data:', data);
           setProducts([]);
-          
-          // Try fetching all products to debug
-          try {
-            const allProductsResponse = await fetch(`${apiBaseUrl}/products?limit=100`);
-            if (allProductsResponse.ok) {
-              const allProductsData = await allProductsResponse.json();
-              console.log('All products (for debugging):', allProductsData);
-              if (allProductsData.success && allProductsData.data) {
-                console.log('Available categories:', [...new Set(allProductsData.data.map((p: ApiProduct) => p.category))]);
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching all products for debugging:', err);
-          }
         }
       } catch (error) {
-        console.error('Error fetching products:', error);
         setProducts([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchProducts();
+    fetchCategoriesAndProducts();
   }, [category]);
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  });
+  // Update sort by from URL query parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sortParam = urlParams.get('sort_by');
+    if (sortParam && JIM_THOMPSON_SORT_MAPPING[sortParam]) {
+      setSortBy(JIM_THOMPSON_SORT_MAPPING[sortParam]);
+    }
+  }, []);
 
-  // Sort products
+  // Handle sort change
+  const handleSortChange = (value: string) => {
+    setSortBy(value);
+    
+    const url = new URL(window.location.href);
+    
+    const sortParam = Object.keys(JIM_THOMPSON_SORT_MAPPING).find(
+      key => JIM_THOMPSON_SORT_MAPPING[key] === value
+    ) || 'manual';
+    
+    if (sortParam !== 'manual') {
+      url.searchParams.set('sort_by', sortParam);
+    } else {
+      url.searchParams.delete('sort_by');
+    }
+    
+    window.history.replaceState({}, '', url.toString());
+  };
+
+  // Filter handlers
+  const handleMetalFilterChange = (metal: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      metal: prev.metal.includes(metal)
+        ? prev.metal.filter(m => m !== metal)
+        : [...prev.metal, metal]
+    }));
+  };
+
+  const handlePurityFilterChange = (purity: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      purity: prev.purity.includes(purity)
+        ? prev.purity.filter(p => p !== purity)
+        : [...prev.purity, purity]
+    }));
+  };
+
+  const handlePriceRangeChange = (min: number, max: number) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      priceRange: [min, max]
+    }));
+  };
+
+  const clearFilters = () => {
+    setSelectedFilters({
+      priceRange: [0, 100000],
+      metal: [],
+      purity: [],
+    });
+  };
+
+  // Filter and sort products
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
       case "newest":
         return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+      case "price-low-high":
+        return a.price - b.price;
+      case "price-high-low":
+        return b.price - a.price;
       default:
         return 0;
     }
   });
 
-  const handleAddToCart = (product: Product) => {
-    setSelectedProduct(product);
-    setShowCartModal(true);
-    setCartStep('service');
-    setSelectedService('');
-    setPersonalDetails({
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-      preferredDate: '',
-      preferredTime: '',
-      additionalNotes: ''
-    });
-  };
-
-  const handleServiceSelection = (service: string) => {
-    setSelectedService(service);
-    setCartStep('details');
-  };
-
-  const handlePersonalDetailsSubmit = () => {
-    console.log('Service:', selectedService);
-    console.log('Product:', selectedProduct);
-    console.log('Personal Details:', personalDetails);
+  const filteredAndSortedProducts = sortedProducts.filter((product: Product) => {
+    // Price filter
+    if (product.price < selectedFilters.priceRange[0] || product.price > selectedFilters.priceRange[1]) {
+      return false;
+    }
     
-    setShowCartModal(false);
-    alert('Thank you! We will contact you soon to arrange your appointment.');
-  };
+    // Metal filter
+    if (selectedFilters.metal.length > 0 && !selectedFilters.metal.includes(product.metal)) {
+      return false;
+    }
+    
+    // Purity filter
+    if (selectedFilters.purity.length > 0 && !selectedFilters.purity.includes(product.purity)) {
+      return false;
+    }
+    
+    return true;
+  });
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-amber-50/30 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading products...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-light tracking-widest text-sm">LOADING</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-amber-50/30">
-       {/* Fixed Header */}
-       <div className="relative top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm mt-16">
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-           <div className="flex items-center gap-4 mb-4">
-            <Link href="/products" className="flex items-center gap-2 text-amber-600 hover:text-amber-700 transition-colors">
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-               </svg>
-               <span className="text-sm sm:text-base">Back to Collections</span>
+    <div className="min-h-screen bg-white font-sans">
+      {/* Breadcrumb and Header */}
+      <div className="bg-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-2xl">
+          <div className="flex items-center gap-2 mb-6">
+            <Link href="/products" className="text-gray-600 hover:text-gray-900 transition-colors font-light tracking-widest font-sans">
+              HOME
             </Link>
+            <span className="text-2xl text-gray-400 font-sans">/</span>
+            <span className="text-2xl text-gray-900 font-light tracking-widest font-sans">{displayName.toUpperCase()}</span>
           </div>
-           <div className="text-center space-y-2 sm:space-y-3">
-             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-black jimthompson">
-              {displayName}
+          <div className="text-left">
+            <h1 className="text-2xl sm:text-3xl font-light text-gray-900 tracking-widest mb-3 jimthompson">
+              {displayName.toUpperCase()}
             </h1>
-             <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto px-4">
-              {displayDescription}
-            </p>
           </div>
         </div>
       </div>
 
-      {/* Products Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filter Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-amber-700 transition-colors font-medium"
-          >
-            <Filter className="w-5 h-5" />
-            <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
-          </button>
-        </div>
-
-        {/* Products */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {sortedProducts.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow group"
-            >
-              <div 
-                className="relative aspect-square overflow-hidden bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  setSelectedProduct(product);
-                  setShowImageModal(true);
-                }}
-              >
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                {product.isNew && (
-                  <div className="absolute top-3 left-3 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                    New
-                  </div>
-                )}
-                {product.isSale && (
-                  <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                    Sale
-                  </div>
-                )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Main Content */}
+          <div className="w-full">
+            {/* Filter and Sorting Controls */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+              <div className="text-2xl text-gray-700 font-light font-sans">
+                {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''}
               </div>
               
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-2 jimthompson">{product.name}</h3>
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{product.description}</p>
+              <div className="flex flex-wrap gap-6">
+                <button 
+                  onClick={() => setShowFilters(true)}
+                  className="flex items-center gap-2 text-2xl font-light tracking-widest font-sans"
+                >
+                  <Filter className="w-4 h-4" />
+                  FILTER
+                </button>
                 
-                <div className="flex items-center gap-2">
+                <div className="relative">
+                  <select 
+                    value={sortBy}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="appearance-none bg-transparent border-none py-1 pl-0 pr-4 text-sm focus:outline-none focus:border-black font-light cursor-pointer font-sans"
+                  >
+                    {SORT_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value} className="font-sans">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-700">
+                    <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Products Grid */}
+            {filteredAndSortedProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="text-gray-200 mb-6">
+                  <Search className="w-12 h-12 mx-auto" />
+                </div>
+                <h3 className="text-lg font-light text-gray-900 mb-3 tracking-widest font-sans">NO PRODUCTS FOUND</h3>
+                <p className="text-gray-600 text-sm font-light tracking-widest font-sans">PLEASE TRY DIFFERENT FILTERS</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredAndSortedProducts.map((product: Product) => (
                   <Link 
                     href={`/products/${category}/${product.id}`}
-                    className="flex-1 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors font-medium text-center flex items-center justify-center gap-2"
+                    key={product.id} 
+                    className="group cursor-pointer"
                   >
-                    Explore Details
-                    <ArrowRight className="w-4 h-4" />
+                    <div className="relative overflow-hidden bg-gray-50 aspect-square">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-700"
+                      />
+                      {product.isNew && (
+                        <div className="absolute top-3 left-3 bg-white text-black px-2 py-1 text-xs font-light tracking-widest font-sans">
+                          NEW
+                        </div>
+                      )}
+                      {product.isSale && (
+                        <div className="absolute top-3 right-3 bg-black text-white px-2 py-1 text-xs font-light tracking-widest font-sans">
+                          SALE
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="mt-4">
+                      <h3 className="font-light text-sm text-gray-900 group-hover:text-gray-700 transition-colors tracking-wide font-sans">
+                        {product.name}
+                      </h3>
+                      <div className="mt-1">
+                        <span className="text-sm font-light text-gray-900 font-sans">
+                          ${product.price.toLocaleString()}
+                          {product.originalPrice && product.originalPrice > product.price && (
+                            <span className="text-xs text-gray-500 line-through ml-2 font-sans">
+                              ${product.originalPrice.toLocaleString()}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
                   </Link>
-                  <button 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleAddToCart(product);
-                    }}
-                    className="bg-amber-600 text-white p-2 rounded-lg hover:bg-amber-700 transition-colors"
-                  >
-                    <ShoppingBag className="w-5 h-5" />
-                  </button>
-                </div>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-
-        {sortedProducts.length === 0 && !isLoading && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <Search className="w-16 h-16 mx-auto" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2 jimthompson">No products found</h3>
-            <p className="text-gray-600 mb-4">Try adjusting your filters or search terms</p>
-            <div className="text-sm text-gray-500 mt-4">
-              <p>Debug info: Category &#34;{category}&#34; mapped to &#34;{categoryMapping[category] || category}&#34;</p>
-              <p className="mt-2">Check browser console (F12) for detailed API response logs</p>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Image Modal */}
-      <AnimatePresence>
-        {showImageModal && selectedProduct && (
-          <motion.div
-            className="fixed inset-0 bg-black/90 flex items-center justify-center p-4"
-            style={{ zIndex: 9999 }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowImageModal(false)}
-          >
-            <motion.div
-              className="relative max-w-7xl w-full max-h-[90vh] flex items-center justify-center"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close Button - Top Right */}
-              <button
-                onClick={() => setShowImageModal(false)}
-                className="absolute top-4 right-4 z-[10000] text-white hover:text-gray-200 transition-all duration-200 bg-black/50 hover:bg-black/70 rounded-full p-3 backdrop-blur-sm"
-                style={{ zIndex: 10000 }}
-              >
-                <X className="w-6 h-6" />
-              </button>
+      {/* Filter Modal */}
+      {showFilters && (
+        <div className="fixed inset-0 z-[9999] overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden">
+            {/* Background overlay */}
+            <div 
+              className="absolute inset-0 bg-black/30 transition-opacity"
+              onClick={() => setShowFilters(false)}
+            />
+            
+            {/* Filter panel */}
+            <div className="absolute inset-y-0 right-0 max-w-full flex z-[10000]">
+              <div className="relative w-screen max-w-md">
+                <div className="h-full flex flex-col bg-white shadow-xl">
+                  <div className="flex-1 overflow-y-auto py-6 px-4 sm:px-6">
+                    <div className="flex items-start justify-between">
+                      <h2 className="text-lg font-light tracking-widest font-sans">FILTERS</h2>
+                      <button 
+                        onClick={() => setShowFilters(false)}
+                        className="ml-3 h-7 flex items-center justify-center"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
 
-              {/* Product Image */}
-              <div className="relative w-full h-[90vh] flex items-center justify-center">
-                <Image
-                  src={selectedProduct.image}
-                  alt={selectedProduct.name}
-                  fill
-                  className="object-contain"
-                />
-              </div>
+                    <div className="mt-8">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-sm font-light tracking-widest font-sans">FILTERS</h3>
+                        <button 
+                          onClick={clearFilters}
+                          className="text-xs text-gray-600 hover:text-gray-900 font-light font-sans"
+                        >
+                          Clear all
+                        </button>
+                      </div>
 
-              {/* Product Info Overlay */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent p-8">
-                <h2 className="text-3xl font-bold text-white mb-2 jimthompson">{selectedProduct.name}</h2>
-                <p className="text-white/80 mb-4">{selectedProduct.description}</p>
-                <div className="flex items-center gap-4">
-                  <Link 
-                    href={`/products/${category}/${selectedProduct.id}`}
-                    onClick={() => setShowImageModal(false)}
-                    className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-colors duration-200"
-                  >
-                    Explore Details
-                  </Link>
+                      {/* Price Range Filter */}
+                      <div className="mb-6">
+                        <h3 className="text-xs font-light tracking-widest mb-3 font-sans">PRICE RANGE</h3>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={selectedFilters.priceRange[0]}
+                            onChange={(e) => handlePriceRangeChange(Number(e.target.value), selectedFilters.priceRange[1])}
+                            className="border border-gray-300 p-1 text-xs w-20 font-sans"
+                            placeholder="Min"
+                          />
+                          <span className="text-xs font-sans">-</span>
+                          <input
+                            type="number"
+                            value={selectedFilters.priceRange[1]}
+                            onChange={(e) => handlePriceRangeChange(selectedFilters.priceRange[0], Number(e.target.value))}
+                            className="border border-gray-300 p-1 text-xs w-20 font-sans"
+                            placeholder="Max"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Metal Filter */}
+                      <div className="mb-6">
+                        <h3 className="text-xs font-light tracking-widest mb-3 font-sans">METAL</h3>
+                        <div className="space-y-2">
+                          {metalOptions.map(metal => (
+                            <div key={metal} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`metal-${metal}`}
+                                checked={selectedFilters.metal.includes(metal)}
+                                onChange={() => handleMetalFilterChange(metal)}
+                                className="mr-2 h-3 w-3"
+                              />
+                              <label htmlFor={`metal-${metal}`} className="text-xs font-light font-sans">
+                                {metal}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Purity Filter */}
+                      <div className="mb-6">
+                        <h3 className="text-xs font-light tracking-widest mb-3 font-sans">PURITY</h3>
+                        <div className="space-y-2">
+                          {purityOptions.map(purity => (
+                            <div key={purity} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`purity-${purity}`}
+                                checked={selectedFilters.purity.includes(purity)}
+                                onChange={() => handlePurityFilterChange(purity)}
+                                className="mr-2 h-3 w-3"
+                              />
+                              <label htmlFor={`purity-${purity}`} className="text-xs font-light font-sans">
+                                {purity}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-gray-200 py-4 px-4 sm:px-6">
+                    <button
+                      type="button"
+                      className="w-full bg-black text-white py-3 text-sm font-light tracking-widest font-sans"
+                      onClick={() => setShowFilters(false)}
+                    >
+                      APPLY FILTERS
+                    </button>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

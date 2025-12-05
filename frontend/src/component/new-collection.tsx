@@ -123,24 +123,33 @@ const NewCollection = () => {
   }
 
   return (
-    <section className="w-full pt-2 sm:pt-3 md:pt-4 pb-8 px-4 sm:px-6 md:px-16 ">
-      <div className="text-center mb-6 sm:mb-8">
-        <h2 className="text-xl sm:text-4xl font-bold jimthompson text-gray-800">NEW ARRIVALS</h2>
-      </div>
+    <section className="w-full pt-2 sm:pt-3 md:pt-4 pb-8 px-4 sm:px-6 md:px-16 bg-white ">
+      {/* Two-column layout */}
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+        {/* Left Static Information Section */}
+        <div className="lg:w-1/3 flex flex-col justify-center text-center">
+          <h2 className=" text-2xl sm:text-4xl  font-bold jimthompson text-gray-800 mb-4">
+            NEW ARRIVALS
+          </h2>
+          <p className="text-gray-600 text-base sm:text-lg mb-6 font-sans">
+            Discover our latest collection of exquisite diamond jewelry, crafted with precision and designed to captivate.
+          </p>
+         
+        </div>
 
-
-      {/* Product Cards */}
-      <div className="flex gap-4 sm:gap-6 md:gap-8 overflow-x-auto overflow-y-hidden pb-4 scroll-smooth no-scrollbar">
+        {/* Right Scrollable Product Display Section */}
+        <div className="lg:w-2/3">
+          <div className="flex gap-4 sm:gap-6 md:gap-8 overflow-x-auto overflow-y-hidden pb-4 scroll-smooth no-scrollbar">
         {filteredProducts.map((item, idx) => (
           <div
             key={idx}
-            className="group relative flex-shrink-0 w-[280px] sm:w-[320px] md:w-[450px] lg:w-[500px]"
+            className="group relative flex-shrink-0 w-[300px] sm:w-[350px] md:w-[400px]"
             onMouseMove={(e) => handleMouseMove(e, idx)}
             onMouseLeave={handleMouseLeave}
           >
             {/* New In Badge */}
             {item.isNew && (
-              <div className="absolute top-4 left-4 z-10 bg-black text-white text-xs px-3 py-1 rounded-sm font-medium">
+              <div className="absolute top-4 left-0 z-10 bg-black text-white text-xs px-3 py-1 font-medium">
                 New In
               </div>
             )}
@@ -149,13 +158,13 @@ const NewCollection = () => {
             <div className="relative">
               <Link 
                 href={`/products/${item.category.toLowerCase()}/${item.id}`}
-                className="relative w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] overflow-hidden mb-3 sm:mb-4 rounded-lg bg-gray-100 group cursor-pointer block"
+                className="relative w-full h-[450px] sm:h-[500px] md:h-[550px] overflow-hidden mb-3 sm:mb-4 bg-gray-100 group cursor-pointer block"
                 onMouseMove={(e) => handleMouseMove(e, idx)}
                 onMouseLeave={handleMouseLeave}
               >
               {/* Main Image */}
               <Image
-                src={item.icon}
+                src={`${item.icon}?_t=${Date.now()}`}
                 alt={item.label}
                 fill
                 sizes="(max-width: 768px) 80vw, (max-width: 1200px) 40vw, 25vw"
@@ -165,38 +174,9 @@ const NewCollection = () => {
                 }}
               />
               
-              {/* Hover Detail View - appears on the right side */}
-              {hoveredIndex === idx && (
-                <Link 
-                  href={`/products/${item.category.toLowerCase()}/${item.id}`}
-                  className="absolute -right-4 top-0 w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 bg-white rounded-2xl shadow-2xl border-4 border-white overflow-hidden z-20 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300 cursor-pointer block"
-                >
-                  <Image
-                    src={item.icon}
-                    alt={item.label}
-                    fill
-                    sizes="200px"
-                    className="object-cover scale-150"
-                    style={{
-                      transform: `scale(2.5) translate(${-mousePosition.x * 0.3}px, ${-mousePosition.y * 0.3}px)`,
-                      transformOrigin: 'center center'
-                    }}
-                  />
-                  {/* Detail indicator */}
-                  <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                    Click to View
-                  </div>
-                </Link>
-              )}
+             
               
-              {/* Hover overlay with zoom icon */}
-              <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/90 rounded-full p-3 transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                  </svg>
-                </div>
-              </div>
+            
             </Link>
             </div>
 
@@ -223,6 +203,8 @@ const NewCollection = () => {
           </div>
         ))}
       </div>
+        </div>
+      </div>
 
       {/* Product Modal */}
       {modalOpen && selectedProduct && (
@@ -241,7 +223,7 @@ const NewCollection = () => {
               {/* Image Section */}
               <div className="relative h-[400px] lg:h-[600px] bg-gray-100">
                 <Image
-                  src={selectedProduct.icon}
+                  src={`${selectedProduct.icon}?_t=${Date.now()}`}
                   alt={selectedProduct.label}
                   fill
                   sizes="(max-width: 1024px) 100vw, 50vw"

@@ -9,7 +9,7 @@ import PopupModal from '@/component/PopupModal'
 import React from 'react'
 import Image from 'next/image'
 
-import Section from '@/component/banner'
+import Banner from '@/component/banner'
 import BridgePlanning from '@/component/bridge-planning'
 import CultureCollection from '@/component/CulturalTriptych'
 import HowItWorks from '@/component/how-it-works'
@@ -18,31 +18,29 @@ import WeddingPlanning from '@/component/wedding-planning'
 import TestimonialsSection from '@/component/testimonials-section'
 import SelfExpression from '@/component/self-expression'
 import VisitStore from '@/component/visit-store'
+import ConfidentShop from '@/component/confident-shop'
+import Shop from '@/component/shop'
+import CelebrationHero from '@/component/celebration-hero'
+import ProductCarousel from '@/component/product-carousel'
 
 const HomePage = () => {
   return (
    <>
    <PopupModal />
    <HeroSection/>
+   <Category/>
+   <Banner/>
+   <NewCollection/>
+   {/* <HeroSection/>
     <Category/>
+     <Banner/>
      <NewCollection/>
      <AboutUs/>
+     <ProductCarousel products={[]} title="Featured Products" subtitle="Explore our latest arrivals and exclusive offers." />
      <WeddingPlanning/>
      <SelfExpression/>
      <VisitStore/>
-   {/* Banner Section */}
-   <section className="w-full py-8 sm:py-12 md:py-16 px-4 sm:px-6 md:px-16 ">
-     <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] relative overflow-hidden rounded-lg">
-       <Image 
-         src="/image copy.png" 
-         alt="Banner" 
-         fill
-         className="object-cover"
-       />
-     </div>
-   </section>
-
-   <Section/>
+   */}
 
    {/* <TabsSection/> */}
 
@@ -51,21 +49,21 @@ const HomePage = () => {
 
     
      
-     <BridgePlanning/>
+     {/* <BridgePlanning/>
 
      <CultureCollection/>
-     
+      */}
 
      
    
 
 
      {/* Three Cards Section */}
-      <section className="w-full py-12 sm:py-16 md:py-20 px-8 sm:px-12 md:px-20 lg:px-24 bg-white">
+      {/* <section className="w-full py-12 sm:py-16 md:py-20 px-8 sm:px-12 md:px-20 lg:px-24 bg-white">
        <div className="max-w-7xl mx-auto">
          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
            {/* Customer Care Card */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            {/* <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
              <div className="flex justify-between items-start mb-4">
                <h3 className="text-lg font-bold text-black uppercase tracking-wide">Customer Care</h3>
                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -80,10 +78,10 @@ const HomePage = () => {
              <a href="#" className="text-sm text-black underline hover:text-gray-600 transition-colors">
                Learn More
              </a>
-           </div> 
+           </div>  */}
 
            {/* Appointments Card */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            {/* <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
              <div className="flex justify-between items-start mb-4">
                <h3 className="text-lg font-bold text-black uppercase tracking-wide">Appointments</h3>
                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -98,10 +96,10 @@ const HomePage = () => {
              <a href="#" className="text-sm text-black underline hover:text-gray-600 transition-colors">
                Request an Appointment
              </a>
-           </div>
+           </div> */}
 
            {/* Bridal Services Card */}
-            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            {/* <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
              <div className="flex justify-between items-start mb-4">
                <h3 className="text-lg font-bold text-black uppercase tracking-wide">Bridal Services</h3>
                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -116,18 +114,22 @@ const HomePage = () => {
              <a href="#" className="text-sm text-black underline hover:text-gray-600 transition-colors">
                Learn More
              </a>
-           </div> 
-          </div> 
-        </div> 
-      </section> 
+           </div>  */}
+          {/* </div>  */}
+        {/* </div>  */}
+      {/* </section>   */}
 
-      <CustomRing />
-      <DiamondCertification />
+      {/* <CelebrationHero/> */}
 
-     <HowItWorks/>
-     <FAQ />
-     <TestimonialsSection/>
-     <SerenityGallery/> 
+      {/* <CustomRing /> */}
+      {/* <DiamondCertification /> */}
+
+     {/* <HowItWorks/>
+     <Shop/> */}
+     {/* <ConfidentShop/> */}
+   
+     {/* <TestimonialsSection/> */}
+     {/* <SerenityGallery/>  */}
    </>
   )
 }

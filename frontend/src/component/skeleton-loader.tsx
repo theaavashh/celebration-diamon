@@ -121,7 +121,7 @@ export function TopBannerSkeletonLoader() {
 // Hero section specific skeleton loader
 export function HeroSkeletonLoader() {
   return (
-    <section className="relative pt-0 w-full min-h-[90vh] flex flex-col justify-center items-center overflow-hidden bg-gradient-to-br from-white via-gray-50 to-amber-50/30">
+    <section className="relative pt-0 w-full min-h-[90vh] flex flex-col justify-center items-center overflow-hidden bg-[#f4f4f9]">
       <div className="relative z-10 w-full px-3 sm:px-4 md:px-6 lg:px-8 pt-20 sm:pt-0 md:pt-0 pb-4 sm:pb-6 md:pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 md:gap-8 lg:gap-16 xl:gap-20 items-center max-w-7xl mx-auto">
           {/* Left Side - Text Content Skeleton */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Loader = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -22,10 +22,10 @@ const Loader = () => {
       document.body.style.overflow = 'unset';
     }
 
-    // Start letter-by-letter replacement after 0.5 seconds
+    // Start letter-by-letter replacement immediately
     const startTimer = setTimeout(() => {
       setCurrentLetterIndex(0);
-    }, 500);
+    }, 0);
 
     // Hide loader after total time
     const loaderTimer = setTimeout(() => {
@@ -40,12 +40,12 @@ const Loader = () => {
     };
   }, [isLoading]);
 
-  // Handle letter-by-letter animation
+  // Handle main title letter-by-letter animation
   useEffect(() => {
     if (currentLetterIndex >= 0 && currentLetterIndex < letters.length) {
       const timer = setTimeout(() => {
         setCurrentLetterIndex(prev => prev + 1);
-      }, 80); // 80ms delay between each letter (faster)
+      }, 50); // 50ms delay between each letter for smoother animation
 
       return () => clearTimeout(timer);
     }
@@ -53,145 +53,132 @@ const Loader = () => {
 
   // Handle subtitle letter-by-letter animation
   useEffect(() => {
-    if (currentLetterIndex >= letters.length - 1) {
-      // Start subtitle animation after main title is complete
+    // Start subtitle animation after main title animation begins
+    if (currentLetterIndex >= 2 && currentSubtitleLetterIndex === -1) {
       const subtitleTimer = setTimeout(() => {
         setCurrentSubtitleLetterIndex(0);
-      }, 200);
+      }, 20);
       
       return () => clearTimeout(subtitleTimer);
     }
-  }, [currentLetterIndex, letters.length]);
+  }, [currentLetterIndex, currentSubtitleLetterIndex]);
 
+  // Continue subtitle animation
   useEffect(() => {
     if (currentSubtitleLetterIndex >= 0 && currentSubtitleLetterIndex < subtitleLetters.length) {
       const timer = setTimeout(() => {
         setCurrentSubtitleLetterIndex(prev => prev + 1);
-      }, 100); // 100ms delay between each subtitle letter
+      }, 60); // 60ms delay between each subtitle letter for smoother animation
 
       return () => clearTimeout(timer);
     }
   }, [currentSubtitleLetterIndex, subtitleLetters.length]);
 
-  const letterVariants: Variants = {
-    white: {
-      color: "#ffffff",
-      opacity: 0.5,
-      scale: 1,
-      transition: {
-        duration: 0.05,
-        ease: "easeOut",
-      },
-    },
-    golden: {
-      color: "#D4AF37",
-      opacity: 1,
-      scale: 1.05,
-      textShadow: "0 0 20px rgba(212, 175, 55, 0.5)",
-      transition: {
-        duration: 0.15,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const subtitleLetterVariants: Variants = {
-    white: {
-      color: "#F4E4BC",
-      opacity: 0.5,
-      scale: 1,
-      transition: {
-        duration: 0.05,
-        ease: "easeOut",
-      },
-    },
-    golden: {
-      color: "#F4E4BC",
-      opacity: 1,
-      scale: 1.02,
-      textShadow: "0 0 15px rgba(244, 228, 188, 0.3)",
-      transition: {
-        duration: 0.15,
-        ease: "easeOut",
-      },
-    },
-  };
-
-
   return (
     <AnimatePresence>
       {isLoading && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[9999] w-full h-full flex items-center justify-center bg-black"
-          style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+          initial={{ height: "100vh", opacity: 1 }}
+          animate={{ height: "100vh", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ 
+            height: { duration: 1.5, ease: "easeInOut" },
+            opacity: { duration: 0.8 }
+          }}
+          className="fixed inset-0 z-[9999] w-full"
+          style={{ 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            backgroundColor: '#000000'
+          }}
         >
-          <div className="text-center w-full px-2 sm:px-4 max-w-full">
-            {/* Letter-by-letter replacement text */}
-            <motion.h1
-              className="loader-text text-2xl sm:text-3xl md:text-4xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-bold mb-2 sm:mb-4 flex justify-center flex-wrap leading-tight"
-            >
-              {letters.map((letter, index) => (
-                <motion.span
-                  key={index}
-                  variants={letterVariants}
-                  animate={index <= currentLetterIndex ? "golden" : "white"}
-                  className="inline-block"
-                  style={{
-                    textShadow: index <= currentLetterIndex ? "0 0 20px rgba(212, 175, 55, 0.5)" : "none"
-                  }}
-                >
-                  {letter === " " ? "\u00A0" : letter}
-                </motion.span>
-              ))}
-            </motion.h1>
-            
-            {/* Subtitle with letter-by-letter replacement */}
-            {currentLetterIndex >= letters.length - 1 && (
-              <motion.p
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="loader-subtitle text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl flex justify-center flex-wrap leading-tight"
+          <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ backgroundColor: '#000000' }}>
+            <div className="flex flex-col items-center justify-center w-full h-full max-w-full">
+              {/* Main title with letter-by-letter animation */}
+              <motion.h1 
+                className="loader-text text-2xl sm:text-3xl md:text-4xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-bold mb-2 sm:mb-4 flex justify-center flex-wrap leading-tight jimthompson"
+                initial={{ opacity: 1 }}
+                animate={{ opacity: 1 }}
+              >
+                {letters.map((letter, index) => (
+                  <motion.span
+                    key={index}
+                    initial={{ color: "#ffffff", opacity: 0.5, scale: 1 }}
+                    animate={{ 
+                      color: index < currentLetterIndex ? "#D4AF37" : "#ffffff",
+                      opacity: index < currentLetterIndex ? 1 : 0.5,
+                      scale: index < currentLetterIndex ? 1.05 : 1,
+                      textShadow: index < currentLetterIndex ? "0 0 20px rgba(212, 175, 55, 0.5)" : "none"
+                    }}
+                    transition={{ 
+                      duration: 0.15, 
+                      ease: "easeOut",
+                      color: { duration: 0.1 },
+                      opacity: { duration: 0.1 },
+                      scale: { duration: 0.1 }
+                    }}
+                    className="inline-block"
+                  >
+                    {letter === " " ? "\u00A0" : letter}
+                  </motion.span>
+                ))}
+              </motion.h1>
+              
+              {/* Subtitle with letter-by-letter animation */}
+              <motion.p 
+                className="loader-subtitle text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl flex justify-center flex-wrap leading-tight jimthompson"
+                initial={{ opacity: 1 }}
+                animate={{ opacity: 1 }}
               >
                 {subtitleLetters.map((letter, index) => (
                   <motion.span
                     key={index}
-                    variants={subtitleLetterVariants}
-                    animate={index <= currentSubtitleLetterIndex ? "golden" : "white"}
-                    className="inline-block"
-                    style={{
-                      textShadow: index <= currentSubtitleLetterIndex ? "0 0 15px rgba(244, 228, 188, 0.3)" : "none"
+                    initial={{ color: "#F4E4BC", opacity: 0.5, scale: 1 }}
+                    animate={{ 
+                      color: index < currentSubtitleLetterIndex ? "#F4E4BC" : "#F4E4BC",
+                      opacity: index < currentSubtitleLetterIndex ? 1 : 0.5,
+                      scale: index < currentSubtitleLetterIndex ? 1.02 : 1,
+                      textShadow: index < currentSubtitleLetterIndex ? "0 0 15px rgba(244, 228, 188, 0.3)" : "none"
                     }}
+                    transition={{ 
+                      duration: 0.15, 
+                      ease: "easeOut",
+                      color: { duration: 0.1 },
+                      opacity: { duration: 0.1 },
+                      scale: { duration: 0.1 }
+                    }}
+                    className="inline-block"
                   >
                     {letter === " " ? "\u00A0" : letter}
                   </motion.span>
                 ))}
               </motion.p>
-            )}
-            
-            {/* Spinner appears after subtitle animation is complete */}
-            {currentSubtitleLetterIndex >= subtitleLetters.length - 1 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ 
-                  opacity: 1, 
-                  scale: 1,
-                  rotate: [0, 360]
-                }}
-                transition={{ 
-                  opacity: { duration: 0.3, delay: 0.5 },
-                  scale: { duration: 0.3, delay: 0.5 },
-                  rotate: { duration: 0.8, repeat: Infinity, ease: "linear", delay: 0.8 }
-                }}
-                className="mt-8 flex justify-center"
-              >
-                <div className="loader-spinner"></div>
-              </motion.div>
-            )}
+              
+              {/* Spinner appears after subtitle animation is complete */}
+              {currentSubtitleLetterIndex >= Math.floor(subtitleLetters.length * 0.8) && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1,
+                    rotate: [0, 360]
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.3 },
+                    scale: { duration: 0.3 },
+                    rotate: { duration: 0.6, repeat: Infinity, ease: "linear" }
+                  }}
+                  className="mt-8 flex justify-center"
+                >
+                  <div className="loader-spinner-container" data-testid="loader-spinner-container">
+                    <div className="loader-spinner"></div>
+                    <div className="loader-spinner-inner"></div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </div>
         </motion.div>
       )}

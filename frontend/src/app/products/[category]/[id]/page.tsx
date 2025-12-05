@@ -23,12 +23,22 @@ interface Product {
   isNew?: boolean;
   isSale?: boolean;
   metalType?: string;
+  // Gold Fields
   goldWeight?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  // Diamond Fields
   diamondDetails?: string;
   diamondQuantity?: number | string;
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
+  // Other Fields
   otherGemstones?: string;
   orderDuration?: string;
 }
@@ -63,12 +73,22 @@ interface ApiProduct {
   isNew?: boolean;
   isSale?: boolean;
   metalType?: string;
+  // Gold Fields
   goldWeight?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  // Diamond Fields
   diamondDetails?: string;
   diamondQuantity?: number;
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
+  // Other Fields
   otherGemstones?: string;
   orderDuration?: string;
   description: string;
@@ -205,12 +225,22 @@ export default function ProductDetailPage() {
             isNew: product.isNew || false,
             isSale: product.isSale || false,
             metalType: product.metalType,
+            // Gold Fields
             goldWeight: product.goldWeight,
+            goldPurity: product.goldPurity,
+            goldType: product.goldType,
+            goldCraftsmanship: product.goldCraftsmanship,
+            goldDesignDescription: product.goldDesignDescription,
+            goldFinishedType: product.goldFinishedType,
+            goldStones: product.goldStones,
+            goldStoneQuality: product.goldStoneQuality,
+            // Diamond Fields
             diamondDetails: product.diamondDetails,
             diamondQuantity: product.diamondQuantity,
             diamondSize: product.diamondSize,
             diamondWeight: product.diamondWeight,
             diamondQuality: product.diamondQuality,
+            // Other Fields
             otherGemstones: product.otherGemstones,
             orderDuration: product.orderDuration
           });
@@ -264,11 +294,21 @@ export default function ProductDetailPage() {
               isNew: product.isNew || false,
               isSale: product.isSale || false,
               metalType: product.metalType,
+              // Gold Fields
               goldWeight: product.goldWeight,
+              goldPurity: product.goldPurity,
+              goldType: product.goldType,
+              goldCraftsmanship: product.goldCraftsmanship,
+              goldDesignDescription: product.goldDesignDescription,
+              goldFinishedType: product.goldFinishedType,
+              goldStones: product.goldStones,
+              goldStoneQuality: product.goldStoneQuality,
+              // Diamond Fields
               diamondQuantity: product.diamondQuantity,
               diamondSize: product.diamondSize,
               diamondWeight: product.diamondWeight,
               diamondQuality: product.diamondQuality,
+              // Other Fields
               otherGemstones: product.otherGemstones,
               orderDuration: product.orderDuration
             }));
@@ -486,7 +526,7 @@ export default function ProductDetailPage() {
                 {productImages.length > 0 ? (
                   <>
                     <Image
-                      src={productImages[activeImageIndex]}
+                      src={`${productImages[activeImageIndex]}?_t=${Date.now()}`}
                       alt={product.name}
                       fill
                       className="object-cover"
@@ -548,7 +588,7 @@ export default function ProductDetailPage() {
                       aria-label={`View image ${index + 1}`}
                     >
                       <Image
-                        src={image}
+                        src={`${image}?_t=${Date.now()}`}
                         alt={`${product.name} thumbnail ${index + 1}`}
                         fill
                         className="object-cover"
@@ -644,6 +684,67 @@ export default function ProductDetailPage() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Gold Details Section */}
+                    {(product.goldWeight || product.goldPurity || product.goldType || product.goldCraftsmanship || 
+                      product.goldDesignDescription || product.goldFinishedType || product.goldStones || product.goldStoneQuality) && (
+                      <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+                        <h4 className="font-semibold text-amber-800 mb-3 flex items-center">
+                          <span className="w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
+                          Gold Specifications
+                        </h4>
+                        <div className="space-y-3">
+                          {product.goldWeight && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Weight:</span>
+                              <span className="font-medium text-amber-900">{product.goldWeight}</span>
+                            </div>
+                          )}
+                          {product.goldPurity && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Purity:</span>
+                              <span className="font-medium text-amber-900">{product.goldPurity}</span>
+                            </div>
+                          )}
+                          {product.goldType && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Type:</span>
+                              <span className="font-medium text-amber-900">{product.goldType}</span>
+                            </div>
+                          )}
+                          {product.goldCraftsmanship && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Craftsmanship:</span>
+                              <span className="font-medium text-amber-900">{product.goldCraftsmanship}</span>
+                            </div>
+                          )}
+                          {product.goldDesignDescription && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Design Description:</span>
+                              <span className="font-medium text-amber-900">{product.goldDesignDescription}</span>
+                            </div>
+                          )}
+                          {product.goldFinishedType && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Finished Type:</span>
+                              <span className="font-medium text-amber-900">{product.goldFinishedType}</span>
+                            </div>
+                          )}
+                          {product.goldStones && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Stones:</span>
+                              <span className="font-medium text-amber-900">{product.goldStones}</span>
+                            </div>
+                          )}
+                          {product.goldStoneQuality && (
+                            <div className="flex justify-between py-2 border-b border-amber-100">
+                              <span className="text-amber-700">Stone Quality:</span>
+                              <span className="font-medium text-amber-900">{product.goldStoneQuality}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Enhanced Diamond Details Section */}
                     <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">

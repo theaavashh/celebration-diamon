@@ -57,10 +57,10 @@ const createHttpClient = (baseURL?: string): AxiosInstance => {
         
         switch (status) {
           case 401:
-            // Unauthorized - redirect to login
+            // Unauthorized - redirect to home page
             if (typeof window !== 'undefined') {
               localStorage.removeItem('token');
-              window.location.href = '/login';
+              window.location.href = '/';
             }
             break;
           case 403:

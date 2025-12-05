@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
+import { fetchCsrfToken, refreshCsrfTokenIfNeeded, startCsrfTokenRefresh, stopCsrfTokenRefresh } from '@/lib/csrfClient';
+
 interface User {
   id: string;
   email: string;
@@ -71,10 +73,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } else {
         console.log('Failed to fetch user, status:', response.status);
+        // Clear user state if not authenticated
+        setUser(null);
       }
       return false;
     } catch (error) {
       console.error('Error fetching current user:', error);
+      // Clear user state on error
+      setUser(null);
       return false;
     }
   }, []);
@@ -84,7 +90,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuth = async () => {
       console.log('Checking authentication...');
       setIsLoading(true);
-      await fetchCurrentUser();
+      const success = await fetchCurrentUser();
+      if (success) {
+        // If user is authenticated, start CSRF token refresh
+        startCsrfTokenRefresh();
+      }
       setIsLoading(false);
       console.log('Authentication check completed');
     };
@@ -155,6 +165,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.success && result.data) {
         // Backend should set httpOnly cookie, we only store user data in state
         setUser(result.data.admin);
+        
+        // Fetch CSRF token after successful login
+        await fetchCsrfToken();
+        
+        // Start periodic CSRF token refresh for authenticated users
+        startCsrfTokenRefresh();
+        
         setIsLoading(false);
         return true;
       }
@@ -175,7 +192,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     }
   };
-
+  
   const logout = async (): Promise<void> => {
     try {
       // Call logout endpoint to clear server-side session
@@ -191,13 +208,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Clear client-side state
       setUser(null);
+      
+      // Stop CSRF token refresh
+      stopCsrfTokenRefresh();
+      
       toast.success('Logged out successfully');
       router.push('/');
     }
   };
 
   const refreshUser = async (): Promise<void> => {
-    await fetchCurrentUser();
+    const success = await fetchCurrentUser();
+    if (success) {
+      // Refresh CSRF token when user session is validated
+      await refreshCsrfTokenIfNeeded();
+    }
   };
 
   const value: AuthContextType = {

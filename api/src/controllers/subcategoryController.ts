@@ -43,9 +43,12 @@ export const getSubcategoriesByCategoryId = async (req: Request, res: Response<A
         categoryId,
         isActive: true
       },
-      orderBy: { sortOrder: 'asc' }
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        category: true
+      }
     });
-
+    
     res.json({
       success: true,
       data: subcategories,
@@ -98,7 +101,7 @@ export const getSubcategoryById = async (req: Request, res: Response<ApiResponse
         category: true
       }
     });
-
+    
     if (!subcategory) {
       return res.status(404).json({
         success: false,
@@ -142,12 +145,19 @@ export const createSubcategory = async (req: Request<{}, ApiResponse<Subcategory
       });
     }
 
-    // Convert string boolean to actual boolean
-    const isActiveBoolean = isActive === 'true' || isActive === true;
+    // Convert various types to actual boolean
+    let isActiveBoolean = true;
+    if (typeof isActive === 'string') {
+      isActiveBoolean = isActive === 'true';
+    } else if (typeof isActive === 'number') {
+      isActiveBoolean = isActive === 1;
+    } else if (typeof isActive === 'boolean') {
+      isActiveBoolean = isActive;
+    }
     
     // Convert string to number for sortOrder
     const sortOrderNumber = typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder || 0;
-
+    
     const subcategory = await prisma.subcategory.create({
       data: {
         name,
@@ -181,9 +191,15 @@ export const updateSubcategory = async (req: Request<{ id: string }, ApiResponse
     const { id } = req.params;
     const updateData: any = { ...req.body };
 
-    // Convert string boolean to actual boolean if present
+    // Convert various types to actual boolean if present
     if (updateData.isActive !== undefined) {
-      updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
+      if (typeof updateData.isActive === 'string') {
+        updateData.isActive = updateData.isActive === 'true';
+      } else if (typeof updateData.isActive === 'number') {
+        updateData.isActive = updateData.isActive === 1;
+      } else if (typeof updateData.isActive === 'boolean') {
+        updateData.isActive = updateData.isActive;
+      }
     }
     
     // Convert string to number for sortOrder
@@ -252,10 +268,11 @@ export const deleteSubcategory = async (req: Request, res: Response<ApiResponse<
 };
 
 // Toggle subcategory status
-export const toggleSubcategoryStatus = async (req: Request, res: Response<ApiResponse<Subcategory>>) => {
+export const toggleSubcategoryStatus = async (req: Request<{ id: string }>, res: Response<ApiResponse<Subcategory>>) => {
   try {
     const { id } = req.params;
 
+    // Find the subcategory
     const subcategory = await prisma.subcategory.findUnique({
       where: { id }
     });
@@ -267,9 +284,12 @@ export const toggleSubcategoryStatus = async (req: Request, res: Response<ApiRes
       });
     }
 
+    // Toggle the isActive status
     const updatedSubcategory = await prisma.subcategory.update({
       where: { id },
-      data: { isActive: !subcategory.isActive },
+      data: {
+        isActive: !subcategory.isActive
+      },
       include: {
         category: true
       }
@@ -284,7 +304,7 @@ export const toggleSubcategoryStatus = async (req: Request, res: Response<ApiRes
     console.error('Error toggling subcategory status:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to toggle subcategory status',
+      message: 'Failed to update subcategory status',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
