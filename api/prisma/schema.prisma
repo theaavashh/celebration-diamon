@@ -234,6 +234,9 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   subcategories Subcategory[]
+  // Navigation images for product display
+  navImage1Url String? // Navigation image 1 URL
+  navImage2Url String? // Navigation image 2 URL
 
   @@map("categories")
 }

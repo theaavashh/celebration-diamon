@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from '@/components/ProductForm';
 import ProductPreviewModal from '@/components/ProductPreviewModal';
 import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X } from 'lucide-react';
+import { getCsrfToken } from '@/lib/csrfClient';
 
 interface ProductImage {
   id: string;
@@ -19,19 +20,22 @@ interface ProductImage {
   updatedAt: string;
 }
 
+// Enhanced Product interface with proper typing
 interface Product {
   id: string;
   productCode: string;
   name: string;
   description: string;
+  fullDescription?: string;
   category: string;
   subCategory?: string;
+  jewelryType?: string;
   price: number;
-  imageUrl?: string;
-  images?: ProductImage[];
   stock: number;
+  imageUrl?: string;
   isActive: boolean;
-  status: string; // "draft", "active", "inactive"
+  status: 'draft' | 'active' | 'inactive';
+  
   // Gold Fields
   goldWeight?: string;
   goldPurity?: string;
@@ -41,23 +45,34 @@ interface Product {
   goldFinishedType?: string;
   goldStones?: string;
   goldStoneQuality?: string;
+  
   // Diamond Fields
+  diamondType?: string;
+  diamondShapeCut?: string;
+  diamondColorGrade?: string;
+  diamondClarityGrade?: string;
+  diamondCutGrade?: string;
+  diamondMetalDetails?: string;
+  diamondCertification?: string;
+  diamondOrigin?: string;
+  diamondCaratWeight?: string;
   diamondDetails?: string;
   diamondQuantity?: number;
   diamondSize?: string;
   diamondWeight?: string;
   diamondQuality?: string;
-  // Other Fields
-  stoneWeight?: string;
-  caret?: string;
-  otherGemstones?: string;
+  
+  // Platinum Fields
+  platinumWeight?: string;
+  platinumType?: string;
+  
+  // Silver Fields
+  silverWeight?: string;
+  silverPurity?: string;
+  silverType?: string;
+  
+  // Additional Fields
   orderDuration?: string;
-  metalType?: string;
-  stoneType?: string;
-  settingType?: string;
-  size?: string;
-  color?: string;
-  finish?: string;
   digitalBrowser?: boolean;
   website?: boolean;
   distributor?: boolean;
@@ -66,11 +81,18 @@ interface Product {
   seoDescription?: string;
   seoKeywords?: string;
   seoSlug?: string;
+  images?: ProductImage[];
+  videoUrl?: string;
+  stoneWeight?: string;
+  caret?: string;
+  otherGemstones?: string;
+  metalType?: string;
+  stoneType?: string;
+  settingType?: string;
+  size?: string;
+  color?: string;
+  finish?: string;
   briefDescription?: string;
-  fullDescription?: string;
-  // Silver Fields
-  silverWeight?: string;
-  silverPurity?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -130,6 +152,28 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Reset current image index when preview product changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [previewProduct]);
+
+  // Handle keyboard navigation for image carousel
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isPreviewOpen || !previewProduct?.images || previewProduct.images.length <= 1) return;
+      
+      if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex(prev => (prev > 0 ? prev - 1 : previewProduct!.images!.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setCurrentImageIndex(prev => (prev < previewProduct.images!.length - 1 ? prev + 1 : 0));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPreviewOpen, previewProduct]);
 
   // Handle form changes
   const handleFormChange = (field: string, value: any) => {
@@ -161,11 +205,14 @@ export default function ProductsPage() {
   // Handle delete product
   const handleDelete = async (id: string) => {
     try {
+      const csrfToken = getCsrfToken();
+      
       const response = await fetch(getApiUrl(`/products/${id}`), {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'x-csrf-token': csrfToken })
         }
       });
 
@@ -201,12 +248,18 @@ export default function ProductsPage() {
   // Confirm delete
   const confirmDelete = () => {
     if (deleteConfirm.product) {
+      // Check if this is a bulk delete by checking if the product ID is empty (special case for bulk delete)
+      // and if we have selected products
       if (deleteConfirm.product.id === '' && selectedProducts.size > 0) {
         // Bulk delete
         confirmBulkDelete();
       } else {
-        // Single delete
-        handleDelete(deleteConfirm.product.id);
+        // Single delete - make sure we have a valid product ID
+        if (deleteConfirm.product.id) {
+          handleDelete(deleteConfirm.product.id);
+        } else {
+          toast.error('Invalid product ID');
+        }
       }
     }
   };
@@ -259,12 +312,15 @@ export default function ProductsPage() {
   // Handle bulk delete confirmation
   const confirmBulkDelete = async () => {
     try {
+      const csrfToken = getCsrfToken();
+      
       for (const id of selectedProducts) {
         await fetch(getApiUrl(`/products/${id}`), {
           method: 'DELETE',
           credentials: 'include',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(csrfToken && { 'x-csrf-token': csrfToken })
           }
         });
       }
@@ -282,11 +338,14 @@ export default function ProductsPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
+      const csrfToken = getCsrfToken();
+      
       const response = await fetch(getApiUrl(`/products/${id}/toggle`), {
         method: 'PATCH',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'x-csrf-token': csrfToken })
         }
       });
 
@@ -406,7 +465,7 @@ export default function ProductsPage() {
   const fetchSubcategories = async () => {
     try {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE_URL}/api/subcategories/admin/all`, {
+      const response = await fetch(`${API_BASE_URL}/api/categories/admin/all`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -416,7 +475,11 @@ export default function ProductsPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setSubcategories(data.data || []);
+        // Extract subcategories from categories
+        const allSubcategories = data.data?.flatMap((category: any) => 
+          category.subcategories || []
+        ) || [];
+        setSubcategories(allSubcategories);
       }
     } catch (error) {
       console.error('Error fetching subcategories:', error);
@@ -438,6 +501,8 @@ export default function ProductsPage() {
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
+    }
+  };
     }
   };
 
@@ -509,21 +574,77 @@ export default function ProductsPage() {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               {/* Left side - Product Image */}
-              <div className="relative aspect-square bg-gray-100 rounded-xl">
-                {previewProduct.images && previewProduct.images.length > 0 ? (
-                  <img
-                    src={previewProduct!.images[0].url.startsWith('http') ? previewProduct!.images[0].url : `http://localhost:5000${previewProduct!.images[0].url}`}
-                    alt={previewProduct!.name}
-                    className="object-cover w-full h-full rounded-xl shadow-lg"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = 'https://via.placeholder.com/400x400?text=No+Image';
-                    }}
-                  />
+              <div className="relative aspect-square bg-gray-100 rounded-xl group">
+                {previewProduct!.images && previewProduct!.images.length > 0 ? (
+                  <>
+                    <img
+                      src={previewProduct.images[currentImageIndex].url.startsWith('http') ? previewProduct.images[currentImageIndex].url : `http://localhost:5000${previewProduct.images[currentImageIndex].url}`}
+                      alt={`${previewProduct.name} - Image ${currentImageIndex + 1}`}
+                      className="object-cover w-full h-full rounded-xl shadow-lg"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://via.placeholder.com/400x400?text=No+Image';
+                      }}
+                    />
+                    
+                    {/* Navigation arrows */}
+                    {previewProduct!.images.length > 1 && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex(prev => 
+                              prev > 0 ? prev - 1 : previewProduct!.images!.length - 1
+                            );
+                          }}
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                          aria-label="Previous image"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex(prev => 
+                              prev < previewProduct.images!.length - 1 ? prev + 1 : 0
+                            );
+                          }}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                          aria-label="Next image"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                        
+                        {/* Image indicators */}
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                          {previewProduct!.images.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(index);
+                              }}
+                              className={`w-2 h-2 rounded-full transition-all ${
+                                index === currentImageIndex 
+                                  ? 'bg-white w-4' 
+                                  : 'bg-white/50 hover:bg-white/75'
+                              }`}
+                              aria-label={`Go to image ${index + 1}`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
                 ) : previewProduct.imageUrl ? (
                   <img
-                    src={previewProduct!.imageUrl.startsWith('http') ? previewProduct!.imageUrl : `http://localhost:5000${previewProduct!.imageUrl}`}
-                    alt={previewProduct!.name}
+                    src={previewProduct.imageUrl.startsWith('http') ? previewProduct.imageUrl : `http://localhost:5000${previewProduct.imageUrl}`}
+                    alt={previewProduct.name}
                     className="object-cover w-full h-full rounded-xl shadow-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -756,17 +877,17 @@ export default function ProductsPage() {
                   <h3 className="text-xl font-semibold text-black mb-4">Distribution Channels</h3>
                   <div className="flex flex-wrap gap-2">
                     {previewProduct!.digitalBrowser && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-black">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
                         Digital Browser
                       </span>
                     )}
                     {previewProduct!.website && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-black">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
                         Website
                       </span>
                     )}
                     {previewProduct!.distributor && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-black">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
                         Distributor
                       </span>
                     )}
@@ -775,6 +896,41 @@ export default function ProductsPage() {
                     )}
                   </div>
                 </div>
+                
+                {/* SEO Information */}
+                {(previewProduct!.seoTitle || previewProduct!.seoDescription || previewProduct!.seoKeywords || previewProduct!.seoSlug) && (
+                  <div>
+                    <h3 className="text-xl font-semibold text-black mb-4">SEO Information</h3>
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <div className="space-y-3">
+                        {previewProduct!.seoTitle && (
+                          <div>
+                            <span className="font-medium text-black">SEO Title:</span>
+                            <p className="text-black mt-1">{previewProduct!.seoTitle}</p>
+                          </div>
+                        )}
+                        {previewProduct!.seoSlug && (
+                          <div>
+                            <span className="font-medium text-black">SEO Slug:</span>
+                            <p className="text-black mt-1">{previewProduct!.seoSlug}</p>
+                          </div>
+                        )}
+                        {previewProduct!.seoDescription && (
+                          <div>
+                            <span className="font-medium text-black">SEO Description:</span>
+                            <p className="text-black mt-1">{previewProduct!.seoDescription}</p>
+                          </div>
+                        )}
+                        {previewProduct!.seoKeywords && (
+                          <div>
+                            <span className="font-medium text-black">SEO Keywords:</span>
+                            <p className="text-black mt-1">{previewProduct!.seoKeywords}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

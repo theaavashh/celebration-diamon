@@ -21,6 +21,8 @@ const storage = multer.diskStorage({
       destination = 'uploads/categories/icons/';
     } else if (fieldName === 'image' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
       destination = 'uploads/categories/images/';
+    } else if ((fieldName === 'navImage1' || fieldName === 'navImage2') && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
+      destination = 'uploads/categories/nav-images/';
     } else if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
       destination = 'uploads/hero/';
     } else if (fieldName === 'images' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {

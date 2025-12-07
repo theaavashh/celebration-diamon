@@ -1,276 +1,256 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit, Trash2, ChevronDown, ImageIcon, LinkIcon, Calendar, Search, ToggleLeft, ToggleRight, Upload, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
-import { apiPost, apiPut, apiDelete, apiPostFormData, apiPutFormData } from '@/lib/apiClient';
-import { 
-  Search, 
-  Image as ImageIcon, 
-  Link as LinkIcon, 
-  Calendar, 
-  ChevronDown, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  ToggleLeft, 
-  ToggleRight, 
-  Upload, 
-  X
-} from 'lucide-react';
+import { Category, Subcategory } from '@/types/category';
+import { categoryService } from '@/services/categoryService';
 
-interface Category {
-  id: string;
-  title: string;
-  iconUrl: string | null;
-  imageUrl: string | null;
-  link: string | null;
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  subcategories: Subcategory[];
-}
-
-interface Subcategory {
-  id: string;
+// Add these interfaces for temporary subcategories
+interface TempSubcategory {
   name: string;
-  categoryId: string;
   isActive: boolean;
   sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export default function CategoriesPage() {
+const CategoriesPage = () => {
+  // State for categories and loading
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State for modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteSubcategoryModalOpen, setIsDeleteSubcategoryModalOpen] = useState(false);
+  
+  // State for editing
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
+  
+  // State for forms
   const [categoryForm, setCategoryForm] = useState({
     title: '',
     link: '',
-    isActive: true
+    isActive: true,
   });
+  
   const [subcategoryForm, setSubcategoryForm] = useState({
     name: '',
     categoryId: '',
     isActive: true,
-    sortOrder: 0
+    sortOrder: 0,
   });
+  
+  // State for temporary subcategories (when creating a new category)
+  const [tempSubcategories, setTempSubcategories] = useState<TempSubcategory[]>([
+    { name: '', isActive: true, sortOrder: 1 }
+  ]);
+  
+  // State for file uploads
   const [selectedIcon, setSelectedIcon] = useState<File | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  // Add state for delete confirmation modal
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [imagePreview, setSelectedImagePreview] = useState<string | null>(null);
+  
+  // Add state for navigation images
+  const [selectedNavImage1, setSelectedNavImage1] = useState<File | null>(null);
+  const [selectedNavImage2, setSelectedNavImage2] = useState<File | null>(null);
+  const [navImage1Preview, setNavImage1Preview] = useState<string | null>(null);
+  const [navImage2Preview, setNavImage2Preview] = useState<string | null>(null);
+  
+  // Add state for new subcategory name input
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
+  
+  // State for delete confirmations
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<Subcategory | null>(null);
-  const [isDeleteSubcategoryModalOpen, setIsDeleteSubcategoryModalOpen] = useState(false);
+  
+  // State for expanded categories (to show subcategories)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [tempSubcategories, setTempSubcategories] = useState<Array<{name: string, isActive: boolean, sortOrder: number}>>([]);
-  const [newSubcategoryName, setNewSubcategoryName] = useState('');
 
-  // Handle adding a temporary subcategory by name
-  const handleAddTempSubcategoryByName = (name: string) => {
-    const newSubcategory = {
-      name: name,
-      isActive: true,
-      sortOrder: tempSubcategories.length
-    };
-    setTempSubcategories([...tempSubcategories, newSubcategory]);
-  };
-
-  // Fetch categories with subcategories in a single API call
-  const fetchCategoriesWithSubcategories = async () => {
-    setIsLoading(true);
+  // Fetch categories with subcategories
+  const fetchCategoriesWithSubcategories = useCallback(async () => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      setIsLoading(true);
+      const response = await categoryService.getAllCategories();
       
-      // Single API call to fetch categories with their subcategories
-      const response = await fetch(`${API_BASE_URL}/api/categories/admin/with-subcategories`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data.data || []);
+      if (response.success && response.data) {
+        setCategories(response.data);
       } else {
-        toast.error('Failed to fetch categories and subcategories');
+        toast.error(response.message || 'Failed to fetch categories');
       }
     } catch (error) {
-      console.error('Error fetching categories and subcategories:', error);
-      toast.error('Failed to fetch data');
+      console.error('Error fetching categories:', error);
+      toast.error('Failed to fetch categories');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchCategoriesWithSubcategories();
   }, []);
 
-  // Handle form changes
-  const handleCategoryFormChange = (field: string, value: any) => {
-    setCategoryForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  // Effect to fetch categories on mount
+  useEffect(() => {
+    fetchCategoriesWithSubcategories();
+  }, [fetchCategoriesWithSubcategories]);
+
+  // Reset temporary subcategories
+  const resetTempSubcategories = () => {
+    setTempSubcategories([{ name: '', isActive: true, sortOrder: 1 }]);
   };
 
-  const handleSubcategoryFormChange = (field: string, value: any) => {
-    setSubcategoryForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Handle image selection for icon
-  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedIcon(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setIconPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle image selection for image
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-
-
-  // Handle removing a temporary subcategory
-  const handleRemoveTempSubcategory = (index: number) => {
-    setTempSubcategories(tempSubcategories.filter((_, i) => i !== index));
-  };
-
-  // Handle changing a temporary subcategory
-  const handleChangeTempSubcategory = (index: number, field: string, value: any) => {
-    const updatedSubcategories = [...tempSubcategories];
-    updatedSubcategories[index] = {
-      ...updatedSubcategories[index],
-      [field]: value
-    };
-    setTempSubcategories(updatedSubcategories);
-  };
-
-  // Validate temporary subcategories before saving
+  // Validate temporary subcategories
   const validateTempSubcategories = () => {
-    for (let i = 0; i < tempSubcategories.length; i++) {
-      const subcategory = tempSubcategories[i];
-      if (!subcategory.name.trim()) {
-        toast.error(`Please enter a name for subcategory #${i + 1}`);
-        return false;
-      }
+    // Check if any subcategory has a name but it's empty
+    const hasInvalidSubcategory = tempSubcategories.some(sub => 
+      sub.name.trim() !== '' && !sub.name.trim()
+    );
+    
+    // Also check if there are any subcategories with empty names
+    const hasEmptyNamedSubcategory = tempSubcategories.some(sub => 
+      sub.name.trim() === ''
+    );
+    
+    if (hasInvalidSubcategory || hasEmptyNamedSubcategory) {
+      toast.error('Subcategory names cannot be empty');
+      return false;
     }
+    
     return true;
   };
 
-  // Reset temp subcategories when modal closes
-  const resetTempSubcategories = () => {
-    setTempSubcategories([]);
+  // Handle adding temporary subcategory by name
+  const handleAddTempSubcategoryByName = (name: string) => {
+    if (!name.trim()) return;
+    
+    setTempSubcategories(prev => [
+      ...prev,
+      {
+        name: name.trim(),
+        isActive: true,
+        sortOrder: prev.length + 1
+      }
+    ]);
+    setNewSubcategoryName(''); // Clear the input
   };
 
-  // Reset form when modal opens
+  // Handle removing temporary subcategory
+  const handleRemoveTempSubcategory = (index: number) => {
+    setTempSubcategories(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Open category modal for creating
   const openCategoryModal = () => {
+    setEditingCategory(null);
     setCategoryForm({
       title: '',
       link: '',
-      isActive: true
+      isActive: true,
     });
+    resetTempSubcategories();
     setSelectedIcon(null);
     setSelectedImage(null);
     setIconPreview(null);
-    setImagePreview(null);
-    setEditingCategory(null);
-    resetTempSubcategories();
+    setSelectedImagePreview(null);
+    // Reset navigation image states
+    setSelectedNavImage1(null);
+    setSelectedNavImage2(null);
+    setNavImage1Preview(null);
+    setNavImage2Preview(null);
     setIsModalOpen(true);
   };
 
-  const openSubcategoryModal = (categoryId?: string) => {
-    setSubcategoryForm({
-      name: '',
-      categoryId: categoryId || '',
-      isActive: true,
-      sortOrder: 0
-    });
-    setEditingSubcategory(null);
-    setIsSubcategoryModalOpen(true);
-  };
-
-  // Open edit modal with category data
+  // Open category modal for editing
   const openEditCategoryModal = (category: Category) => {
+    setEditingCategory(category);
     setCategoryForm({
-      title: category.title || '',
+      title: category.title,
       link: category.link || '',
-      isActive: category.isActive
+      isActive: category.isActive,
     });
     setSelectedIcon(null);
     setSelectedImage(null);
-    // Fix image preview for edit mode
-    if (category.iconUrl) {
-      // If it's already a full URL, use it directly
-      if (category.iconUrl.startsWith('http')) {
-        setIconPreview(category.iconUrl);
-      } else {
-        // Otherwise construct the full URL
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-        // Ensure the path starts with /
-        const imagePath = category.iconUrl.startsWith('/') ? category.iconUrl : `/${category.iconUrl}`;
-        setIconPreview(`${API_BASE_URL}${imagePath}`);
-      }
-    } else {
-      setIconPreview(null);
-    }
-    
-    if (category.imageUrl) {
-      // If it's already a full URL, use it directly
-      if (category.imageUrl.startsWith('http')) {
-        setImagePreview(category.imageUrl);
-      } else {
-        // Otherwise construct the full URL
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-        // Ensure the path starts with /
-        const imagePath = category.imageUrl.startsWith('/') ? category.imageUrl : `/${category.imageUrl}`;
-        setImagePreview(`${API_BASE_URL}${imagePath}`);
-      }
-    } else {
-      setImagePreview(null);
-    }
-    setEditingCategory(category);
+    setIconPreview(category.iconUrl);
+    setSelectedImagePreview(category.imageUrl);
+    // Set navigation image previews
+    setNavImage1Preview(category.navImage1Url || null);
+    setNavImage2Preview(category.navImage2Url || null);
     setIsModalOpen(true);
   };
 
-  // Open edit modal with subcategory data
+  // Open subcategory modal for creating
+  const openSubcategoryModal = (categoryId: string) => {
+    setEditingSubcategory(null);
+    setSubcategoryForm({
+      name: '',
+      categoryId: categoryId,
+      isActive: true,
+      sortOrder: 0,
+    });
+    setIsSubcategoryModalOpen(true);
+  };
+
+  // Open subcategory modal for editing
   const openEditSubcategoryModal = (subcategory: Subcategory) => {
     setEditingSubcategory(subcategory);
     setSubcategoryForm({
       name: subcategory.name,
       categoryId: subcategory.categoryId,
       isActive: subcategory.isActive,
-      sortOrder: subcategory.sortOrder
+      sortOrder: subcategory.sortOrder,
     });
     setIsSubcategoryModalOpen(true);
+  };
+
+  // Handle category form changes
+  const handleCategoryFormChange = (field: string, value: string | boolean | number) => {
+    setCategoryForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Handle subcategory form changes
+  const handleSubcategoryFormChange = (field: string, value: string | boolean | number) => {
+    setSubcategoryForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Handle file selection for icons
+  const handleIconSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedIcon(file);
+      setIconPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Handle file selection for images
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      setSelectedImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Handle file selection for navigation images
+  const handleNavImage1Select = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedNavImage1(file);
+      setNavImage1Preview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleNavImage2Select = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedNavImage2(file);
+      setNavImage2Preview(URL.createObjectURL(file));
+    }
   };
 
   // Handle create/edit category
@@ -281,76 +261,157 @@ export default function CategoriesPage() {
       return;
     }
     
+    // Validate link format if provided
+    if (categoryForm.link && !categoryForm.link.startsWith('/')) {
+      toast.error('Link must start with a forward slash (e.g., /products, /about)');
+      return;
+    }
+    
     // Validate temporary subcategories if creating a new category
     if (!editingCategory && tempSubcategories.length > 0) {
-      if (!validateTempSubcategories()) {
+      // Filter out empty subcategories and validate the rest
+      const validSubcategories = tempSubcategories.filter(sub => sub.name.trim() !== '');
+      
+      if (validSubcategories.some(sub => !sub.name.trim())) {
+        toast.error('Subcategory names cannot be empty');
         return;
+      }
+      
+      // Update tempSubcategories to only include valid ones
+      if (validSubcategories.length !== tempSubcategories.length) {
+        setTempSubcategories(validSubcategories);
       }
     }
     
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const apiUrl = `${API_BASE_URL}/api/categories`;
-      
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('title', categoryForm.title);
-      formData.append('link', categoryForm.link);
-      formData.append('isActive', categoryForm.isActive.toString());
-      
-      // Handle icon upload
-      if (selectedIcon) {
-        formData.append('icon', selectedIcon);
-      } else if (editingCategory && editingCategory.iconUrl) {
-        formData.append('iconUrl', editingCategory.iconUrl);
-      }
-      
-      // Handle image upload
-      if (selectedImage) {
-        formData.append('image', selectedImage);
-      } else if (editingCategory && editingCategory.imageUrl) {
-        formData.append('imageUrl', editingCategory.imageUrl);
-      }
-      
-      // Use the appropriate apiClient function based on whether we're editing or creating
-      const response = editingCategory 
-        ? await apiPutFormData(`${apiUrl}/${editingCategory.id}`, formData)
-        : await apiPostFormData(apiUrl, formData);
-
-      if (response.success) {
-        const categoryId = (response.data as { id: string }).id;
+      if (editingCategory) {
+        // For editing, use the existing endpoint
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('title', categoryForm.title);
+        formData.append('link', categoryForm.link);
+        formData.append('isActive', categoryForm.isActive ? 'true' : 'false'); // Convert boolean to string
         
-        // If we have temporary subcategories, create them now
-        if (!editingCategory && tempSubcategories.length > 0) {
-          // Use apiPost for subcategory creation since it's JSON data
-          for (const subcategory of tempSubcategories) {
-            if (subcategory.name.trim()) {
-              try {
-                await apiPost(`${API_BASE_URL}/api/subcategories`, {
-                  name: subcategory.name,
-                  categoryId: categoryId,
-                  isActive: subcategory.isActive,
-                  sortOrder: subcategory.sortOrder
-                });
-              } catch (error) {
-                console.error('Error creating subcategory:', error);
-              }
-            }
-          }
+        // Handle icon upload
+        if (selectedIcon) {
+          formData.append('icon', selectedIcon);
+        } else if (editingCategory && editingCategory.iconUrl) {
+          formData.append('iconUrl', editingCategory.iconUrl);
         }
         
-        toast.success(editingCategory ? 'Category updated successfully!' : 'Category created successfully!');
-        fetchCategoriesWithSubcategories();
-        setIsModalOpen(false);
-        setEditingCategory(null);
-        resetTempSubcategories();
-        // Reset file states
-        setSelectedIcon(null);
-        setSelectedImage(null);
-        setIconPreview(null);
-        setImagePreview(null);
+        // Handle image upload
+        if (selectedImage) {
+          formData.append('image', selectedImage);
+        } else if (editingCategory && editingCategory.imageUrl) {
+          formData.append('imageUrl', editingCategory.imageUrl);
+        }
+        
+        // Handle navigation image uploads
+        // For navImage1 - only send file OR URL, not both
+        if (selectedNavImage1) {
+          formData.append('navImage1', selectedNavImage1);
+        } else if (editingCategory && editingCategory.navImage1Url) {
+          formData.append('navImage1Url', editingCategory.navImage1Url || '');
+        }
+        // Note: We don't send anything if neither file nor existing URL exists
+        
+        // For navImage2 - only send file OR URL, not both
+        if (selectedNavImage2) {
+          formData.append('navImage2', selectedNavImage2);
+        } else if (editingCategory && editingCategory.navImage2Url) {
+          formData.append('navImage2Url', editingCategory.navImage2Url || '');
+        }
+        // Note: We don't send anything if neither file nor existing URL exists
+        
+        // Use the category service for updating
+        const response = await categoryService.updateCategory(editingCategory.id, formData);
+        
+        if (response.success) {
+          toast.success('Category updated successfully!');
+          fetchCategoriesWithSubcategories();
+          setIsModalOpen(false);
+          setEditingCategory(null);
+          resetTempSubcategories();
+          // Reset file states
+          setSelectedIcon(null);
+          setSelectedImage(null);
+          setIconPreview(null);
+          setSelectedImagePreview(null);
+          // Reset navigation image states
+          setSelectedNavImage1(null);
+          setSelectedNavImage2(null);
+          setNavImage1Preview(null);
+          setNavImage2Preview(null);
+        } else {
+          // Show detailed error message
+          const errorMessage = response.message || 'Failed to save category';
+          toast.error(errorMessage);
+          // Log validation errors for debugging
+          if (response.errors && response.errors.length > 0) {
+            console.error('Validation errors:', response.errors);
+          }
+        }
       } else {
-        toast.error(response.message || 'Failed to save category');
+        // For creating new category with subcategories, use the new single endpoint
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('title', categoryForm.title);
+        formData.append('link', categoryForm.link);
+        formData.append('isActive', categoryForm.isActive ? 'true' : 'false'); // Convert boolean to string
+        
+        // Add subcategories as JSON string (filter out empty ones)
+        const validSubcategories = tempSubcategories.filter(sub => sub.name.trim() !== '');
+        if (validSubcategories.length > 0) {
+          formData.append('subcategories', JSON.stringify(validSubcategories));
+        }
+        
+        // Handle icon upload
+        if (selectedIcon) {
+          formData.append('icon', selectedIcon);
+        }
+        
+        // Handle image upload
+        if (selectedImage) {
+          formData.append('image', selectedImage);
+        }
+        
+        // Handle navigation image uploads
+        if (selectedNavImage1) {
+          formData.append('navImage1', selectedNavImage1);
+        }
+        
+        if (selectedNavImage2) {
+          formData.append('navImage2', selectedNavImage2);
+        }
+        
+        // Use the category service for creating
+        const response = await categoryService.createCategory(formData);
+        
+        if (response.success) {
+          toast.success('Category and subcategories created successfully!');
+          fetchCategoriesWithSubcategories();
+          setIsModalOpen(false);
+          setEditingCategory(null);
+          resetTempSubcategories();
+          // Reset file states
+          setSelectedIcon(null);
+          setSelectedImage(null);
+          setIconPreview(null);
+          setSelectedImagePreview(null);
+          // Reset navigation image states
+          setSelectedNavImage1(null);
+          setSelectedNavImage2(null);
+          setNavImage1Preview(null);
+          setNavImage2Preview(null);
+        } else {
+          // Show detailed error message
+          const errorMessage = response.message || 'Failed to save category';
+          toast.error(errorMessage);
+          // Log validation errors for debugging
+          if (response.errors && response.errors.length > 0) {
+            console.error('Validation errors:', response.errors);
+          }
+        }
       }
     } catch (error) {
       console.error('Error saving category:', error);
@@ -363,15 +424,18 @@ export default function CategoriesPage() {
     e.preventDefault();
     
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const url = editingSubcategory 
-        ? `${API_BASE_URL}/api/subcategories/${editingSubcategory.id}` 
-        : `${API_BASE_URL}/api/subcategories`;
+      let response;
       
-      // Use apiPut or apiPost based on whether we're editing or creating
-      const response = editingSubcategory 
-        ? await apiPut(url, subcategoryForm)
-        : await apiPost(url, subcategoryForm);
+      if (editingSubcategory) {
+        response = await categoryService.updateSubcategory(editingSubcategory.id, subcategoryForm);
+      } else {
+        // For creating a new subcategory, we need the category ID
+        if (!subcategoryForm.categoryId) {
+          toast.error('Category ID is required');
+          return;
+        }
+        response = await categoryService.createSubcategory(subcategoryForm.categoryId, subcategoryForm);
+      }
       
       if (response.success) {
         toast.success(editingSubcategory ? 'Subcategory updated successfully!' : 'Subcategory created successfully!');
@@ -404,9 +468,7 @@ export default function CategoriesPage() {
     if (!categoryToDelete) return;
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      
-      const response = await apiDelete(`${API_BASE_URL}/api/categories/${categoryToDelete.id}`);
+      const response = await categoryService.deleteCategory(categoryToDelete.id);
       
       if (response.success) {
         toast.success('Category deleted successfully!');
@@ -428,9 +490,7 @@ export default function CategoriesPage() {
     if (!subcategoryToDelete) return;
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      
-      const response = await apiDelete(`${API_BASE_URL}/api/subcategories/${subcategoryToDelete.id}`);
+      const response = await categoryService.deleteSubcategory(subcategoryToDelete.id);
       
       if (response.success) {
         toast.success('Subcategory deleted successfully!');
@@ -450,40 +510,13 @@ export default function CategoriesPage() {
   // Handle toggle status for category
   const handleToggleCategoryStatus = async (id: string) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await categoryService.toggleCategoryStatus(id);
       
-      // For PATCH requests, we'll use fetch directly since apiClient doesn't have a patch function
-      // But we'll still use the CSRF token handling
-      const csrfResponse = await fetch(`${API_BASE_URL}/api/auth/csrf-token`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      let csrfToken = null;
-      if (csrfResponse.ok) {
-        const csrfResult = await csrfResponse.json();
-        if (csrfResult.success && csrfResult.data?.csrfToken) {
-          csrfToken = csrfResult.data.csrfToken;
-        }
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/api/categories/${id}/toggle`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'x-csrf-token': csrfToken }), // Add CSRF token if available
-        },
-      });
-
-      if (response.ok) {
+      if (response.success) {
         toast.success('Category status updated!');
         fetchCategoriesWithSubcategories();
       } else {
-        toast.error('Failed to update category status');
+        toast.error(response.message || 'Failed to update category status');
       }
     } catch (error) {
       console.error('Error toggling category status:', error);
@@ -494,40 +527,13 @@ export default function CategoriesPage() {
   // Handle toggle status for subcategory
   const handleToggleSubcategoryStatus = async (id: string) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await categoryService.toggleSubcategoryStatus(id);
       
-      // For PATCH requests, we'll use fetch directly since apiClient doesn't have a patch function
-      // But we'll still use the CSRF token handling
-      const csrfResponse = await fetch(`${API_BASE_URL}/api/auth/csrf-token`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      let csrfToken = null;
-      if (csrfResponse.ok) {
-        const csrfResult = await csrfResponse.json();
-        if (csrfResult.success && csrfResult.data?.csrfToken) {
-          csrfToken = csrfResult.data.csrfToken;
-        }
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/api/subcategories/${id}/toggle`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'x-csrf-token': csrfToken }), // Add CSRF token if available
-        },
-      });
-
-      if (response.ok) {
+      if (response.success) {
         toast.success('Subcategory status updated!');
         fetchCategoriesWithSubcategories();
       } else {
-        toast.error('Failed to update subcategory status');
+        toast.error(response.message || 'Failed to update subcategory status');
       }
     } catch (error) {
       console.error('Error toggling subcategory status:', error);
@@ -832,7 +838,7 @@ export default function CategoriesPage() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={handleIconChange}
+                            onChange={handleIconSelect}
                             className="hidden"
                             id="icon-upload"
                           />
@@ -875,7 +881,7 @@ export default function CategoriesPage() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={handleImageChange}
+                            onChange={handleImageSelect}
                             className="hidden"
                             id="category-image-upload"
                           />
@@ -905,6 +911,102 @@ export default function CategoriesPage() {
                       {selectedImage && !imagePreview && (
                         <div className="mt-2">
                           <p className="text-sm text-gray-600 mb-2">Selected Image: {selectedImage.name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Navigation Image 1 Upload */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Navigation Image 1
+                    </label>
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                        <div className="flex flex-col items-center">
+                          <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600 mb-2">Click to upload navigation image 1</p>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleNavImage1Select}
+                            className="hidden"
+                            id="nav-image-1-upload"
+                          />
+                          <label
+                            htmlFor="nav-image-1-upload"
+                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
+                          >
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            Choose Image
+                          </label>
+                        </div>
+                      </div>
+                      {navImage1Preview && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">Navigation Image 1 Preview:</p>
+                          <img
+                            src={navImage1Preview}
+                            alt="Navigation Image 1 Preview"
+                            className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                            onError={(e) => {
+                              console.error('Navigation image 1 preview failed to load:', navImage1Preview);
+                              e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                            }}
+                          />
+                        </div>
+                      )}
+                      {selectedNavImage1 && !navImage1Preview && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">Selected Image: {selectedNavImage1.name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Navigation Image 2 Upload */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Navigation Image 2
+                    </label>
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                        <div className="flex flex-col items-center">
+                          <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600 mb-2">Click to upload navigation image 2</p>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleNavImage2Select}
+                            className="hidden"
+                            id="nav-image-2-upload"
+                          />
+                          <label
+                            htmlFor="nav-image-2-upload"
+                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
+                          >
+                            <ImageIcon className="w-4 h-4 mr-2" />
+                            Choose Image
+                          </label>
+                        </div>
+                      </div>
+                      {navImage2Preview && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">Navigation Image 2 Preview:</p>
+                          <img
+                            src={navImage2Preview}
+                            alt="Navigation Image 2 Preview"
+                            className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                            onError={(e) => {
+                              console.error('Navigation image 2 preview failed to load:', navImage2Preview);
+                              e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                            }}
+                          />
+                        </div>
+                      )}
+                      {selectedNavImage2 && !navImage2Preview && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">Selected Image: {selectedNavImage2.name}</p>
                         </div>
                       )}
                     </div>
@@ -1289,3 +1391,5 @@ export default function CategoriesPage() {
     </DashboardLayout>
   );
 }
+
+export default CategoriesPage;

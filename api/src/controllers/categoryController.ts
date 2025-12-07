@@ -1,40 +1,34 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
-import { ApiResponse, Category, CreateCategoryRequest, UpdateCategoryRequest } from '../types';
+import { Category, Subcategory } from '@prisma/client';
+// Import Zod types
+import { 
+  CreateCategoryWithSubcategoriesInput, 
+  UpdateCategoryInput, 
+  SubcategoryInput 
+} from '../validation/categorySchema';
+
+// Define response types
+interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  count?: number;
+  error?: string;
+}
+
+interface CategoryWithSubcategories extends Category {
+  subcategories: Subcategory[];
+}
 
 // Get all categories (public)
-export const getAllCategories = async (req: Request, res: Response<ApiResponse<Category[]>>) => {
+export const getAllCategories = async (req: Request<{}, ApiResponse<Category[]>>, res: Response<ApiResponse<Category[]>>) => {
   try {
+    // @ts-ignore - Prisma client needs to be regenerated after schema update
     const categories = await prisma.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' }
     });
-    
-    console.log('Public categories response:', categories);
-
-    res.json({
-      success: true,
-      data: categories,
-      count: categories.length
-    });
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch categories',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
-// Get all categories (admin)
-export const getAdminCategories = async (req: Request, res: Response<ApiResponse<Category[]>>) => {
-  try {
-    const categories = await prisma.category.findMany({
-      orderBy: { sortOrder: 'asc' }
-    });
-    
-    console.log('Admin categories response:', categories);
 
     res.json({
       success: true,
@@ -52,8 +46,9 @@ export const getAdminCategories = async (req: Request, res: Response<ApiResponse
 };
 
 // Get all categories with subcategories (admin)
-export const getAdminCategoriesWithSubcategories = async (req: Request, res: Response<ApiResponse<any[]>>) => {
+export const getAdminCategories = async (req: Request<{}, ApiResponse<CategoryWithSubcategories[]>>, res: Response<ApiResponse<CategoryWithSubcategories[]>>) => {
   try {
+    // @ts-ignore - Prisma client needs to be regenerated after schema update
     const categories = await prisma.category.findMany({
       orderBy: { sortOrder: 'asc' },
       include: {
@@ -62,28 +57,27 @@ export const getAdminCategoriesWithSubcategories = async (req: Request, res: Res
         }
       }
     });
-    
-    console.log('Admin categories with subcategories response:', categories);
 
     res.json({
       success: true,
-      data: categories,
+      data: categories as CategoryWithSubcategories[],
       count: categories.length
     });
   } catch (error) {
-    console.error('Error fetching categories with subcategories:', error);
+    console.error('Error fetching categories:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch categories with subcategories',
+      message: 'Failed to fetch categories',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
 
 // Get category by ID
-export const getCategoryById = async (req: Request, res: Response<ApiResponse<Category>>) => {
+export const getCategoryById = async (req: Request<{ id: string }, ApiResponse<Category>, {}>, res: Response<ApiResponse<Category>>) => {
   try {
     const { id } = req.params;
+    // @ts-ignore - Prisma client needs to be regenerated after schema update
     const category = await prisma.category.findUnique({
       where: { id }
     });
@@ -109,99 +103,183 @@ export const getCategoryById = async (req: Request, res: Response<ApiResponse<Ca
   }
 };
 
-// Create category
-export const createCategory = async (req: Request<{}, ApiResponse<Category>, CreateCategoryRequest>, res: Response<ApiResponse<Category>>) => {
+// Create category with subcategories in a single transaction
+export const createCategoryWithSubcategories = async (req: Request<{}, ApiResponse<CategoryWithSubcategories>, CreateCategoryWithSubcategoriesInput>, res: Response<ApiResponse<CategoryWithSubcategories>>) => {
   try {
+    console.log('Received request body:', req.body);
+    console.log('Received files:', req.files);
+    
+    // Convert string booleans to actual booleans
+    const isActiveValue = req.body.isActive;
+    console.log('isActiveValue:', isActiveValue, 'type:', typeof isActiveValue);
+    
+    let isActive = true;
+    if (typeof isActiveValue === 'string') {
+      isActive = (isActiveValue as string).toLowerCase() === 'true';
+    } else if (typeof isActiveValue === 'boolean') {
+      isActive = isActiveValue;
+    }
+    
+    // Parse subcategories if needed
+    let subcategories = req.body.subcategories || [];
+    if (typeof subcategories === 'string') {
+      try {
+        subcategories = JSON.parse(subcategories);
+      } catch (parseError) {
+        console.error('Failed to parse subcategories JSON:', parseError);
+      }
+    }
+    
     const {
       title,
+      link,
       iconUrl: iconUrlFromBody,
       imageUrl: imageUrlFromBody,
-      link,
-      isActive = true,
+      navImage1Url: navImage1UrlFromBody,
+      navImage2Url: navImage2UrlFromBody,
       sortOrder = 0
     } = req.body;
 
-    // Convert string boolean to actual boolean
-    const isActiveBoolean = typeof isActive === 'string' ? isActive === 'true' : isActive;
+    console.log('Parsed fields:', { title, link, iconUrlFromBody, imageUrlFromBody, navImage1UrlFromBody, navImage2UrlFromBody, isActive, sortOrder, subcategories });
+
+    // Handle file uploads
+    let iconUrl = iconUrlFromBody || null;
+    let imageUrl = imageUrlFromBody || null;
+    let navImage1Url = navImage1UrlFromBody || null;
+    let navImage2Url = navImage2UrlFromBody || null;
     
-    // Convert string to number for sortOrder
-    const sortOrderNumber = typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder || 0;
-
-    // Get uploaded file paths
-    const iconUrl = req.files && (req.files as any).icon ? `/uploads/categories/icons/${(req.files as any).icon[0].filename}` : (iconUrlFromBody || null);
-    const imageUrl = req.files && (req.files as any).image ? `/uploads/categories/images/${(req.files as any).image[0].filename}` : (imageUrlFromBody || null);
-
-    const category = await prisma.category.create({
-      data: {
-        title,
-        iconUrl,
-        imageUrl,
-        link: link || null,
-        isActive: isActiveBoolean,
-        sortOrder: sortOrderNumber
+    // Check for uploaded files
+    if (req.files) {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (files.icon && files.icon[0]) {
+        iconUrl = `/uploads/categories/icons/${files.icon[0].filename}`;
       }
+      if (files.image && files.image[0]) {
+        imageUrl = `/uploads/categories/images/${files.image[0].filename}`;
+      }
+      // Handle navigation image uploads
+      if (files.navImage1 && files.navImage1[0]) {
+        navImage1Url = `/uploads/categories/nav-images/${files.navImage1[0].filename}`;
+      }
+      if (files.navImage2 && files.navImage2[0]) {
+        navImage2Url = `/uploads/categories/nav-images/${files.navImage2[0].filename}`;
+      }
+    }
+
+    console.log('Final URLs:', { iconUrl, imageUrl, navImage1Url, navImage2Url });
+
+    // Create category with subcategories in a transaction
+    const result = await prisma.$transaction(async (prisma) => {
+      // Create the category first
+      // @ts-ignore - Prisma client needs to be regenerated after schema update
+      const category = await prisma.category.create({
+        data: {
+          title,
+          iconUrl,
+          imageUrl,
+          // @ts-ignore - Prisma client needs to be regenerated after schema update
+          navImage1Url,
+          // @ts-ignore - Prisma client needs to be regenerated after schema update
+          navImage2Url,
+          link: link || null,
+          isActive,
+          sortOrder
+        }
+      });
+
+      // Create subcategories if provided
+      if (subcategories.length > 0) {
+        const subcategoryData = subcategories.map((sub: SubcategoryInput, index: number) => ({
+          name: sub.name,
+          categoryId: category.id,
+          isActive: sub.isActive !== undefined ? sub.isActive : true,
+          sortOrder: sub.sortOrder !== undefined ? sub.sortOrder : index
+        }));
+
+        await prisma.subcategory.createMany({
+          data: subcategoryData
+        });
+      }
+
+      // Fetch the complete category with subcategories
+      // @ts-ignore - Prisma client needs to be regenerated after schema update
+      const completeCategory = await prisma.category.findUnique({
+        where: { id: category.id },
+        include: {
+          subcategories: {
+            orderBy: { sortOrder: 'asc' }
+          }
+        }
+      });
+
+      // @ts-ignore - Prisma client needs to be regenerated after schema update
+      return completeCategory as CategoryWithSubcategories;
     });
 
     res.status(201).json({
       success: true,
-      message: 'Category created successfully',
-      data: category
+      message: 'Category and subcategories created successfully',
+      data: result
     });
   } catch (error) {
-    console.error('Error creating category:', error);
+    console.error('Error creating category with subcategories:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create category',
+      message: 'Failed to create category with subcategories',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
 
 // Update category
-export const updateCategory = async (req: Request<{ id: string }, ApiResponse<Category>, UpdateCategoryRequest>, res: Response<ApiResponse<Category>>) => {
+export const updateCategory = async (req: Request<{ id: string }, ApiResponse<Category>, UpdateCategoryInput>, res: Response<ApiResponse<Category>>) => {
   try {
     const { id } = req.params;
-    const {
-      title,
-      iconUrl: iconUrlFromBody,
-      imageUrl: imageUrlFromBody,
-      link,
-      isActive,
-      sortOrder
-    } = req.body;
+    const updateData = { ...req.body };
 
-    // Prepare update data
-    const updateData: any = {};
-
-    if (title !== undefined) updateData.title = title;
-    if (link !== undefined) updateData.link = link || null;
-    if (isActive !== undefined) {
-      updateData.isActive = typeof isActive === 'string' ? isActive === 'true' : isActive;
-    }
-    if (sortOrder !== undefined) {
-      updateData.sortOrder = typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder;
-    }
-
-    // Get uploaded file paths if new files are uploaded
-    let iconUrl = iconUrlFromBody || null;
-    let imageUrl = imageUrlFromBody || null;
-
+    // Handle file uploads
+    let iconUrl: string | null | undefined = updateData.iconUrl;
+    let imageUrl: string | null | undefined = updateData.imageUrl;
+    let navImage1Url: string | null | undefined = updateData.navImage1Url;
+    let navImage2Url: string | null | undefined = updateData.navImage2Url;
+    
+    // Check for uploaded files
     if (req.files) {
-      if ((req.files as any).icon) {
-        iconUrl = `/uploads/categories/icons/${(req.files as any).icon[0].filename}`;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (files.icon && files.icon[0]) {
+        iconUrl = `/uploads/categories/icons/${files.icon[0].filename}`;
       }
-      if ((req.files as any).image) {
-        imageUrl = `/uploads/categories/images/${(req.files as any).image[0].filename}`;
+      if (files.image && files.image[0]) {
+        imageUrl = `/uploads/categories/images/${files.image[0].filename}`;
+      }
+      // Handle navigation image uploads
+      if (files.navImage1 && files.navImage1[0]) {
+        navImage1Url = `/uploads/categories/nav-images/${files.navImage1[0].filename}`;
+      }
+      if (files.navImage2 && files.navImage2[0]) {
+        navImage2Url = `/uploads/categories/nav-images/${files.navImage2[0].filename}`;
       }
     }
 
-    // Add file URLs to update data if they exist
-    if (iconUrl !== undefined) updateData.iconUrl = iconUrl;
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    // Prepare update data, excluding file URLs if they weren't updated
+    const dataToUpdate: any = {};
+    
+    // Only include fields that were actually provided
+    if (updateData.title !== undefined) dataToUpdate.title = updateData.title;
+    if (updateData.link !== undefined) dataToUpdate.link = updateData.link;
+    if (updateData.isActive !== undefined) dataToUpdate.isActive = updateData.isActive;
+    if (updateData.sortOrder !== undefined) dataToUpdate.sortOrder = updateData.sortOrder;
+    
+    // Handle file URLs separately to preserve existing values
+    if (iconUrl !== undefined) dataToUpdate.iconUrl = iconUrl;
+    if (imageUrl !== undefined) dataToUpdate.imageUrl = imageUrl;
+    if (navImage1Url !== undefined) dataToUpdate.navImage1Url = navImage1Url;
+    if (navImage2Url !== undefined) dataToUpdate.navImage2Url = navImage2Url;
 
+    // @ts-ignore - Prisma client needs to be regenerated after schema update
     const category = await prisma.category.update({
       where: { id },
-      data: updateData
+      data: dataToUpdate
     });
 
     res.json({
@@ -220,17 +298,23 @@ export const updateCategory = async (req: Request<{ id: string }, ApiResponse<Ca
 };
 
 // Delete category
-export const deleteCategory = async (req: Request, res: Response<ApiResponse<null>>) => {
+export const deleteCategory = async (req: Request<{ id: string }, ApiResponse<{}>, {}>, res: Response<ApiResponse<{}>>) => {
   try {
     const { id } = req.params;
-
-    await prisma.category.delete({
-      where: { id }
-    });
+    
+    // Delete subcategories first, then the category
+    await prisma.$transaction([
+      prisma.subcategory.deleteMany({
+        where: { categoryId: id }
+      }),
+      prisma.category.delete({
+        where: { id }
+      })
+    ]);
 
     res.json({
       success: true,
-      message: 'Category deleted successfully'
+      message: 'Category and associated subcategories deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting category:', error);
@@ -243,10 +327,9 @@ export const deleteCategory = async (req: Request, res: Response<ApiResponse<nul
 };
 
 // Toggle category status
-export const toggleCategoryStatus = async (req: Request, res: Response<ApiResponse<Category>>) => {
+export const toggleCategoryStatus = async (req: Request<{ id: string }, ApiResponse<Category>, {}>, res: Response<ApiResponse<Category>>) => {
   try {
     const { id } = req.params;
-
     const category = await prisma.category.findUnique({
       where: { id }
     });
@@ -273,6 +356,178 @@ export const toggleCategoryStatus = async (req: Request, res: Response<ApiRespon
     res.status(500).json({
       success: false,
       message: 'Failed to toggle category status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Get subcategories by category ID
+export const getSubcategoriesByCategory = async (req: Request<{ categoryId: string }, ApiResponse<Subcategory[]>, {}>, res: Response<ApiResponse<Subcategory[]>>) => {
+  try {
+    const { categoryId } = req.params;
+    
+    const subcategories = await prisma.subcategory.findMany({
+      where: { 
+        categoryId,
+        isActive: true
+      },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: subcategories,
+      count: subcategories.length
+    });
+  } catch (error) {
+    console.error('Error fetching subcategories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subcategories',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Get subcategory by ID
+export const getSubcategoryById = async (req: Request<{ id: string }, ApiResponse<Subcategory>, {}>, res: Response<ApiResponse<Subcategory>>) => {
+  try {
+    const { id } = req.params;
+    
+    const subcategory = await prisma.subcategory.findUnique({
+      where: { id }
+    });
+
+    if (!subcategory) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subcategory not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: subcategory
+    });
+  } catch (error) {
+    console.error('Error fetching subcategory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subcategory',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Create subcategory
+export const createSubcategory = async (req: Request<{ categoryId: string }, ApiResponse<Subcategory>, SubcategoryInput>, res: Response<ApiResponse<Subcategory>>) => {
+  try {
+    const { categoryId } = req.params;
+    const { name, isActive = true, sortOrder = 0 } = req.body;
+
+    const subcategory = await prisma.subcategory.create({
+      data: {
+        name,
+        categoryId,
+        isActive,
+        sortOrder
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Subcategory created successfully',
+      data: subcategory
+    });
+  } catch (error) {
+    console.error('Error creating subcategory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create subcategory',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Update subcategory
+export const updateSubcategory = async (req: Request<{ id: string }, ApiResponse<Subcategory>, SubcategoryInput>, res: Response<ApiResponse<Subcategory>>) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    const subcategory = await prisma.subcategory.update({
+      where: { id },
+      data: updateData
+    });
+
+    res.json({
+      success: true,
+      message: 'Subcategory updated successfully',
+      data: subcategory
+    });
+  } catch (error) {
+    console.error('Error updating subcategory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update subcategory',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Delete subcategory
+export const deleteSubcategory = async (req: Request<{ id: string }, ApiResponse<{}>, {}>, res: Response<ApiResponse<{}>>) => {
+  try {
+    const { id } = req.params;
+    
+    await prisma.subcategory.delete({
+      where: { id }
+    });
+
+    res.json({
+      success: true,
+      message: 'Subcategory deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting subcategory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete subcategory',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Toggle subcategory status
+export const toggleSubcategoryStatus = async (req: Request<{ id: string }, ApiResponse<Subcategory>, {}>, res: Response<ApiResponse<Subcategory>>) => {
+  try {
+    const { id } = req.params;
+    const subcategory = await prisma.subcategory.findUnique({
+      where: { id }
+    });
+
+    if (!subcategory) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subcategory not found'
+      });
+    }
+
+    const updatedSubcategory = await prisma.subcategory.update({
+      where: { id },
+      data: { isActive: !subcategory.isActive }
+    });
+
+    res.json({
+      success: true,
+      message: `Subcategory ${updatedSubcategory.isActive ? 'activated' : 'deactivated'} successfully`,
+      data: updatedSubcategory
+    });
+  } catch (error) {
+    console.error('Error toggling subcategory status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle subcategory status',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

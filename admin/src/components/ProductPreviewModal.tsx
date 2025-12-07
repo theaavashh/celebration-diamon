@@ -49,12 +49,32 @@ interface Product {
   stock: number;
   isActive: boolean;
   status: string;
+  // Gold Fields
   goldWeight?: string;
-  diamondDetails?: string;
-  diamondQuantity?: number;
-  diamondSize?: string;
-  diamondWeight?: string;
-  diamondQuality?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  // Diamond Fields
+  diamondType?: string;
+  diamondShapeCut?: string;
+  diamondColorGrade?: string;
+  diamondClarityGrade?: string;
+  diamondCutGrade?: string;
+  diamondMetalDetails?: string;
+  diamondCertification?: string;
+  diamondOrigin?: string;
+  diamondCaratWeight?: string;
+  // Platinum Fields
+  platinumWeight?: string;
+  platinumType?: string;
+  // Silver Fields
+  silverWeight?: string;
+  silverType?: string;
+  // Other Fields
   stoneWeight?: string;
   caret?: string;
   otherGemstones?: string;
@@ -69,8 +89,6 @@ interface Product {
   website?: boolean;
   distributor?: boolean;
   culture?: string;
-  goldCaret?: string;
-  diamondCaret?: string;
   seoTitle?: string;
   seoDescription?: string;
   seoKeywords?: string;
@@ -238,74 +256,15 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                 </div>
               </div>
 
-              {/* Diamond Section */}
-              {(product.diamondDetails || 
-                product.diamondQuantity !== undefined || 
-                product.diamondSize || 
-                product.diamondWeight || 
-                product.diamondQuality ||
-                product.stoneWeight ||
-                product.caret ||
-                product.diamondCaret) && (
-                <div className="border border-gray-200 rounded-lg">
-                  <div className="px-6 py-4 space-y-3">
-                    <h3 className="text-xl font-semibold text-black mb-4">Diamond Details</h3>
-                    {product.diamondDetails && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Diamond Details:</span>
-                        <span className="font-medium text-black">{product.diamondDetails}</span>
-                      </div>
-                    )}
-                    {product.diamondQuantity !== undefined && product.diamondQuantity !== null && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Diamond Quantity:</span>
-                        <span className="font-medium text-black">{product.diamondQuantity}</span>
-                      </div>
-                    )}
-                    {product.diamondSize && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Diamond Size:</span>
-                        <span className="font-medium text-black">{product.diamondSize}</span>
-                      </div>
-                    )}
-                    {product.diamondWeight && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Diamond Weight:</span>
-                        <span className="font-medium text-black">{product.diamondWeight}</span>
-                      </div>
-                    )}
-                    {product.diamondQuality && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Diamond Quality:</span>
-                        <span className="font-medium text-black">{product.diamondQuality}</span>
-                      </div>
-                    )}
-                    {product.stoneWeight && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Stone Weight:</span>
-                        <span className="font-medium text-black">{product.stoneWeight}</span>
-                      </div>
-                    )}
-                    {product.caret && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Caret:</span>
-                        <span className="font-medium text-black">{product.caret}</span>
-                      </div>
-                    )}
-                    {product.diamondCaret && (
-                      <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Diamond Caret:</span>
-                        <span className="font-medium text-black">{product.diamondCaret}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Gold Section */}
+              {/* Gold Details */}
               {(product.goldWeight || 
-                product.goldCaret || 
-                (product.metalType && product.metalType.toLowerCase().includes('gold'))) && (
+                product.goldPurity || 
+                product.goldType ||
+                product.goldCraftsmanship ||
+                product.goldDesignDescription ||
+                product.goldFinishedType ||
+                product.goldStones ||
+                product.goldStoneQuality) && (
                 <div className="border border-gray-200 rounded-lg">
                   <div className="px-6 py-4 space-y-3">
                     <h3 className="text-xl font-semibold text-black mb-4">Gold Details</h3>
@@ -315,35 +274,161 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                         <span className="font-medium text-black">{product.goldWeight}</span>
                       </div>
                     )}
-                    {product.goldCaret && (
+                    {product.goldPurity && (
                       <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Gold Caret:</span>
-                        <span className="font-medium text-black">{product.goldCaret}</span>
+                        <span className="text-black">Gold Purity:</span>
+                        <span className="font-medium text-black">{product.goldPurity}</span>
                       </div>
                     )}
-                    {product.metalType && product.metalType.toLowerCase().includes('gold') && (
+                    {product.goldType && (
                       <div className="flex justify-between py-2 border-b border-gray-100">
                         <span className="text-black">Gold Type:</span>
-                        <span className="font-medium text-black">{product.metalType}</span>
+                        <span className="font-medium text-black">{product.goldType}</span>
+                      </div>
+                    )}
+                    {product.goldCraftsmanship && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Craftsmanship:</span>
+                        <span className="font-medium text-black">{product.goldCraftsmanship}</span>
+                      </div>
+                    )}
+                    {product.goldDesignDescription && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Design Description:</span>
+                        <span className="font-medium text-black">{product.goldDesignDescription}</span>
+                      </div>
+                    )}
+                    {product.goldFinishedType && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Finished Type:</span>
+                        <span className="font-medium text-black">{product.goldFinishedType}</span>
+                      </div>
+                    )}
+                    {product.goldStones && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Stones:</span>
+                        <span className="font-medium text-black">{product.goldStones}</span>
+                      </div>
+                    )}
+                    {product.goldStoneQuality && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Stone Quality:</span>
+                        <span className="font-medium text-black">{product.goldStoneQuality}</span>
                       </div>
                     )}
                   </div>
                 </div>
               )}
-              
-              {/* Platinum Section */}
-              {product.metalType && product.metalType.toLowerCase().includes('platinum') && (
+
+              {/* Diamond Details */}
+              {(product.diamondType || 
+                product.diamondShapeCut || 
+                product.diamondColorGrade || 
+                product.diamondClarityGrade ||
+                product.diamondCutGrade ||
+                product.diamondCaratWeight ||
+                product.diamondMetalDetails ||
+                product.diamondCertification ||
+                product.diamondOrigin) && (
+                <div className="border border-gray-200 rounded-lg">
+                  <div className="px-6 py-4 space-y-3">
+                    <h3 className="text-xl font-semibold text-black mb-4">Diamond Details</h3>
+                    {product.diamondType && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Diamond Type:</span>
+                        <span className="font-medium text-black">{product.diamondType}</span>
+                      </div>
+                    )}
+                    {product.diamondShapeCut && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Diamond Shape/Cut:</span>
+                        <span className="font-medium text-black">{product.diamondShapeCut}</span>
+                      </div>
+                    )}
+                    {product.diamondColorGrade && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Color Grade:</span>
+                        <span className="font-medium text-black">{product.diamondColorGrade}</span>
+                      </div>
+                    )}
+                    {product.diamondClarityGrade && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Clarity:</span>
+                        <span className="font-medium text-black">{product.diamondClarityGrade}</span>
+                      </div>
+                    )}
+                    {product.diamondCutGrade && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Cut Grade:</span>
+                        <span className="font-medium text-black">{product.diamondCutGrade}</span>
+                      </div>
+                    )}
+                    {product.diamondCaratWeight && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Carat Weight:</span>
+                        <span className="font-medium text-black">{product.diamondCaratWeight}</span>
+                      </div>
+                    )}
+                    {product.diamondMetalDetails && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Metal Details:</span>
+                        <span className="font-medium text-black">{product.diamondMetalDetails}</span>
+                      </div>
+                    )}
+                    {product.diamondCertification && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Certification:</span>
+                        <span className="font-medium text-black">{product.diamondCertification}</span>
+                      </div>
+                    )}
+                    {product.diamondOrigin && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Origin:</span>
+                        <span className="font-medium text-black">{product.diamondOrigin}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Platinum Details */}
+              {(product.platinumWeight || 
+                product.platinumType) && (
                 <div className="border border-gray-200 rounded-lg">
                   <div className="px-6 py-4 space-y-3">
                     <h3 className="text-xl font-semibold text-black mb-4">Platinum Details</h3>
-                    <div className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-black">Platinum Type:</span>
-                      <span className="font-medium text-black">{product.metalType}</span>
-                    </div>
-                    {product.goldWeight && (
+                    {product.platinumWeight && (
                       <div className="flex justify-between py-2 border-b border-gray-100">
-                        <span className="text-black">Weight:</span>
-                        <span className="font-medium text-black">{product.goldWeight}</span>
+                        <span className="text-black">Platinum Weight:</span>
+                        <span className="font-medium text-black">{product.platinumWeight}</span>
+                      </div>
+                    )}
+                    {product.platinumType && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Platinum Type:</span>
+                        <span className="font-medium text-black">{product.platinumType}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Silver Details */}
+              {(product.silverWeight || 
+                product.silverType) && (
+                <div className="border border-gray-200 rounded-lg">
+                  <div className="px-6 py-4 space-y-3">
+                    <h3 className="text-xl font-semibold text-black mb-4">Silver Details</h3>
+                    {product.silverWeight && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Silver Weight:</span>
+                        <span className="font-medium text-black">{product.silverWeight}</span>
+                      </div>
+                    )}
+                    {product.silverType && (
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-black">Silver Type:</span>
+                        <span className="font-medium text-black">{product.silverType}</span>
                       </div>
                     )}
                   </div>
@@ -355,17 +440,17 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                 <h3 className="text-xl font-semibold text-black mb-4">Distribution Channels</h3>
                 <div className="flex flex-wrap gap-2">
                   {product.digitalBrowser && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-black">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
                       Digital Browser
                     </span>
                   )}
                   {product.website && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-black">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
                       Website
                     </span>
                   )}
                   {product.distributor && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-black">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
                       Distributor
                     </span>
                   )}
@@ -374,6 +459,41 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* SEO Information */}
+              {(product.seoTitle || product.seoDescription || product.seoKeywords || product.seoSlug) && (
+                <div>
+                  <h3 className="text-xl font-semibold text-black mb-4">SEO Information</h3>
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="space-y-3">
+                      {product.seoTitle && (
+                        <div>
+                          <span className="font-medium text-black">SEO Title:</span>
+                          <p className="text-black mt-1">{product.seoTitle}</p>
+                        </div>
+                      )}
+                      {product.seoSlug && (
+                        <div>
+                          <span className="font-medium text-black">SEO Slug:</span>
+                          <p className="text-black mt-1">{product.seoSlug}</p>
+                        </div>
+                      )}
+                      {product.seoDescription && (
+                        <div>
+                          <span className="font-medium text-black">SEO Description:</span>
+                          <p className="text-black mt-1">{product.seoDescription}</p>
+                        </div>
+                      )}
+                      {product.seoKeywords && (
+                        <div>
+                          <span className="font-medium text-black">SEO Keywords:</span>
+                          <p className="text-black mt-1">{product.seoKeywords}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

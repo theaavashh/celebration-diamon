@@ -24,6 +24,7 @@ interface Product {
   subCategory?: string;
   jewelryType?: string;
   price: number;
+  stock: number;
   imageUrl?: string;
   isActive: boolean;
   status: 'draft' | 'active' | 'inactive';
@@ -95,14 +96,14 @@ interface ProductFormProps {
 // Enhanced ProductPreviewData interface
 interface ProductPreviewData {
   id?: string;
-  productCode: string;
-  name: string;
-  description: string;
+  productCode?: string;
+  name?: string;
+  description?: string;
   fullDescription?: string;
-  category: string;
+  category?: string;
   subCategory?: string;
   jewelryType?: string;
-  price: number;
+  price?: number;
   isActive: boolean;
   status: 'draft' | 'active' | 'inactive';
   
@@ -179,15 +180,15 @@ interface Subcategory {
 // Enhanced validation schema with better error messages
 const productSchema = z.object({
   productCode: z.string().optional(),
-  name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(1, 'Description is required'),
+  name: z.string().optional(),
+  description: z.string().optional(),
   fullDescription: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
+  category: z.string().optional(),
   subCategory: z.string().optional(),
   jewelryType: z.string().optional(),
-  price: z.string().min(1, 'Price is required'),
+  price: z.string().optional(),
   isActive: z.boolean(),
-  status: z.enum(['draft', 'active', 'inactive']).default('draft'),
+  status: z.enum(['draft', 'active', 'inactive']),
   
   // Gold Fields
   goldWeight: z.string().optional(),
@@ -243,10 +244,32 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   const [filteredSubcategories, setFilteredSubcategories] = useState<Subcategory[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<ProductPreviewData | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   // Image cropping refs
   const imgRef = useRef<HTMLImageElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Handle keyboard navigation for image carousel
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isPreviewOpen || !previewData?.images || previewData.images.length <= 1) return;
+      
+      if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex(prev => (prev > 0 ? prev - 1 : previewData.images!.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setCurrentImageIndex(prev => (prev < previewData.images!.length - 1 ? prev + 1 : 0));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPreviewOpen, previewData]);
+
+  // Reset image index when preview data changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [previewData]);
   
   // Form setup with React Hook Form
   const {
@@ -257,7 +280,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     setValue,
     watch,
     getValues
-  } = useForm<ProductFormData>({
+  } = useForm({
     resolver: zodResolver(productSchema),
     defaultValues: {
       productCode: '',
@@ -268,7 +291,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       subCategory: '',
       jewelryType: '',
       price: '',
-      isActive: true,
+      isActive: false,
       status: 'draft',
       
       // Gold Fields
@@ -1323,10 +1346,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     name="diamondCaratWeight"
                     control={control}
                     render={({ field }) => (
-                      <DynamicDropdown
-                        attribute="diamondCaratWeight"
-                        value={field.value || ''}
-                        onChange={field.onChange}
+                      <input
+                       {...field}
+                       type='text'
                         placeholder="Select or enter carat weight"
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.diamondCaratWeight ? 'border-red-500' : 'border-gray-300'}`}
                       />
@@ -1412,10 +1434,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     name="goldCraftsmanship"
                     control={control}
                     render={({ field }) => (
-                      <DynamicDropdown
-                        attribute="goldCraftsmanship"
-                        value={field.value || ''}
-                        onChange={field.onChange}
+                      <input
+                       {...field}
+                       type='text'
+
                         placeholder="Select or enter craftsmanship"
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldCraftsmanship ? 'border-red-500' : 'border-gray-300'}`}
                       />
@@ -1431,10 +1453,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     name="goldDesignDescription"
                     control={control}
                     render={({ field }) => (
-                      <DynamicDropdown
-                        attribute="goldDesignDescription"
-                        value={field.value || ''}
-                        onChange={field.onChange}
+                      <input
+                        {...field}
+                        type="text"
                         placeholder="Select or enter design description"
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldDesignDescription ? 'border-red-500' : 'border-gray-300'}`}
                       />
@@ -2004,14 +2025,17 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
         {/* Product Preview Modal */}
         {isPreviewOpen && previewData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Product Preview</h2>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={() => setIsPreviewOpen(false)}>
+            <div 
+              className="bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8">
+                <div className="flex justify-between items-start mb-8">
+                  <h2 className="text-3xl font-bold text-black">{previewData.name}</h2>
                   <button
                     onClick={() => setIsPreviewOpen(false)}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2019,92 +2043,369 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   </button>
                 </div>
                 
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">{previewData.name}</h3>
-                    <p className="text-gray-600">{previewData.description}</p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                  {/* Left side - Product Images */}
+                  <div className="relative aspect-square bg-gray-100 rounded-xl">
+                    {previewData.images && previewData.images.length > 0 ? (
+                      <>
+                        <img
+                          src={previewData.images[currentImageIndex].url}
+                          alt={`${previewData.name} - Image ${currentImageIndex + 1}`}
+                          className="object-cover w-full h-full rounded-xl shadow-lg"
+                        />
+                        
+                        {/* Navigation arrows */}
+                        {previewData.images.length > 1 && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(prev => 
+                                  prev > 0 ? prev - 1 : previewData.images!.length - 1
+                                );
+                              }}
+                              className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                              aria-label="Previous image"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(prev => 
+                                  prev < previewData.images!.length - 1 ? prev + 1 : 0
+                                );
+                              }}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                              aria-label="Next image"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                            
+                            {/* Image indicators */}
+                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                              {previewData.images.map((_, index) => (
+                                <button
+                                  key={index}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCurrentImageIndex(index);
+                                  }}
+                                  className={`w-2 h-2 rounded-full transition-all ${
+                                    index === currentImageIndex 
+                                      ? 'bg-white w-4' 
+                                      : 'bg-white/50 hover:bg-white/75'
+                                  }`}
+                                  aria-label={`Go to image ${index + 1}`}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
                   
-                  {previewData.images && previewData.images.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {previewData.images.map((image, index) => (
-                        <img
-                          key={image.id}
-                          src={image.url}
-                          alt={image.altText || `Product image ${index + 1}`}
-                          className="w-full h-auto object-contain rounded-lg border border-gray-300"
-                        />
-                      ))}
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Right side - Product Details */}
+                  <div className="space-y-8">
+                    {/* Description */}
                     <div>
-                      <h4 className="font-semibold">Basic Information</h4>
-                      <div className="mt-2 space-y-1">
-                        <p><span className="font-medium">Product Code:</span> {previewData.productCode || 'N/A'}</p>
-                        <p><span className="font-medium">Category:</span> {previewData.category || 'N/A'}</p>
-                        <p><span className="font-medium">Sub Category:</span> {previewData.subCategory || 'N/A'}</p>
-                        <p><span className="font-medium">Jewelry Type:</span> {previewData.jewelryType || 'N/A'}</p>
-                        <p><span className="font-medium">Price:</span> ${previewData.price.toFixed(2)}</p>
-                        <p><span className="font-medium">Status:</span> {previewData.status}</p>
+                      <h3 className="text-xl font-semibold text-black mb-4">Description</h3>
+                      <p className="text-black leading-relaxed text-lg">{previewData.description}</p>
+                    </div>
+
+                    {/* Product Information */}
+                    <div className="border border-gray-200 rounded-lg">
+                      <div className="px-6 py-4 space-y-3">
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Product Code:</span>
+                          <span className="font-medium text-black">{previewData.productCode || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-gray-100">
+                          <span className="text-black">Category:</span>
+                          <span className="font-medium text-black">
+                            {categories.find(cat => cat.id === previewData.category)?.title || previewData.category || 'N/A'}
+                          </span>
+                        </div>
+                        {previewData.subCategory && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-black">Sub Category:</span>
+                            <span className="font-medium text-black">
+                              {subcategories.find(sub => sub.id === previewData.subCategory)?.name || previewData.subCategory}
+                            </span>
+                          </div>
+                        )}
+                        {previewData.jewelryType && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-black">Jewelry Type:</span>
+                            <span className="font-medium text-black">{previewData.jewelryType}</span>
+                          </div>
+                        )}
+                        {previewData.culture && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-black">Culture Background:</span>
+                            <span className="font-medium text-black">{previewData.culture}</span>
+                          </div>
+                        )}
+                        {previewData.orderDuration && (
+                          <div className="flex justify-between py-2 border-b border-gray-100">
+                            <span className="text-black">Estimated Order Period:</span>
+                            <span className="font-medium text-black">{previewData.orderDuration}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    
-                    {previewData.goldWeight && (
-                      <div>
-                        <h4 className="font-semibold">Gold Details</h4>
-                        <div className="mt-2 space-y-1">
-                          <p><span className="font-medium">Gold Weight:</span> {previewData.goldWeight}</p>
-                          <p><span className="font-medium">Gold Purity:</span> {previewData.goldPurity || 'N/A'}</p>
-                          <p><span className="font-medium">Gold Type:</span> {previewData.goldType || 'N/A'}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {previewData.diamondType && (
-                      <div>
-                        <h4 className="font-semibold">Diamond Details</h4>
-                        <div className="mt-2 space-y-1">
-                          <p><span className="font-medium">Diamond Type:</span> {previewData.diamondType}</p>
-                          <p><span className="font-medium">Diamond Shape/Cut:</span> {previewData.diamondShapeCut || 'N/A'}</p>
-                          <p><span className="font-medium">Color Grade:</span> {previewData.diamondColorGrade || 'N/A'}</p>
-                          <p><span className="font-medium">Clarity:</span> {previewData.diamondClarityGrade || 'N/A'}</p>
-                          <p><span className="font-medium">Cut Grade:</span> {previewData.diamondCutGrade || 'N/A'}</p>
-                          <p><span className="font-medium">Carat Weight:</span> {previewData.diamondCaratWeight || 'N/A'}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {previewData.platinumWeight && (
-                      <div>
-                        <h4 className="font-semibold">Platinum Details</h4>
-                        <div className="mt-2 space-y-1">
-                          <p><span className="font-medium">Platinum Weight:</span> {previewData.platinumWeight}</p>
-                          <p><span className="font-medium">Platinum Type:</span> {previewData.platinumType || 'N/A'}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {previewData.silverWeight && (
-                      <div>
-                        <h4 className="font-semibold">Silver Details</h4>
-                        <div className="mt-2 space-y-1">
-                          <p><span className="font-medium">Silver Weight:</span> {previewData.silverWeight}</p>
-                          <p><span className="font-medium">Silver Type:</span> {previewData.silverType || 'N/A'}</p>
-                        </div>
-                      </div>
-                    )}
-                    
+
+
+                    {/* Distribution Channels */}
                     <div>
-                      <h4 className="font-semibold">SEO Information</h4>
-                      <div className="mt-2 space-y-1">
-                        <p><span className="font-medium">SEO Title:</span> {previewData.seoTitle || 'N/A'}</p>
-                        <p><span className="font-medium">SEO Slug:</span> {previewData.seoSlug || 'N/A'}</p>
-                        <p><span className="font-medium">SEO Description:</span> {previewData.seoDescription || 'N/A'}</p>
-                        <p><span className="font-medium">SEO Keywords:</span> {previewData.seoKeywords || 'N/A'}</p>
+                      <h3 className="text-xl font-semibold text-black mb-4">Distribution Channels</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {previewData.digitalBrowser && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
+                            Digital Browser
+                          </span>
+                        )}
+                        {previewData.website && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
+                            Website
+                          </span>
+                        )}
+                        {previewData.distributor && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-black">
+                            Distributor
+                          </span>
+                        )}
+                        {!previewData.digitalBrowser && !previewData.website && !previewData.distributor && (
+                          <span className="text-sm text-black">No distribution channels selected</span>
+                        )}
                       </div>
                     </div>
+
+                    {/* Gold Details */}
+                    {(previewData.goldWeight || 
+                      previewData.goldPurity || 
+                      previewData.goldType ||
+                      previewData.goldCraftsmanship ||
+                      previewData.goldDesignDescription ||
+                      previewData.goldFinishedType ||
+                      previewData.goldStones ||
+                      previewData.goldStoneQuality) && (
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="px-6 py-4 space-y-3">
+                          <h3 className="text-xl font-semibold text-black mb-4">Gold Details</h3>
+                          {previewData.goldWeight && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Gold Weight:</span>
+                              <span className="font-medium text-black">{previewData.goldWeight}</span>
+                            </div>
+                          )}
+                          {previewData.goldPurity && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Gold Purity:</span>
+                              <span className="font-medium text-black">{previewData.goldPurity}</span>
+                            </div>
+                          )}
+                          {previewData.goldType && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Gold Type:</span>
+                              <span className="font-medium text-black">{previewData.goldType}</span>
+                            </div>
+                          )}
+                          {previewData.goldCraftsmanship && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Craftsmanship:</span>
+                              <span className="font-medium text-black">{previewData.goldCraftsmanship}</span>
+                            </div>
+                          )}
+                          {previewData.goldDesignDescription && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Design Description:</span>
+                              <span className="font-medium text-black">{previewData.goldDesignDescription}</span>
+                            </div>
+                          )}
+                          {previewData.goldFinishedType && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Finished Type:</span>
+                              <span className="font-medium text-black">{previewData.goldFinishedType}</span>
+                            </div>
+                          )}
+                          {previewData.goldStones && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Stones:</span>
+                              <span className="font-medium text-black">{previewData.goldStones}</span>
+                            </div>
+                          )}
+                          {previewData.goldStoneQuality && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Stone Quality:</span>
+                              <span className="font-medium text-black">{previewData.goldStoneQuality}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Diamond Details */}
+                    {(previewData.diamondType || 
+                      previewData.diamondShapeCut || 
+                      previewData.diamondColorGrade || 
+                      previewData.diamondClarityGrade ||
+                      previewData.diamondCutGrade ||
+                      previewData.diamondCaratWeight ||
+                      previewData.diamondMetalDetails ||
+                      previewData.diamondCertification ||
+                      previewData.diamondOrigin) && (
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="px-6 py-4 space-y-3">
+                          <h3 className="text-xl font-semibold text-black mb-4">Diamond Details</h3>
+                          {previewData.diamondType && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Diamond Type:</span>
+                              <span className="font-medium text-black">{previewData.diamondType}</span>
+                            </div>
+                          )}
+                          {previewData.diamondShapeCut && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Diamond Shape/Cut:</span>
+                              <span className="font-medium text-black">{previewData.diamondShapeCut}</span>
+                            </div>
+                          )}
+                          {previewData.diamondColorGrade && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Color Grade:</span>
+                              <span className="font-medium text-black">{previewData.diamondColorGrade}</span>
+                            </div>
+                          )}
+                          {previewData.diamondClarityGrade && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Clarity:</span>
+                              <span className="font-medium text-black">{previewData.diamondClarityGrade}</span>
+                            </div>
+                          )}
+                          {previewData.diamondCutGrade && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Cut Grade:</span>
+                              <span className="font-medium text-black">{previewData.diamondCutGrade}</span>
+                            </div>
+                          )}
+                          {previewData.diamondCaratWeight && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Carat Weight:</span>
+                              <span className="font-medium text-black">{previewData.diamondCaratWeight}</span>
+                            </div>
+                          )}
+                          {previewData.diamondMetalDetails && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Metal Details:</span>
+                              <span className="font-medium text-black">{previewData.diamondMetalDetails}</span>
+                            </div>
+                          )}
+                          {previewData.diamondCertification && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Certification:</span>
+                              <span className="font-medium text-black">{previewData.diamondCertification}</span>
+                            </div>
+                          )}
+                          {previewData.diamondOrigin && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Origin:</span>
+                              <span className="font-medium text-black">{previewData.diamondOrigin}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Platinum Details */}
+                    {(previewData.platinumWeight || 
+                      previewData.platinumType) && (
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="px-6 py-4 space-y-3">
+                          <h3 className="text-xl font-semibold text-black mb-4">Platinum Details</h3>
+                          {previewData.platinumWeight && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Platinum Weight:</span>
+                              <span className="font-medium text-black">{previewData.platinumWeight}</span>
+                            </div>
+                          )}
+                          {previewData.platinumType && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Platinum Type:</span>
+                              <span className="font-medium text-black">{previewData.platinumType}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Silver Details */}
+                    {(previewData.silverWeight || 
+                      previewData.silverType) && (
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="px-6 py-4 space-y-3">
+                          <h3 className="text-xl font-semibold text-black mb-4">Silver Details</h3>
+                          {previewData.silverWeight && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Silver Weight:</span>
+                              <span className="font-medium text-black">{previewData.silverWeight}</span>
+                            </div>
+                          )}
+                          {previewData.silverType && (
+                            <div className="flex justify-between py-2 border-b border-gray-100">
+                              <span className="text-black">Silver Type:</span>
+                              <span className="font-medium text-black">{previewData.silverType}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SEO Information */}
+                    {(previewData.seoTitle || previewData.seoDescription || previewData.seoKeywords || previewData.seoSlug) && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-black mb-4">SEO Information</h3>
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <div className="space-y-3">
+                            {previewData.seoTitle && (
+                              <div>
+                                <span className="font-medium text-black">SEO Title:</span>
+                                <p className="text-black mt-1">{previewData.seoTitle}</p>
+                              </div>
+                            )}
+                            {previewData.seoSlug && (
+                              <div>
+                                <span className="font-medium text-black">SEO Slug:</span>
+                                <p className="text-black mt-1">{previewData.seoSlug}</p>
+                              </div>
+                            )}
+                            {previewData.seoDescription && (
+                              <div>
+                                <span className="font-medium text-black">SEO Description:</span>
+                                <p className="text-black mt-1">{previewData.seoDescription}</p>
+                              </div>
+                            )}
+                            {previewData.seoKeywords && (
+                              <div>
+                                <span className="font-medium text-black">SEO Keywords:</span>
+                                <p className="text-black mt-1">{previewData.seoKeywords}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -25,12 +25,10 @@ import {
   BarChart,
   Mail,
   Gift,
-  Target,
   PieChart,
   UserCheck,
   MessageSquare,
   TrendingDown,
-  AlertTriangle,
   Clock,
   FileText as ContentIcon,
   Image as SliderIcon,
@@ -65,8 +63,6 @@ function DashboardContent() {
   });
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
-  const [seoReport, setSeoReport] = useState<any>(null);
-  const [isLoadingSeo, setIsLoadingSeo] = useState(false);
   const searchParams = useSearchParams();
 
   // Read tab parameter from URL
@@ -88,7 +84,6 @@ function DashboardContent() {
   useEffect(() => {
     if (activeTab === 'dashboard') {
       fetchDashboardStats();
-      fetchSeoReport();
     }
   }, [activeTab]);
 
@@ -124,37 +119,7 @@ function DashboardContent() {
     }
   };
 
-  // Function to fetch SEO report
-  const fetchSeoReport = async () => {
-    setIsLoadingSeo(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/seo/report`, {
-        credentials: 'include', // Include cookies for authentication
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setSeoReport(data.data);
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      } else {
-        console.error('Failed to fetch SEO report, status:', response.status);
-        // Don't show toast for SEO report failures as it's not critical
-      }
-    } catch (error) {
-      console.error('Error fetching SEO report:', error);
-      // Don't show toast for SEO report failures as it's not critical
-    } finally {
-      setIsLoadingSeo(false);
-    }
-  };
+
 
   // Function to fetch banners
   const fetchBanners = async () => {
@@ -518,113 +483,7 @@ function DashboardContent() {
                   </div>
                 )}
 
-                {/* SEO Report Section */}
-                <div className="mt-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                    <BarChart3 className="w-6 h-6 mr-2 text-green-600" />
-                    SEO Report
-                  </h3>
-                  
-                  {isLoadingSeo ? (
-                    <div className="flex items-center justify-center h-32">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-                      <span className="ml-2 text-gray-600">Loading SEO report...</span>
-                    </div>
-                  ) : seoReport ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* SEO Score */}
-                      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                          <Target className="w-5 h-5 mr-2 text-blue-600" />
-                          SEO Score
-                        </h4>
-                        <div className="text-center">
-                          <div className="text-4xl font-bold text-gray-900 mb-2">
-                            {seoReport.overview?.seoScore || 0}%
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                (seoReport.overview?.seoScore || 0) >= 80 ? 'bg-green-500' :
-                                (seoReport.overview?.seoScore || 0) >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}
-                              style={{ width: `${seoReport.overview?.seoScore || 0}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {seoReport.overview?.missingSeoItems || 0} items need attention
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Content Freshness */}
-                      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                          <Clock className="w-5 h-5 mr-2 text-orange-600" />
-                          Content Freshness
-                        </h4>
-                        <div className="text-center">
-                          <div className="text-4xl font-bold text-gray-900 mb-2">
-                            {seoReport.overview?.freshnessScore || 0}%
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                (seoReport.overview?.freshnessScore || 0) >= 50 ? 'bg-green-500' :
-                                (seoReport.overview?.freshnessScore || 0) >= 25 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}
-                              style={{ width: `${seoReport.overview?.freshnessScore || 0}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            Recent content activity
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Content Overview */}
-                      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                          <FileText className="w-5 h-5 mr-2 text-purple-600" />
-                          Content Overview
-                        </h4>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Products</span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {seoReport.content?.products?.active || 0} / {seoReport.content?.products?.total || 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Galleries</span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {seoReport.content?.galleries?.active || 0} / {seoReport.content?.galleries?.total || 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Testimonials</span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {seoReport.content?.testimonials?.active || 0} / {seoReport.content?.testimonials?.total || 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">FAQs</span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {seoReport.content?.faqs?.active || 0} / {seoReport.content?.faqs?.total || 0}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                      <div className="text-center text-gray-500">
-                        <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                        <p>Unable to load SEO report</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </>
             )}
           </div>

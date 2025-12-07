@@ -14,7 +14,6 @@ import bannerRoutes from './routes/bannerRoutes';
 import midBannerRoutes from './routes/midBannerRoutes';
 import heroRoutes from './routes/heroRoutes';
 import categoryRoutes from './routes/categoryRoutes';
-import subcategoryRoutes from './routes/subcategoryRoutes';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import productRoutes from './routes/productRoutes';
@@ -137,8 +136,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/banners', bannerRoutes);
 app.use('/api/mid-banners', midBannerRoutes);
 app.use('/api/hero', heroRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/subcategories', subcategoryRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/products', productRoutes);
@@ -169,6 +167,9 @@ app.use('/api/privacy-policy', privacyPolicyRoutes);
 app.use('/api/help-center', helpCenterRoutes);
 app.use('/api/return-policy', returnPolicyRoutes);
 app.use('/api/attribute-options', attributeOptionRoutes);
+
+// Add category routes
+app.use('/api/categories', categoryRoutes);
 
 // Root endpoint
 app.get('/', (_req, res) => {

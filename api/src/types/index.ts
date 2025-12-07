@@ -53,6 +53,8 @@ export interface Category {
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
+  navImage1Url: string | null;
+  navImage2Url: string | null;
 }
 
 export interface Subcategory {
