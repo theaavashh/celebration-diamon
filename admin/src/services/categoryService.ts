@@ -1,4 +1,5 @@
 import axiosInstance from '@/lib/axiosInstance';
+import { fetchCsrfToken } from '@/lib/csrfClient';
 import { Category, Subcategory } from '@/types/category';
 
 // Define API response types
@@ -21,35 +22,54 @@ export const categoryService = {
   getAllCategories: async (): Promise<ApiResponse<CategoryWithSubcategories[]>> => {
     try {
       const response = await axiosInstance.get<ApiResponse<CategoryWithSubcategories[]>>('/api/categories/admin/all');
-      return response.data;
+      return response as any;
     } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to fetch categories',
-        message: error.message || 'Failed to fetch categories'
-      };
+      try {
+        const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
+        const catsResp = await fetch(`${base}/api/categories`, { credentials: 'include' });
+        const catsJson = await catsResp.json();
+        const categories = (catsJson?.data || []) as Category[];
+
+        const withSubs: CategoryWithSubcategories[] = [];
+        for (const cat of categories) {
+          try {
+            const subsResp = await fetch(`${base}/api/categories/${cat.id}/subcategories`, { credentials: 'include' });
+            const subsJson = await subsResp.json();
+            const subcategories = subsJson?.data || [];
+            withSubs.push({ ...(cat as any), subcategories });
+          } catch {
+            withSubs.push({ ...(cat as any), subcategories: [] });
+          }
+        }
+
+        return {
+          success: true,
+          data: withSubs
+        };
+      } catch (fallbackErr: any) {
+        return {
+          success: false,
+          error: fallbackErr.message || error.message || 'Failed to fetch categories',
+          message: fallbackErr.message || error.message || 'Failed to fetch categories'
+        };
+      }
     }
   },
 
   // Create category with subcategories
   createCategory: async (formData: FormData): Promise<ApiResponse<CategoryWithSubcategories>> => {
     try {
+      await fetchCsrfToken();
       // Log the form data being sent
       console.log('Sending form data:');
-      for (let [key, value] of formData.entries()) {
+      for (const [key, value] of formData.entries()) {
         console.log(key, value);
       }
-      
       const response = await axiosInstance.post<ApiResponse<CategoryWithSubcategories>>(
         '/api/categories/with-subcategories',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        formData
       );
-      return response.data;
+      return response as any;
     } catch (error: any) {
       // Log the full error for debugging
       console.error('Category creation error:', error);
@@ -82,16 +102,12 @@ export const categoryService = {
   // Update category
   updateCategory: async (id: string, formData: FormData): Promise<ApiResponse<Category>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.put<ApiResponse<Category>>(
         `/api/categories/${id}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        formData
       );
-      return response.data;
+      return response as any;
     } catch (error: any) {
       // Log the full error for debugging
       console.error('Category update error:', error);
@@ -123,8 +139,9 @@ export const categoryService = {
   // Delete category
   deleteCategory: async (id: string): Promise<ApiResponse<{}>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.delete<ApiResponse<{}>>(`/api/categories/${id}`);
-      return response.data;
+      return response as any;
     } catch (error: any) {
       return {
         success: false,
@@ -137,8 +154,9 @@ export const categoryService = {
   // Toggle category status
   toggleCategoryStatus: async (id: string): Promise<ApiResponse<Category>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.patch<ApiResponse<Category>>(`/api/categories/${id}`);
-      return response.data;
+      return response as any;
     } catch (error: any) {
       return {
         success: false,
@@ -151,8 +169,9 @@ export const categoryService = {
   // Create subcategory
   createSubcategory: async (categoryId: string, data: Partial<Subcategory>): Promise<ApiResponse<Subcategory>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.post<ApiResponse<Subcategory>>(`/api/categories/${categoryId}/subcategories`, data);
-      return response.data;
+      return response as any;
     } catch (error: any) {
       return {
         success: false,
@@ -165,8 +184,9 @@ export const categoryService = {
   // Update subcategory
   updateSubcategory: async (id: string, data: Partial<Subcategory>): Promise<ApiResponse<Subcategory>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.put<ApiResponse<Subcategory>>(`/api/categories/subcategories/${id}`, data);
-      return response.data;
+      return response as any;
     } catch (error: any) {
       return {
         success: false,
@@ -179,8 +199,9 @@ export const categoryService = {
   // Delete subcategory
   deleteSubcategory: async (id: string): Promise<ApiResponse<{}>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.delete<ApiResponse<{}>>(`/api/categories/subcategories/${id}`);
-      return response.data;
+      return response as any;
     } catch (error: any) {
       return {
         success: false,
@@ -193,8 +214,9 @@ export const categoryService = {
   // Toggle subcategory status
   toggleSubcategoryStatus: async (id: string): Promise<ApiResponse<Subcategory>> => {
     try {
+      await fetchCsrfToken();
       const response = await axiosInstance.patch<ApiResponse<Subcategory>>(`/api/categories/subcategories/${id}`);
-      return response.data;
+      return response as any;
     } catch (error: any) {
       return {
         success: false,

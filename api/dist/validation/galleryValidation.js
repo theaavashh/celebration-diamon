@@ -3,22 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GalleryListResponseSchema = exports.GalleryResponseSchema = exports.GalleryItemResponseSchema = exports.GalleryQuerySchema = exports.GalleryItemIdSchema = exports.GalleryIdSchema = exports.UpdateGalleryRequestSchema = exports.CreateGalleryRequestSchema = exports.GallerySchema = exports.GalleryItemSchema = void 0;
 const zod_1 = require("zod");
 exports.GalleryItemSchema = zod_1.z.object({
-    title: zod_1.z.string()
-        .max(100, 'Title must be less than 100 characters')
-        .optional()
-        .nullable()
-        .transform(val => val?.trim() || null),
     imageUrl: zod_1.z.string()
         .min(1, 'Image URL is required')
         .refine((url) => {
         return url.startsWith('blob:') || /^https?:\/\/.+/.test(url) || url.startsWith('/');
     }, 'Image URL must be a valid URL or file path')
         .trim(),
-    description: zod_1.z.string()
-        .max(500, 'Description must be less than 500 characters')
-        .optional()
-        .nullable()
-        .transform(val => val?.trim() || null),
     sortOrder: zod_1.z.number()
         .int('Sort order must be an integer')
         .min(0, 'Sort order must be non-negative'),
@@ -62,9 +52,7 @@ exports.GalleryQuerySchema = zod_1.z.object({
 exports.GalleryItemResponseSchema = zod_1.z.object({
     id: zod_1.z.string(),
     galleryId: zod_1.z.string(),
-    title: zod_1.z.string(),
     imageUrl: zod_1.z.string(),
-    description: zod_1.z.string().nullable(),
     isActive: zod_1.z.boolean(),
     sortOrder: zod_1.z.number().int(),
     createdAt: zod_1.z.date(),

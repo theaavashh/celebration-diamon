@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import ProductForm from '@/components/ProductForm';
 import ProductPreviewModal from '@/components/ProductPreviewModal';
-import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X, Diamond } from 'lucide-react';
 import { getCsrfToken } from '@/lib/csrfClient';
+import { Lato } from 'next/font/google';
+
+const lato = Lato({ subsets: ['latin'], display: 'swap', weight: ['400','700'] });
 
 interface ProductImage {
   id: string;
@@ -121,8 +125,16 @@ interface Subcategory {
   updatedAt: string;
 }
 
+interface Review {
+  id: string;
+  customerName: string;
+  rating: number;
+  createdAt: string;
+  comment?: string;
+}
+
 export default function ProductsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   
   // Helper function to get correct API URL
   const getApiUrl = (endpoint: string) => {
@@ -132,21 +144,22 @@ export default function ProductsPage() {
     return `${cleanUrl}/api${endpoint}`;
   };
   
-  const [products, setProducts] = useState<Product[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all'); // Add status filter state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 10;
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [serverTotalCount, setServerTotalCount] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
-  const [productReviews, setProductReviews] = useState<Record<string, any[]>>({});
+  const [productReviews, setProductReviews] = useState<Record<string, Review[]>>({});
   const [showReviewsFor, setShowReviewsFor] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; product: Product | null }>({ isOpen: false, product: null });
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -176,7 +189,7 @@ export default function ProductsPage() {
   }, [isPreviewOpen, previewProduct]);
 
   // Handle form changes
-  const handleFormChange = (field: string, value: any) => {
+  const handleFormChange = (field: string, value: unknown) => {
     // This will be handled by the ProductForm component
   };
 
@@ -191,10 +204,35 @@ export default function ProductsPage() {
     setIsModalOpen(true);
   };
 
-  // Open edit modal with product data
-  const openEditModal = (product: Product) => {
-    setEditingProduct(product);
-    setIsModalOpen(true);
+  // Open edit modal with product data (fetch full details)
+  const openEditModal = async (product: Product) => {
+    try {
+      setIsModalOpen(true);
+      const response = await fetch(getApiUrl(`/products/${product.id}`), {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const json = await response.json();
+        const detailed = (json && (json.data || json)) as Product;
+        const merged: Product = { ...product, ...detailed };
+        setEditingProduct(merged);
+      } else if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      } else {
+        toast.error('Failed to load product details');
+        setEditingProduct(product);
+      }
+    } catch (error) {
+      toast.error('Failed to load product details');
+      setEditingProduct(product);
+    }
   };
 
   // Handle create/edit product
@@ -277,10 +315,10 @@ export default function ProductsPage() {
 
   // Toggle all products on current page
   const toggleSelectAll = () => {
-    if (selectedProducts.size === currentProducts.length) {
+    if (selectedProducts.size === allProducts.length) {
       setSelectedProducts(new Set());
     } else {
-      setSelectedProducts(new Set(currentProducts.map(p => p.id)));
+      setSelectedProducts(new Set(allProducts.map(p => p.id)));
     }
   };
 
@@ -367,57 +405,47 @@ export default function ProductsPage() {
     }
   };
 
-  // Filter products
-  const filteredProducts = allProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.productCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || product.category === selectedCategory;
-    const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+  // Server-side pagination
+  const totalPages = serverTotalPages;
 
   // Reset to page 1 when search, category, or status changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedStatus]);
 
+  // Refetch when filters or page change
+  useEffect(() => {
+    fetchProducts();
+  }, [currentPage, searchTerm, selectedCategory, selectedStatus]);
+
   // Fetch products
-  const fetchProducts = async () => {
-    setIsLoading(true);
+  const fetchProducts = useCallback(async () => {
+    setIsPageLoading(true);
     try {
-      // Check if user is authenticated
-      if (!isAuthenticated) {
-        console.error('User is not authenticated');
-        toast.error('Authentication required. Please log in again.');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-        setIsLoading(false);
+      if (isLoading) {
+        // Wait for auth state to resolve
+        setIsPageLoading(false);
         return;
       }
-
-      // Try to get token from localStorage as fallback (for API calls that need Bearer token)
+      if (!isAuthenticated) {
+        toast.error('Authentication required. Please log in again.');
+        // Do not force redirect here; the route guard handles it
+        setIsPageLoading(false);
+        return;
+      }
       const authToken = localStorage.getItem('token') || localStorage.getItem('adminToken');
       
-      // Build query parameters
       const queryParams = new URLSearchParams();
       if (searchTerm) queryParams.append('search', searchTerm);
       if (selectedCategory) queryParams.append('category', selectedCategory);
       if (selectedStatus && selectedStatus !== 'all') queryParams.append('status', selectedStatus);
+      queryParams.append('page', String(currentPage));
+      queryParams.append('limit', String(itemsPerPage));
       
-      const url = queryParams.toString() 
-        ? `${getApiUrl('/products/admin/all')}?${queryParams.toString()}`
-        : getApiUrl('/products/admin/all');
+      const url = `${getApiUrl('/products/admin/all')}?${queryParams.toString()}`;
       
       const response = await fetch(url, {
-        credentials: 'include', // Include cookies for authentication
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(authToken && { 'Authorization': `Bearer ${authToken}` })
@@ -426,27 +454,25 @@ export default function ProductsPage() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched products:', data.data);
         setAllProducts(data.data || []);
+        const pages = data?.pagination?.pages ?? 1;
+        setServerTotalPages(pages);
+        const total = data?.total ?? data?.pagination?.total ?? (data?.data ? data.data.length : 0);
+        setServerTotalCount(total);
       } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
         toast.error('Session expired. Please log in again.');
-        // Clear tokens and redirect to home page
-        // Using cookie-based authentication, no need to clear localStorage tokens
         if (typeof window !== 'undefined') {
           window.location.href = '/';
         }
       } else {
-        console.error('Failed to fetch products, status:', response.status);
         toast.error(`Failed to fetch products: ${response.status === 403 ? 'Access denied' : 'Server error'}`);
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
       toast.error('Network error. Please check your connection.');
     } finally {
-      setIsLoading(false);
+      setIsPageLoading(false);
     }
-  };
+  }, [isAuthenticated, isLoading, currentPage, itemsPerPage, searchTerm, selectedCategory, selectedStatus]);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -476,7 +502,7 @@ export default function ProductsPage() {
       if (response.ok) {
         const data = await response.json();
         // Extract subcategories from categories
-        const allSubcategories = data.data?.flatMap((category: any) => 
+        const allSubcategories = data.data?.flatMap((category: { subcategories?: Subcategory[] }) => 
           category.subcategories || []
         ) || [];
         setSubcategories(allSubcategories);
@@ -491,7 +517,7 @@ export default function ProductsPage() {
     try {
       const response = await fetch(getApiUrl(`/reviews/product/${productId}`));
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { success: boolean; data: Review[] };
         if (data.success) {
           setProductReviews(prev => ({
             ...prev,
@@ -503,8 +529,7 @@ export default function ProductsPage() {
       console.error('Error fetching reviews:', error);
     }
   };
-    }
-  };
+  
 
   // Toggle product details expansion
   const toggleProductExpansion = (productId: string) => {
@@ -521,40 +546,35 @@ export default function ProductsPage() {
 
   // Open preview modal with product data
   const openPreviewModal = (product: Product) => {
-    console.log('Opening preview for product:', product);
     setPreviewProduct(product);
     setIsPreviewOpen(true);
-    console.log('Preview state set:', { previewProduct: product, isPreviewOpen: true });
   };
 
   // Close preview modal
   const closePreviewModal = () => {
-    console.log('Closing preview modal');
     setIsPreviewOpen(false);
     setPreviewProduct(null);
   };
 
   useEffect(() => {
-    fetchProducts();
     fetchCategories();
     fetchSubcategories();
   }, []);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Preview Modal Component
   const PreviewModal = () => {
-    console.log('Rendering PreviewModal:', { isPreviewOpen, previewProduct });
     if (!isPreviewOpen || !previewProduct) return null;
-    console.log('PreviewModal content rendering');
 
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={() => {
-        console.log('PreviewModal background clicked, closing modal');
         closePreviewModal();
       }}>
         <div 
           className="bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-200"
           onClick={(e) => {
-            console.log('PreviewModal content clicked, stopping propagation');
             e.stopPropagation();
           }}
         >
@@ -563,7 +583,6 @@ export default function ProductsPage() {
               <h2 className="text-3xl font-bold text-black">{previewProduct!.name}</h2>
               <button
                 onClick={() => {
-                  console.log('PreviewModal close button clicked');
                   closePreviewModal();
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
@@ -940,13 +959,14 @@ export default function ProductsPage() {
   };
 
   return (
+    <ProtectedRoute>
     <DashboardLayout showBreadcrumb={true}>
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-black">Product Management</h1>
-            <p className="text-black">Manage your jewelry products</p>
-          </div>
+      <div className={`${lato.className} p-6`}>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+            <h1 className="text-4xl italic font-bold text-black">Product Management</h1>
+            <p className="text-black text-2xl">Manage your jewelry products</p>
+              </div>
           <div className="flex items-center space-x-4">
             {/* View Toggle */}
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -954,8 +974,8 @@ export default function ProductsPage() {
                 onClick={() => setViewMode('table')}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   viewMode === 'table'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-[#9A8873] shadow-sm'
+                    : 'text-black hover:text-black'
                 }`}
               >
                 <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -967,8 +987,8 @@ export default function ProductsPage() {
                 onClick={() => setViewMode('cards')}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   viewMode === 'cards'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-[#9A8873] shadow-sm'
+                    : 'text-black hover:text-black'
                 }`}
               >
                 <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -978,8 +998,8 @@ export default function ProductsPage() {
               </button>
             </div>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              onClick={openModal}
+              className="bg-[#9A8873] text-white px-6 py-3 rounded-lg hover:bg-[#242f40] transition-colors font-medium"
             >
               Add New Product
             </button>
@@ -1038,24 +1058,22 @@ export default function ProductsPage() {
               </div>
 
         {/* Products List */}
-        {isLoading ? (
+        {isPageLoading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
             <p className="mt-2 text-black">Loading products...</p>
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : allProducts.length === 0 ? (
           <div className="p-8 text-center text-black">
-            <div className="bg-gray-100 rounded-lg p-8">
-              <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
+            <div className=" p-8">
+              <div className="w-16 h-16  mx-auto flex items-center justify-center">
+               <Diamond />
         </div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No products found</h3>
-              <p className="text-gray-500 mb-4">Create your first product to get started</p>
+              <h3 className="text-2xl font-semibold text-black mb-2">No products found</h3>
+              <p className="text-black text-xl mb-4">Create your first product to get started</p>
               <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                onClick={openModal}
+                className="bg-[#9A8873] text-lg text-white px-6 py-2 rounded-lg hover:bg-[#242f40] transition-colors"
               >
                 Create First Product
               </button>
@@ -1094,7 +1112,7 @@ export default function ProductsPage() {
                     <th className="px-6 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedProducts.size === currentProducts.length && currentProducts.length > 0}
+                        checked={selectedProducts.size === allProducts.length && allProducts.length > 0}
                         onChange={toggleSelectAll}
                         className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
@@ -1106,7 +1124,7 @@ export default function ProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {currentProducts.map((product) => (
+                  {allProducts.map((product) => (
                     <React.Fragment key={product.id}>
                       {/* Main Info Row */}
                       <tr className="hover:bg-gray-50">
@@ -1248,7 +1266,7 @@ export default function ProductsPage() {
                                     fetchProductReviews(product.id);
                                   }
                                 }}
-                                className="flex items-center gap-1 px-3 py-1 text-xs text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50 rounded transition-colors"
+                                className="flex items-center gap-1 px-3 py-1 text-xs text-[#9A8873] hover:text-[#242f40] hover:bg-gray-50 rounded transition-colors"
                                 title="View Reviews"
                               >
                                 <MessageSquare className="w-3.5 h-3.5" />
@@ -1257,7 +1275,7 @@ export default function ProductsPage() {
                               </button>
                               <button
                                 onClick={() => openEditModal(product)}
-                                className="flex items-center gap-1 px-3 py-1 text-xs text-purple-600 hover:text-purple-900 hover:bg-purple-50 rounded transition-colors"
+                                className="flex items-center gap-1 px-3 py-1 text-xs text-[#9A8873] hover:text-[#242f40] hover:bg-gray-50 rounded transition-colors"
                                 title="Edit Product"
                               >
                                 <Edit className="w-3.5 h-3.5" />
@@ -1525,7 +1543,7 @@ export default function ProductsPage() {
                             </div>
                             {productReviews[product.id] && productReviews[product.id].length > 0 ? (
                               <div className="space-y-3 max-h-60 overflow-y-auto">
-                                {productReviews[product.id].map((review: any) => (
+                                {productReviews[product.id].map((review: Review) => (
                                   <div key={review.id} className="border-b border-gray-200 pb-3 last:border-0">
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
@@ -1566,7 +1584,7 @@ export default function ProductsPage() {
         ) : (
           /* Card View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {currentProducts.map((product) => (
+            {allProducts.map((product) => (
               <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200">
                 {/* Product Image */}
                 <div className="relative h-48 bg-gray-100">
@@ -1668,13 +1686,13 @@ export default function ProductsPage() {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => openEditModal(product)}
-                        className="text-purple-600 hover:text-purple-700 text-sm font-medium transition-colors"
+                        className="text-[#9A8873] hover:text-[#242f40] text-sm font-medium transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => openPreviewModal(product)}
-                        className="text-green-600 hover:text-green-700 text-sm font-medium transition-colors"
+                        className="text-[#9A8873] hover:text-[#242f40] text-sm font-medium transition-colors"
                       >
                         Preview
                       </button>
@@ -1703,10 +1721,10 @@ export default function ProductsPage() {
         )}
 
         {/* Pagination Controls */}
-        {filteredProducts.length > 0 && totalPages > 1 && (
+        {allProducts.length > 0 && totalPages > 1 && (
           <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm border border-gray-200">
             <div className="text-sm text-gray-700">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min((currentPage - 1) * itemsPerPage + allProducts.length, serverTotalCount)} of {serverTotalCount} products
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1729,7 +1747,7 @@ export default function ProductsPage() {
                       onClick={() => setCurrentPage(page)}
                       className={`px-4 py-2 rounded-lg ${
                         currentPage === page
-                          ? 'bg-purple-600 text-white'
+                          ? 'bg-[#9A8873] text-white'
                           : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -1758,6 +1776,7 @@ export default function ProductsPage() {
 
         {/* Product Form Modal */}
         <ProductForm
+          key={editingProduct?.id || 'new'}
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false);
@@ -1803,5 +1822,6 @@ export default function ProductsPage() {
         {isPreviewOpen && previewProduct && <ProductPreviewModal isOpen={isPreviewOpen} onClose={() => { setIsPreviewOpen(false); setPreviewProduct(null); }} product={previewProduct} categories={categories} subcategories={subcategories} />}
       </div>
     </DashboardLayout>
+    </ProtectedRoute>
   );
 }

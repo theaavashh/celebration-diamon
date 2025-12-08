@@ -2,11 +2,6 @@ import { z } from 'zod';
 
 // Gallery Item Validation Schema
 export const GalleryItemSchema = z.object({
-  title: z.string()
-    .max(100, 'Title must be less than 100 characters')
-    .optional()
-    .nullable()
-    .transform(val => val?.trim() || null),
   imageUrl: z.string()
     .min(1, 'Image URL is required')
     .refine((url) => {
@@ -14,11 +9,6 @@ export const GalleryItemSchema = z.object({
       return url.startsWith('blob:') || /^https?:\/\/.+/.test(url) || url.startsWith('/');
     }, 'Image URL must be a valid URL or file path')
     .trim(),
-  description: z.string()
-    .max(500, 'Description must be less than 500 characters')
-    .optional()
-    .nullable()
-    .transform(val => val?.trim() || null),
   sortOrder: z.number()
     .int('Sort order must be an integer')
     .min(0, 'Sort order must be non-negative'),
@@ -76,9 +66,7 @@ export const GalleryQuerySchema = z.object({
 export const GalleryItemResponseSchema = z.object({
   id: z.string(),
   galleryId: z.string(),
-  title: z.string(),
   imageUrl: z.string(),
-  description: z.string().nullable(),
   isActive: z.boolean(),
   sortOrder: z.number().int(),
   createdAt: z.date(),

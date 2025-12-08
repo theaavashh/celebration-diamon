@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { productAttributeService, AttributeType } from '@/services/productAttributeService';
 import { toast } from 'react-hot-toast';
 import { fetchCsrfToken, getCsrfToken } from '@/lib/csrfClient';
+import { ChevronDown } from 'lucide-react';
 
 interface DynamicDropdownProps {
   attribute: AttributeType;
@@ -319,7 +320,7 @@ export default function DynamicDropdown({
               onClick={() => setShowDropdown(!showDropdown)}
             >
               <span>{inputValue || placeholder}</span>
-              <span>▼</span>
+              <ChevronDown className="w-4 h-4 text-gray-500" />
             </div>
             
             {/* Dropdown list with add and delete buttons */}
@@ -409,7 +410,7 @@ export default function DynamicDropdown({
               onClick={() => setShowDropdown(!showDropdown)}
             >
               <span>{inputValue || placeholder}</span>
-              <span>▼</span>
+              <ChevronDown className="w-4 h-4 text-gray-500" />
             </div>
             
             {/* Dropdown list with delete buttons */}

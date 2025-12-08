@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Edit, Trash2, Star, Eye, EyeOff, Search, Filter } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
-import apiService from '@/lib/apiClient';
+import { apiService } from '@/lib/apiClient';
 
 interface FAQ {
   id: string;
@@ -67,17 +67,11 @@ export default function FAQsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.get('/faqs/admin');
-      const faqData = Array.isArray(response)
-        ? response
-        : Array.isArray(response?.data)
-          ? response.data
-          : [];
-
-      setFaqs(faqData);
-    } catch (error: any) {
+      const response = await apiService.get<FAQ[]>('/faqs/admin');
+      setFaqs(response.data ?? []);
+    } catch (error: unknown) {
       console.error('Error fetching FAQs:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch FAQs';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch FAQs';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -89,14 +83,14 @@ export default function FAQsPage() {
   const fetchFAQSettings = useCallback(async () => {
     try {
       const response = await apiService.get('/faq-settings/admin');
-      if (response?.data?.success && response.data.data) {
+      if (response.success && response.data) {
         setFaqSettings(response.data);
         setSettingsFormData({
-          title: response.data.title || '',
-          subtitle: response.data.subtitle || '',
-          isActive: response.data.isActive
+          title: (response.data as any).title || '',
+          subtitle: (response.data as any).subtitle || '',
+          isActive: (response.data as any).isActive
         });
-      } else if (response) {
+      } else {
         setFaqSettings(null);
         setSettingsFormData({
           title: '',
@@ -129,15 +123,15 @@ export default function FAQsPage() {
       setError(null);
 
       const response = await apiService.put('/faq-settings', settingsFormData);
-      if (response.data?.success) {
-        setFaqSettings(response.data || settingsFormData);
+      if (response.success) {
+        setFaqSettings(response.data ?? settingsFormData);
         toast.success('FAQ settings updated successfully!');
       } else {
-        throw new Error(response.data?.error || 'Failed to update FAQ settings');
+        throw new Error(response.error || 'Failed to update FAQ settings');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving FAQ settings:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to save FAQ settings';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save FAQ settings';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -162,18 +156,18 @@ export default function FAQsPage() {
         ? await apiService.put(`/faqs/${editingFAQ.id}`, formData)
         : await apiService.post('/faqs', formData);
 
-      if (response.data?.success) {
+      if (response.success) {
         toast.success(editingFAQ ? 'FAQ updated successfully!' : 'FAQ created successfully!');
         setShowForm(false);
         setEditingFAQ(null);
         resetForm();
         fetchFAQs();
       } else {
-        throw new Error(response.data?.error || 'Failed to save FAQ');
+        throw new Error(response.error || 'Failed to save FAQ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving FAQ:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to save FAQ';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save FAQ';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -203,15 +197,15 @@ export default function FAQsPage() {
     try {
       const response = await apiService.delete(`/faqs/${id}`);
       
-      if (response.data?.success) {
+      if (response.success) {
         toast.success('FAQ deleted successfully!');
         fetchFAQs();
       } else {
-        throw new Error(response.data?.error || 'Failed to delete FAQ');
+        throw new Error(response.error || 'Failed to delete FAQ');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting FAQ:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to delete FAQ';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete FAQ';
       toast.error(errorMessage);
     }
   }, [fetchFAQs]);
@@ -221,15 +215,15 @@ export default function FAQsPage() {
     try {
       const response = await apiService.patch(`/faqs/${id}/toggle-status`);
       
-      if (response.data?.success) {
+      if (response.success) {
         toast.success(`FAQ ${currentStatus ? 'deactivated' : 'activated'} successfully!`);
         fetchFAQs();
       } else {
-        throw new Error(response.data?.error || 'Failed to toggle FAQ status');
+        throw new Error(response.error || 'Failed to toggle FAQ status');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error toggling FAQ status:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to toggle FAQ status';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to toggle FAQ status';
       toast.error(errorMessage);
     }
   }, [fetchFAQs]);

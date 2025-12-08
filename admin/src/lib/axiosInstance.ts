@@ -1,13 +1,15 @@
 import axios from 'axios';
 import { getCsrfToken, setCsrfToken } from './csrfClient';
 
+// Normalize base URL to avoid double /api
+const rawBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+const normalizedBase = rawBase.replace(/\/api\/?$/, '');
+
 // Create an axios instance with default configuration
 const axiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000',
+  baseURL: normalizedBase,
   withCredentials: true, // Include cookies in requests
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: {},
 });
 
 // Request interceptor to add CSRF token
@@ -71,16 +73,15 @@ function getCookie(name: string): string | null {
 // Helper function to refresh CSRF token
 async function refreshCsrfToken(): Promise<void> {
   try {
-    const response = await axiosInstance.get('/api/auth/csrf-token');
-    const csrfToken = response.data?.csrfToken;
+    type CsrfResponse = { success?: boolean; data?: { csrfToken?: string } } | { csrfToken?: string };
+    const response = (await axiosInstance.get('/api/auth/csrf-token')) as CsrfResponse;
+    const csrfToken = (('data' in response ? response.data?.csrfToken : (response as { csrfToken?: string }).csrfToken) ?? null);
     if (csrfToken) {
-      // Set the token in the CSRF client library
       setCsrfToken(csrfToken);
-      // Also set as cookie for server-side access
       document.cookie = `csrfToken=${csrfToken}; path=/; SameSite=Strict`;
     }
   } catch (error) {
-    console.error('Failed to refresh CSRF token:', error);
+    console.error('Failed to refresh CSRF token:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

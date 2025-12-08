@@ -7,21 +7,45 @@ exports.getDashboardStats = void 0;
 const database_1 = __importDefault(require("../config/database"));
 const getDashboardStats = async (req, res) => {
     try {
-        const [totalProducts, totalQuoteRequests, totalCollections, activeGalleries, activeTestimonials, totalGalleries, recentQuoteRequests, categories] = await Promise.all([
-            database_1.default.product.count({ where: { isActive: true } }),
-            database_1.default.quoteRequest.count(),
-            database_1.default.collection.count(),
-            database_1.default.gallery.count({ where: { isActive: true } }),
-            database_1.default.testimonial.count({ where: { isActive: true } }),
-            database_1.default.gallery.count(),
-            database_1.default.quoteRequest.count({
-                where: {
-                    createdAt: {
-                        gte: new Date(new Date().setDate(new Date().getDate() - 30))
-                    }
+        const safeCount = async (model) => {
+            try {
+                if (model && typeof model.count === 'function') {
+                    return await model.count();
+                }
+            }
+            catch { }
+            return 0;
+        };
+        const safeCountWhere = async (model, where) => {
+            try {
+                if (model && typeof model.count === 'function') {
+                    return await model.count({ where });
+                }
+            }
+            catch { }
+            return 0;
+        };
+        const safeFindMany = async (model, args) => {
+            try {
+                if (model && typeof model.findMany === 'function') {
+                    return await model.findMany(args);
+                }
+            }
+            catch { }
+            return [];
+        };
+        const [totalProducts, totalQuoteRequests, activeGalleries, activeTestimonials, totalGalleries, recentQuoteRequests, categories] = await Promise.all([
+            safeCountWhere(database_1.default.product, { isActive: true }),
+            safeCount(database_1.default.quoteRequest),
+            safeCountWhere(database_1.default.gallery, { isActive: true }),
+            safeCountWhere(database_1.default.testimonial, { isActive: true }),
+            safeCount(database_1.default.gallery),
+            safeCountWhere(database_1.default.quoteRequest, {
+                createdAt: {
+                    gte: new Date(new Date().setDate(new Date().getDate() - 30))
                 }
             }),
-            database_1.default.category.findMany({
+            safeFindMany(database_1.default.category, {
                 where: { isActive: true },
                 orderBy: { sortOrder: 'asc' },
                 take: 5,
@@ -34,6 +58,13 @@ const getDashboardStats = async (req, res) => {
                 }
             })
         ]);
+        let totalCollections = 0;
+        try {
+            totalCollections = await database_1.default.collection.count();
+        }
+        catch {
+            totalCollections = 0;
+        }
         const lastMonthStart = new Date();
         lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
         lastMonthStart.setDate(1);
@@ -42,26 +73,22 @@ const getDashboardStats = async (req, res) => {
         thisMonthStart.setDate(1);
         thisMonthStart.setHours(0, 0, 0, 0);
         const [lastMonthQuotes, thisMonthQuotes] = await Promise.all([
-            database_1.default.quoteRequest.count({
-                where: {
-                    createdAt: {
-                        gte: lastMonthStart,
-                        lt: thisMonthStart
-                    }
+            safeCountWhere(database_1.default.quoteRequest, {
+                createdAt: {
+                    gte: lastMonthStart,
+                    lt: thisMonthStart
                 }
             }),
-            database_1.default.quoteRequest.count({
-                where: {
-                    createdAt: {
-                        gte: thisMonthStart
-                    }
+            safeCountWhere(database_1.default.quoteRequest, {
+                createdAt: {
+                    gte: thisMonthStart
                 }
             })
         ]);
         const quoteRequestsGrowth = lastMonthQuotes > 0
             ? ((thisMonthQuotes - lastMonthQuotes) / lastMonthQuotes) * 100
             : (thisMonthQuotes > 0 ? 100 : 0);
-        const recentQuotes = await database_1.default.quote.findMany({
+        const recentQuotes = await safeFindMany(database_1.default.quote, {
             where: { isActive: true },
             orderBy: { sortOrder: 'asc' },
             take: 5,
@@ -72,7 +99,7 @@ const getDashboardStats = async (req, res) => {
                 isActive: true
             }
         });
-        const recentQuoteRequestsList = await database_1.default.quoteRequest.findMany({
+        const recentQuoteRequestsList = await safeFindMany(database_1.default.quoteRequest, {
             orderBy: { createdAt: 'desc' },
             take: 5,
             select: {

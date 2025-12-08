@@ -1,6 +1,6 @@
 import Category from '@/component/category'
 import HeroSection from '@/component/hero-section'
-import SerenityGallery from '@/component/serenity-gallery'
+import Gallery from '@/component/gallery'
 import NewCollection from '@/component/new-collection'
 import CustomRing from '@/component/custom-ring'
 import FAQ from '@/component/faq'
@@ -31,16 +31,13 @@ const HomePage = () => {
    <Category/>
    <Banner/>
    <NewCollection/>
-   {/* <HeroSection/>
-    <Category/>
-     <Banner/>
-     <NewCollection/>
+    
      <AboutUs/>
      <ProductCarousel products={[]} title="Featured Products" subtitle="Explore our latest arrivals and exclusive offers." />
      <WeddingPlanning/>
      <SelfExpression/>
      <VisitStore/>
-   */}
+   
 
    {/* <TabsSection/> */}
 
@@ -128,8 +125,8 @@ const HomePage = () => {
      <Shop/> */}
      {/* <ConfidentShop/> */}
    
-     {/* <TestimonialsSection/> */}
-     {/* <SerenityGallery/>  */}
+     <TestimonialsSection/> 
+      <Gallery/>  
    </>
   )
 }

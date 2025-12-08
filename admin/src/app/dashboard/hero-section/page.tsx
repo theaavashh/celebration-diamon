@@ -1,10 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import RichTextEditor from '@/components/RichTextEditor';
 import { apiService } from '@/lib/apiClient';
+import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { Urbanist } from 'next/font/google';
+
+const urbanist = Urbanist({ subsets: ['latin'], weight: '400' });
 
 interface HeroSection {
   id: string;
@@ -38,6 +43,11 @@ export default function HeroSectionPage() {
   // Add state for delete confirmation modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingHeroId, setDeletingHeroId] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [isCropping, setIsCropping] = useState(false);
+  const [croppingImageUrl, setCroppingImageUrl] = useState<string>('');
 
   // Fetch hero sections
   const fetchHeroSections = async () => {
@@ -84,6 +94,52 @@ export default function HeroSectionPage() {
         setPreviewImage(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const openCropper = () => {
+    if (!previewImage) return;
+    setCroppingImageUrl(previewImage);
+    setCrop({ unit: '%', width: 50, height: 50, x: 25, y: 25 });
+    setIsCropping(true);
+  };
+
+  const applyCrop = () => {
+    if (imgRef.current && completedCrop) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const image = imgRef.current as HTMLImageElement;
+      const pixelRatio = window.devicePixelRatio;
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      canvas.width = completedCrop.width * pixelRatio;
+      canvas.height = completedCrop.height * pixelRatio;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width,
+        completedCrop.height
+      );
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const fileName = `hero-cropped-${Date.now()}.png`;
+          const croppedFile = new File([blob], fileName, { type: 'image/png' });
+          setSelectedImage(croppedFile);
+          setPreviewImage(URL.createObjectURL(croppedFile));
+          setIsCropping(false);
+          setCroppingImageUrl('');
+          setCrop(undefined);
+          setCompletedCrop(undefined);
+        }
+      }, 'image/png');
     }
   };
 
@@ -224,7 +280,7 @@ export default function HeroSectionPage() {
       }
       
       let formData: FormData | { [key: string]: string | Blob } = data;
-      let headers: any = {};
+      const headers: any = {};
       
       // Handle image upload
       if (selectedImage) {
@@ -254,12 +310,10 @@ export default function HeroSectionPage() {
         await apiService.put<HeroSection>(`/hero/${editingHero.id}`, formData, {
           headers: headers
         });
-        toast.success('Hero section updated successfully!');
       } else {
         await apiService.post<HeroSection>('/hero', formData, {
           headers: headers
         });
-        toast.success('Hero section created successfully!');
       }
 
       // Force refresh the hero sections
@@ -283,37 +337,35 @@ export default function HeroSectionPage() {
       
       // Show success message
       toast.success('Hero section saved successfully!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving hero section:', error);
+      const err = error as { message?: string; response?: { data?: any; status?: number }; config?: unknown };
       console.error('Error details:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-        config: error?.config
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+        config: err?.config
       });
       
-      // Extract error message from response
       let errorMessage = 'Failed to save hero section';
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
+      if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.message) {
+        errorMessage = err.message;
       }
       
-      // Check for validation errors
-      if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        const validationErrors = error.response.data.errors
-          .map((err: any) => err.msg || err.message || err)
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const validationErrors = err.response.data.errors
+          .map((e: any) => e.msg || e.message || e)
           .join(', ');
         errorMessage = validationErrors || errorMessage;
       }
       
-      // Add more specific error handling for different error types
-      if (error?.response?.status === 500) {
+      if (err?.response?.status === 500) {
         errorMessage = 'Server error occurred. Please try again later.';
-      } else if (error?.response?.status === 400) {
+      } else if (err?.response?.status === 400) {
         errorMessage = 'Invalid data provided. Please check your inputs.';
       }
       
@@ -359,16 +411,16 @@ export default function HeroSectionPage() {
 
   return (
     <DashboardLayout showBreadcrumb={true}>
-      <div className="p-6">
+      <div className={` p-6 text-lg`}>
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-black">Hero Section</h1>
-            <p className="text-black">Manage your website's hero section content (only one active at a time)</p>
+            <h1 className="text-3xl font-bold text-black italic">Hero Section</h1>
+            <p className="text-black font-medium">Manage your website's hero section content (only one active at a time)</p>
           </div>
           <div className="flex space-x-3">
             <button
               onClick={openModal}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
             >
               {heroSections.length === 0 ? 'Create Hero Section' : 'Edit Hero Section'}
             </button>
@@ -384,92 +436,55 @@ export default function HeroSectionPage() {
         </div>
 
         {/* Hero Sections List */}
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow text-center">
           {isLoading ? (
             <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600 mx-auto"></div>
               <p className="mt-2 text-gray-600">Loading hero sections...</p>
             </div>
           ) : heroSections.length === 0 ? (
-            <div className="p-8 text-center text-black">
+            <div className="p-8 text-center text-black flex items-center justify-center">
               <p>No hero section found. Create your hero section to get started.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Heading
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sub-heading
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      CTA
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Image
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {heroSections.map((hero) => (
-                    <tr key={hero.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-black">
-                          {hero.heading.length > 50 ? `${hero.heading.substring(0, 50)}...` : hero.heading}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-black">
-                          {hero.subHeading ? (hero.subHeading.length > 30 ? `${hero.subHeading.substring(0, 30)}...` : hero.subHeading) : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-black">
-                          {hero.ctaTitle ? `${hero.ctaTitle} →` : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {hero.imageUrl ? (
-                          <img
-                            src={`http://localhost:5000${hero.imageUrl}`}
-                            alt="Hero"
-                            className="w-16 h-12 object-cover rounded border border-gray-300"
-                            onError={(e) => {
-                              console.log('Hero image failed to load:', hero.imageUrl);
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <div className={`w-16 h-12 bg-gray-100 rounded border border-gray-300 flex items-center justify-center text-gray-400 text-xs ${hero.imageUrl ? 'hidden' : ''}`}>
-                          {hero.imageUrl ? 'Failed to load' : 'No image'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          hero.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {hero.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(hero.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-4 mt-20 py-10">
+              {heroSections.map((hero) => (
+                <div key={hero.id} className="bg-white  p-4 flex flex-col md:flex-row gap-4">
+                  <div className="w-full md:w-1/3">
+                    {hero.imageUrl ? (
+                      <img
+                        src={`http://localhost:5000${hero.imageUrl}`}
+                        alt="Hero"
+                        className="w-full h-36 md:h-32 object-cover rounded border border-gray-300"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-36 md:h-32 bg-gray-100 rounded border border-gray-300 flex items-center justify-center text-gray-400">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold text-black">
+                        {stripHtmlTags(hero.heading).length > 120 ? `${stripHtmlTags(hero.heading).substring(0, 120)}...` : stripHtmlTags(hero.heading)}
+                      </div>
+                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${hero.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {hero.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="text-black text-lg">
+                      {hero.subHeading ? (hero.subHeading.length > 100 ? `${hero.subHeading.substring(0, 100)}...` : hero.subHeading) : '-'}
+                    </div>
+                    <div className="text-black text-lg font-semibold">
+                      {hero.ctaTitle ? `${hero.ctaTitle} →` : '-'}
+                    </div>
+                   
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -479,7 +494,7 @@ export default function HeroSectionPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-black">
+                <h2 className="text-2xl font-semibold text-black">
                   {editingHero ? 'Edit Hero Section' : 'Create Hero Section'}
                 </h2>
                 <button
@@ -493,13 +508,13 @@ export default function HeroSectionPage() {
               <div className="space-y-6">
                 {/* Heading */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-xl font-medium text-black mb-2">
                     Heading * <span className="text-red-500">(Required)</span>
                   </label>
                   <RichTextEditor
                     value={heroForm.heading}
                     onChange={(value) => handleFormChange('heading', value)}
-                    height="400px"
+                    height="160px"
                   />
                   {!hasHeadingContent() && (
                     <p className="text-xs text-red-500 mt-1">Please enter a heading for your hero section</p>
@@ -508,7 +523,7 @@ export default function HeroSectionPage() {
 
                 {/* Sub-heading */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-xl font-medium text-black mb-2">
                     Sub-heading
                   </label>
                     <input
@@ -516,26 +531,26 @@ export default function HeroSectionPage() {
                       value={heroForm.subHeading}
                       onChange={(e) => handleFormChange('subHeading', e.target.value)}
                       placeholder="Enter sub-heading"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black placeholder-black"
                     />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-xl font-medium text-black mb-2">
                     Description
                   </label>
                   <RichTextEditor
                     value={heroForm.description}
                     onChange={(value) => handleFormChange('description', value)}
-                    height="400px"
+                    height="280px"
                   />
                 </div>
 
                 {/* CTA Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-black mb-2">
+                    <label className="block text-xl font-medium text-black mb-2">
                       CTA Title
                     </label>
                     <input
@@ -543,11 +558,11 @@ export default function HeroSectionPage() {
                       value={heroForm.ctaTitle}
                       onChange={(e) => handleFormChange('ctaTitle', e.target.value)}
                       placeholder="e.g., Shop Now, Learn More"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black placeholder-black"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-black mb-2">
+                    <label className="block text-xl font-medium text-black mb-2">
                       CTA Link
                     </label>
                     <input
@@ -555,7 +570,7 @@ export default function HeroSectionPage() {
                       value={heroForm.ctaLink}
                       onChange={(e) => handleFormChange('ctaLink', e.target.value)}
                       placeholder="/products or /about (single path only)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black placeholder-gray-400"
                     />
                     <p className="text-xs text-gray-500 mt-1">Enter a single path like /products or /about</p>
                   </div>
@@ -563,7 +578,7 @@ export default function HeroSectionPage() {
 
                 {/* Image Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-xl font-medium text-black mb-2">
                     Hero Image
                   </label>
                   <div className="space-y-4">
@@ -571,8 +586,8 @@ export default function HeroSectionPage() {
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                    />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black"
+                  />
                     {previewImage && (
                       <div className="mt-2">
                         <img
@@ -589,6 +604,11 @@ export default function HeroSectionPage() {
                         <div className="w-full bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center text-gray-400 text-sm hidden">
                           Failed to load image
                         </div>
+                        <div className="mt-3">
+                          <button onClick={openCropper} className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900">
+                            Crop Image
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -602,9 +622,9 @@ export default function HeroSectionPage() {
                     id="isActive"
                     checked={heroForm.isActive}
                     onChange={(e) => handleFormChange('isActive', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="isActive" className="ml-2 block text-sm text-black">
+                  <label htmlFor="isActive" className="ml-2 block text-xl text-black">
                     Active (visible on website - only one hero can be active at a time)
                   </label>
                 </div>
@@ -620,7 +640,7 @@ export default function HeroSectionPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={!hasHeadingContent() || isSubmitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center">
@@ -687,6 +707,81 @@ export default function HeroSectionPage() {
           </div>
         )}
       </div>
+      {isCropping && (
+        <div className="fixed inset-0 bg-black/50 z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto my-8 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 relative">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold">Crop Image</h3>
+                <button
+                  onClick={() => {
+                    setIsCropping(false);
+                    setCroppingImageUrl('');
+                    setCrop(undefined);
+                    setCompletedCrop(undefined);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex flex-col items-center">
+                <ReactCrop
+                  crop={crop}
+                  onChange={(c) => setCrop(c)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  aspect={16 / 9}
+                  minWidth={100}
+                  minHeight={100}
+                >
+                  <img
+                    ref={imgRef}
+                    src={croppingImageUrl}
+                    alt="Crop preview"
+                    className="max-h-[60vh]"
+                    onLoad={() => {
+                      const img = imgRef.current as HTMLImageElement | null;
+                      if (img) {
+                        const { width, height } = img;
+                        const cropInit = centerCrop(
+                          makeAspectCrop(
+                            { unit: '%', width: 90, height: 90 },
+                            16 / 9,
+                            width,
+                            height
+                          ),
+                          width,
+                          height
+                        );
+                        setCrop(cropInit);
+                      }
+                    }}
+                  />
+                </ReactCrop>
+                <div className="mt-4 flex space-x-2 sticky bottom-0 bg-white py-3">
+                  <button
+                    onClick={applyCrop}
+                    className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+                  >
+                    Apply Crop
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsCropping(false);
+                      setCroppingImageUrl('');
+                      setCrop(undefined);
+                      setCompletedCrop(undefined);
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

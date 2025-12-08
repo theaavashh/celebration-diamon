@@ -1,4 +1,5 @@
-// Utility functions for handling CSRF protection
+import axios from 'axios';
+import { getApiBaseUrl } from './api';
 
 let csrfToken: string | null = null;
 let refreshTimer: NodeJS.Timeout | null = null;
@@ -8,26 +9,26 @@ let refreshTimer: NodeJS.Timeout | null = null;
  */
 export async function fetchCsrfToken(): Promise<string | null> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/csrf-token`, {
-      method: 'GET',
-      credentials: 'include', // This ensures cookies are sent with the request
+    const baseApi = getApiBaseUrl();
+    const response = await axios.get(`${baseApi}/auth/csrf-token`, {
+      withCredentials: true,
       headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success && result.data?.csrfToken) {
-        csrfToken = result.data.csrfToken;
-        return csrfToken;
+        'Content-Type': 'application/json'
       }
+    });
+    const result = response.data;
+    if (result?.success && result?.data?.csrfToken) {
+      csrfToken = result.data.csrfToken;
+      return csrfToken;
     }
-    
     console.error('Failed to fetch CSRF token:', response.status);
     return null;
-  } catch (error) {
-    console.error('Error fetching CSRF token:', error);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      console.error('Error fetching CSRF token:', typeof error.response?.data?.message === 'string' ? error.response.data.message : error.message);
+    } else {
+      console.error('Error fetching CSRF token:', error instanceof Error ? error.message : String(error));
+    }
     return null;
   }
 }
@@ -62,7 +63,7 @@ export function clearCsrfToken(): void {
 /**
  * Add CSRF token to request headers
  */
-export function addCsrfToken(headers: HeadersInit = {}): HeadersInit {
+export function addCsrfToken(headers: Record<string, string> = {}): Record<string, string> {
   if (csrfToken) {
     return {
       ...headers,

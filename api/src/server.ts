@@ -44,6 +44,7 @@ import privacyPolicyRoutes from './routes/privacyPolicyRoutes';
 import helpCenterRoutes from './routes/helpCenterRoutes';
 import returnPolicyRoutes from './routes/returnPolicyRoutes';
 import attributeOptionRoutes from './routes/attributeOptionRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -97,17 +98,17 @@ if (process.env['NODE_ENV'] === 'development') {
   app.use('/api/', limiter);
 }
 
-// Cookie parser middleware (must come before routes)
+// Cookie parser middleware (must come before CSRF and routes)
 app.use(cookieParser());
+
+// Body parsing middleware (ensure body is available for CSRF token extraction)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CSRF protection middleware
 import { csrfValidate } from './middleware/csrfMiddleware';
 // Apply CSRF protection to all routes except GET, HEAD, OPTIONS
 app.use(csrfValidate);
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Compression middleware
 app.use(compression());
@@ -167,6 +168,7 @@ app.use('/api/privacy-policy', privacyPolicyRoutes);
 app.use('/api/help-center', helpCenterRoutes);
 app.use('/api/return-policy', returnPolicyRoutes);
 app.use('/api/attribute-options', attributeOptionRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Add category routes
 app.use('/api/categories', categoryRoutes);

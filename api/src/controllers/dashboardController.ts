@@ -4,31 +4,53 @@ import prisma from '../config/database';
 // Get dashboard statistics
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
+    const safeCount = async (model: any): Promise<number> => {
+      try {
+        if (model && typeof model.count === 'function') {
+          return await model.count();
+        }
+      } catch {}
+      return 0;
+    };
+
+    const safeCountWhere = async (model: any, where: any): Promise<number> => {
+      try {
+        if (model && typeof model.count === 'function') {
+          return await model.count({ where });
+        }
+      } catch {}
+      return 0;
+    };
+
+    const safeFindMany = async (model: any, args: any): Promise<any[]> => {
+      try {
+        if (model && typeof model.findMany === 'function') {
+          return await model.findMany(args);
+        }
+      } catch {}
+      return [];
+    };
     // Get counts for various entities
     const [
       totalProducts,
       totalQuoteRequests,
-      totalCollections,
       activeGalleries,
       activeTestimonials,
       totalGalleries,
       recentQuoteRequests,
       categories
     ] = await Promise.all([
-      prisma.product.count({ where: { isActive: true } }),
-      prisma.quoteRequest.count(),
-      prisma.collection.count(),
-      prisma.gallery.count({ where: { isActive: true } }),
-      prisma.testimonial.count({ where: { isActive: true } }),
-      prisma.gallery.count(),
-      prisma.quoteRequest.count({
-        where: {
-          createdAt: {
-            gte: new Date(new Date().setDate(new Date().getDate() - 30))
-          }
+      safeCountWhere((prisma as any).product, { isActive: true }),
+      safeCount((prisma as any).quoteRequest),
+      safeCountWhere((prisma as any).gallery, { isActive: true }),
+      safeCountWhere((prisma as any).testimonial, { isActive: true }),
+      safeCount((prisma as any).gallery),
+      safeCountWhere((prisma as any).quoteRequest, {
+        createdAt: {
+          gte: new Date(new Date().setDate(new Date().getDate() - 30))
         }
       }),
-      prisma.category.findMany({
+      safeFindMany((prisma as any).category, {
         where: { isActive: true },
         orderBy: { sortOrder: 'asc' },
         take: 5,
@@ -42,6 +64,15 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       })
     ]);
 
+    let totalCollections = 0;
+    try {
+      // Some deployments may not include the Collection model
+      // Fallback to 0 if unavailable
+      totalCollections = await (prisma as any).collection.count();
+    } catch {
+      totalCollections = 0;
+    }
+
     // Get quote requests from last month for growth calculation
     const lastMonthStart = new Date();
     lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
@@ -53,19 +84,15 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     thisMonthStart.setHours(0, 0, 0, 0);
 
     const [lastMonthQuotes, thisMonthQuotes] = await Promise.all([
-      prisma.quoteRequest.count({
-        where: {
-          createdAt: {
-            gte: lastMonthStart,
-            lt: thisMonthStart
-          }
+      safeCountWhere((prisma as any).quoteRequest, {
+        createdAt: {
+          gte: lastMonthStart,
+          lt: thisMonthStart
         }
       }),
-      prisma.quoteRequest.count({
-        where: {
-          createdAt: {
-            gte: thisMonthStart
-          }
+      safeCountWhere((prisma as any).quoteRequest, {
+        createdAt: {
+          gte: thisMonthStart
         }
       })
     ]);
@@ -76,7 +103,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       : (thisMonthQuotes > 0 ? 100 : 0);
 
     // Get recent quotes
-    const recentQuotes = await prisma.quote.findMany({
+    const recentQuotes = await safeFindMany((prisma as any).quote, {
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
       take: 5,
@@ -89,7 +116,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     });
 
     // Get recent quote requests
-    const recentQuoteRequestsList = await prisma.quoteRequest.findMany({
+    const recentQuoteRequestsList = await safeFindMany((prisma as any).quoteRequest, {
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: {

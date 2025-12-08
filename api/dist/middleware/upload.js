@@ -16,14 +16,20 @@ const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
         const fieldName = file.fieldname;
         let destination = 'uploads/';
-        if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
+        if (fieldName === 'icon' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
+            destination = 'uploads/categories/icons/';
+        }
+        else if (fieldName === 'image' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
+            destination = 'uploads/categories/images/';
+        }
+        else if ((fieldName === 'navImage1' || fieldName === 'navImage2') && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
+            destination = 'uploads/categories/nav-images/';
+        }
+        else if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
             destination = 'uploads/hero/';
         }
         else if (fieldName === 'images' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {
             destination = 'uploads/products/';
-        }
-        else if (fieldName === 'image' && (req.path.includes('/categories') || req.originalUrl.includes('/categories'))) {
-            destination = 'uploads/categories/';
         }
         else if (fieldName === 'image' && (req.path.includes('/services') || req.originalUrl.includes('/services'))) {
             destination = 'uploads/services/';

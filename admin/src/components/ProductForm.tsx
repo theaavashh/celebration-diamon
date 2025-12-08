@@ -12,6 +12,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { getApiBaseUrl } from '@/lib/api';
+import { Lato } from 'next/font/google';
+
+const lato = Lato({ subsets: ['latin'], display: 'swap', weight: ['400','700'] });
 
 // Enhanced Product interface with proper typing
 interface Product {
@@ -187,10 +191,8 @@ const productSchema = z.object({
   subCategory: z.string().optional(),
   jewelryType: z.string().optional(),
   price: z.string().optional(),
-  isActive: z.boolean(),
-  status: z.enum(['draft', 'active', 'inactive']),
-  
-  // Gold Fields
+  isActive: z.boolean().optional(),
+  status: z.enum(['draft', 'active', 'inactive']).optional(),
   goldWeight: z.string().optional(),
   goldPurity: z.string().optional(),
   goldType: z.string().optional(),
@@ -199,8 +201,6 @@ const productSchema = z.object({
   goldFinishedType: z.string().optional(),
   goldStones: z.string().optional(),
   goldStoneQuality: z.string().optional(),
-  
-  // Diamond Fields
   diamondType: z.string().optional(),
   diamondShapeCut: z.string().optional(),
   diamondColorGrade: z.string().optional(),
@@ -210,18 +210,13 @@ const productSchema = z.object({
   diamondCertification: z.string().optional(),
   diamondOrigin: z.string().optional(),
   diamondCaratWeight: z.string().optional(),
-  
-  // Platinum Fields
   platinumWeight: z.string().optional(),
   platinumType: z.string().optional(),
-  
-  // Silver Fields
   silverWeight: z.string().optional(),
   silverType: z.string().optional(),
-  
-  digitalBrowser: z.boolean(),
-  website: z.boolean(),
-  distributor: z.boolean(),
+  digitalBrowser: z.boolean().optional(),
+  website: z.boolean().optional(),
+  distributor: z.boolean().optional(),
   culture: z.string().optional(),
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
@@ -270,6 +265,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   useEffect(() => {
     setCurrentImageIndex(0);
   }, [previewData]);
+  
+  // hover auto-carousel effect moved below after state declarations
   
   // Form setup with React Hook Form
   const {
@@ -323,9 +320,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       silverWeight: '',
       silverType: '',
       
-      digitalBrowser: false,
-      website: false,
-      distributor: false,
+      digitalBrowser: true,
+      website: true,
+      distributor: true,
       culture: '',
       seoTitle: '',
       seoDescription: '',
@@ -352,15 +349,33 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [croppingImageIndex, setCroppingImageIndex] = useState<number | null>(null);
   const [croppingImageUrl, setCroppingImageUrl] = useState<string>('');
+  const [isImageHovering, setIsImageHovering] = useState(false);
+  
+  useEffect(() => {
+    let interval: number | undefined;
+    if (isPreviewOpen && isImageHovering && previewData?.images && previewData.images.length > 1) {
+      interval = window.setInterval(() => {
+        setCurrentImageIndex(prev => {
+          const len = previewData.images!.length;
+          return prev < len - 1 ? prev + 1 : 0;
+        });
+      }, 1500);
+    }
+    return () => {
+      if (interval) {
+        window.clearInterval(interval);
+      }
+    };
+  }, [isPreviewOpen, isImageHovering, previewData]);
 
   // Fetch categories and subcategories
   useEffect(() => {
     const fetchCategoriesAndSubcategories = async () => {
       try {
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+        const API_BASE_URL = getApiBaseUrl();
         
-        // Fetch categories
-        const categoriesResponse = await fetch(`${API_BASE_URL}/api/categories/admin/all`, {
+        // Fetch categories with subcategories (admin endpoint)
+        const categoriesResponse = await fetch(`${API_BASE_URL}/categories/admin/all`, {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -370,21 +385,32 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json();
-          setCategories(categoriesData.data || []);
-        }
-        
-        // Fetch subcategories
-        const subcategoriesResponse = await fetch(`${API_BASE_URL}/api/subcategories/admin/all`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (subcategoriesResponse.ok) {
-          const subcategoriesData = await subcategoriesResponse.json();
-          setSubcategories(subcategoriesData.data || []);
+          const list: Category[] = (categoriesData.data || []) as Category[];
+          setCategories(list);
+          const rawList: any[] = (categoriesData.data || []) as any[];
+          const flattenedSubs: Subcategory[] = rawList.flatMap((cat: any) => {
+            const subs: any[] = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+            return subs.map((sc: any) => ({
+              id: String(sc.id ?? sc._id ?? ''),
+              name: String(sc.name ?? sc.title ?? ''),
+              categoryId: String(sc.categoryId ?? cat.id ?? ''),
+              category: {
+                id: String(cat.id ?? ''),
+                title: String(cat.title ?? ''),
+                imageUrl: cat.imageUrl ?? null,
+                link: cat.link ?? null,
+                isActive: !!cat.isActive,
+                sortOrder: Number(cat.sortOrder ?? 0),
+                createdAt: String(cat.createdAt ?? ''),
+                updatedAt: String(cat.updatedAt ?? '')
+              },
+              isActive: !!sc.isActive,
+              sortOrder: Number(sc.sortOrder ?? 0),
+              createdAt: String(sc.createdAt ?? ''),
+              updatedAt: String(sc.updatedAt ?? '')
+            }));
+          });
+          setSubcategories(flattenedSubs);
         }
       } catch (error) {
         console.error('Error fetching categories and subcategories:', error);
@@ -395,15 +421,80 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
     fetchCategoriesAndSubcategories();
   }, []);
 
-  // Filter subcategories when category changes
+  // Filter and fetch subcategories when category changes
   useEffect(() => {
     if (watchCategory) {
-      const filtered = subcategories.filter(sub => sub.categoryId === watchCategory);
-      setFilteredSubcategories(filtered);
+      const selected = categories.find(c => String(c.id) === String(watchCategory) || String(c.title).toLowerCase() === String(watchCategory).toLowerCase());
+      const categoryIdForFetch = selected ? selected.id : String(watchCategory);
+
+      // Show locally available ones immediately
+      const localFiltered = subcategories.filter(sub => String(sub.categoryId) === String(categoryIdForFetch));
+      setFilteredSubcategories(localFiltered);
+
+      // Always fetch latest from API to ensure accuracy
+      const API_BASE_URL = getApiBaseUrl();
+      fetch(`${API_BASE_URL}/categories/${categoryIdForFetch}/subcategories`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(async (resp) => {
+          if (resp.ok) {
+            const json = await resp.json();
+            const arr = Array.isArray(json.data) ? json.data : [];
+            const mapped = arr.map((sc: any) => {
+              const cid = String(sc.categoryId ?? categoryIdForFetch);
+              const cat = categories.find(c => c.id === cid) || {
+                id: cid,
+                title: '',
+                imageUrl: null,
+                link: null,
+                isActive: true,
+                sortOrder: 0,
+                createdAt: '',
+                updatedAt: ''
+              };
+              return {
+                id: String(sc.id ?? sc._id ?? ''),
+                name: String(sc.name ?? sc.title ?? ''),
+                categoryId: cid,
+                category: cat,
+                isActive: !!sc.isActive,
+                sortOrder: Number(sc.sortOrder ?? 0),
+                createdAt: String(sc.createdAt ?? ''),
+                updatedAt: String(sc.updatedAt ?? '')
+              } as Subcategory;
+            });
+            setFilteredSubcategories(mapped);
+          }
+        })
+        .catch(() => {
+          // ignore network errors for fetch
+        });
     } else {
       setFilteredSubcategories([]);
     }
-  }, [watchCategory, subcategories]);
+  }, [watchCategory, subcategories, categories]);
+
+  useEffect(() => {
+    if (!watchCategory) {
+      // reset subcategory when category cleared
+      setValue('subCategory', '');
+    } else {
+      // if selected subCategory is not in filtered list, reset it
+      const currentSub = watch('subCategory');
+      if (currentSub && !filteredSubcategories.some(s => s.id === currentSub)) {
+        setValue('subCategory', '');
+      }
+    }
+  }, [watchCategory, filteredSubcategories, setValue]);
+
+  useEffect(() => {
+    const currentCategory = watch('category');
+    if (!editingProduct && categories.length > 0 && !currentCategory) {
+      setValue('category', categories[0].id);
+    }
+  }, [categories, editingProduct, setValue, watch]);
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,9 +623,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       silverWeight: '',
       silverType: '',
       
-      digitalBrowser: false,
-      website: false,
-      distributor: false,
+      digitalBrowser: true,
+      website: true,
+      distributor: true,
       culture: '',
       seoTitle: '',
       seoDescription: '',
@@ -558,7 +649,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
   // Populate form when editing
   useEffect(() => {
-    if (editingProduct && categories.length > 0 && subcategories.length > 0) {
+    if (editingProduct) {
       reset({
         productCode: editingProduct.productCode || '',
         name: editingProduct.name || '',
@@ -570,8 +661,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         price: editingProduct.price?.toString() || '',
         isActive: editingProduct.isActive,
         status: editingProduct.status || 'draft',
-        
-        // Gold Fields
         goldWeight: editingProduct.goldWeight || '',
         goldPurity: editingProduct.goldPurity || '',
         goldType: editingProduct.goldType || '',
@@ -580,8 +669,6 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         goldFinishedType: editingProduct.goldFinishedType || '',
         goldStones: editingProduct.goldStones || '',
         goldStoneQuality: editingProduct.goldStoneQuality || '',
-        
-        // Diamond Fields
         diamondType: editingProduct.diamondType || '',
         diamondShapeCut: editingProduct.diamondShapeCut || '',
         diamondColorGrade: editingProduct.diamondColorGrade || '',
@@ -591,15 +678,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         diamondCertification: editingProduct.diamondCertification || '',
         diamondOrigin: editingProduct.diamondOrigin || '',
         diamondCaratWeight: editingProduct.diamondCaratWeight || '',
-        
-        // Platinum Fields
         platinumWeight: editingProduct.platinumWeight || '',
         platinumType: editingProduct.platinumType || '',
-        
-        // Silver Fields
         silverWeight: editingProduct.silverWeight || '',
         silverType: editingProduct.silverType || '',
-        
         digitalBrowser: editingProduct.digitalBrowser || false,
         website: editingProduct.website || false,
         distributor: editingProduct.distributor || false,
@@ -610,20 +692,16 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         seoSlug: editingProduct.seoSlug || ''
       });
       setSelectedImages([]);
-      
-      // Set preview images
       if (editingProduct.images && editingProduct.images.length > 0) {
         const imageUrls = editingProduct.images
-          .filter(img => img.isActive)
+          .slice()
           .sort((a, b) => a.order - b.order)
           .map(img => {
             if (img.url.startsWith('http')) {
               return img.url;
             } else if (img.url.startsWith('/')) {
               const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-              const fullUrl = baseUrl.endsWith('/') ? 
-                `${baseUrl.slice(0, -1)}${img.url}` : 
-                `${baseUrl}${img.url}`;
+              const fullUrl = baseUrl.endsWith('/') ? `${baseUrl.slice(0, -1)}${img.url}` : `${baseUrl}${img.url}`;
               return fullUrl;
             } else {
               const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
@@ -638,9 +716,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         if (!editingProduct.imageUrl.startsWith('http')) {
           const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
           if (editingProduct.imageUrl.startsWith('/')) {
-            fullImageUrl = baseUrl.endsWith('/') ? 
-              `${baseUrl.slice(0, -1)}${editingProduct.imageUrl}` : 
-              `${baseUrl}${editingProduct.imageUrl}`;
+            fullImageUrl = baseUrl.endsWith('/') ? `${baseUrl.slice(0, -1)}${editingProduct.imageUrl}` : `${baseUrl}${editingProduct.imageUrl}`;
           } else {
             const basePath = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
             fullImageUrl = `${basePath}${editingProduct.imageUrl}`;
@@ -650,30 +726,66 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       } else {
         setPreviewImages([]);
       }
-      
-      // Set video preview
       if (editingProduct.videoUrl) {
         setVideoPreview(editingProduct.videoUrl);
       } else {
         setVideoPreview('');
       }
       setSelectedVideoFile(null);
-    } else if (!editingProduct) {
+    } else {
       resetForm();
     }
-  }, [editingProduct, reset, categories, subcategories]);
+  }, [editingProduct, reset]);
+
+  useEffect(() => {
+    if (editingProduct && categories.length > 0) {
+      const resolvedCategoryId =
+        categories.find(c => c.id === (editingProduct.category || ''))?.id ||
+        categories.find(c => c.title.toLowerCase() === (editingProduct.category || '').toLowerCase())?.id ||
+        '';
+      setValue('category', resolvedCategoryId);
+      if (subcategories.length > 0) {
+        const resolvedSubcategoryId =
+          subcategories.find(s => s.id === (editingProduct.subCategory || ''))?.id ||
+          subcategories.find(s => s.name.toLowerCase() === (editingProduct.subCategory || '').toLowerCase() && (resolvedCategoryId ? s.categoryId === resolvedCategoryId : true))?.id ||
+          '';
+        setValue('subCategory', resolvedSubcategoryId);
+      }
+    }
+  }, [editingProduct, categories, subcategories, setValue]);
+
+  useEffect(() => {
+    if (isOpen && !editingProduct) {
+      resetForm();
+    }
+  }, [isOpen, editingProduct]);
 
   // Handle form submission
   const onSubmit = async (data: ProductFormData) => {
     try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/products`;
+      const apiUrl = `${getApiBaseUrl()}/products`;
       
-      if (!isAuthenticated) {
-        toast.error('Authentication required. Please log in again.');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-        return;
+      // if (!isAuthenticated) {
+      //   toast.error('Authentication required. Please log in again.');
+      //   if (typeof window !== 'undefined') {
+      //     window.location.href = '/';
+      //   }
+      //   return;
+      // }
+      if (!editingProduct && data.productCode && data.productCode.trim() !== '') {
+        const checkUrl = `${getApiBaseUrl()}/products/admin/all?search=${encodeURIComponent(data.productCode.trim())}&status=all&limit=5&page=1`;
+        try {
+          const dupResp = await fetch(checkUrl, { method: 'GET', credentials: 'include' });
+          if (dupResp.ok) {
+            const dupJson = await dupResp.json();
+            const list = dupJson?.data || [];
+            const exists = Array.isArray(list) && list.some((p: any) => ((p?.productCode || '').toLowerCase() === data.productCode!.trim().toLowerCase()));
+            if (exists) {
+              toast.error('Product Code already available');
+              return;
+            }
+          }
+        } catch {}
       }
       
       const formData = new FormData();
@@ -691,8 +803,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       if (data.price && data.price.trim() !== '') {
         formData.append('price', data.price);
       }
-      formData.append('isActive', data.isActive.toString());
-      formData.append('status', data.status);
+      formData.append('isActive', (data.isActive ?? false).toString());
+      formData.append('status', data.status ?? 'draft');
       
       // Gold Fields
       formData.append('goldWeight', data.goldWeight || '');
@@ -722,9 +834,11 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       // Silver Fields
       formData.append('silverWeight', data.silverWeight || '');
       formData.append('silverType', data.silverType || '');
-      formData.append('digitalBrowser', data.digitalBrowser.toString());
-      formData.append('website', data.website.toString());
-      formData.append('distributor', data.distributor.toString());
+      // Other Fields
+      formData.append('orderDuration', data.orderDuration || '');
+      formData.append('digitalBrowser', (data.digitalBrowser ?? false).toString());
+      formData.append('website', (data.website ?? false).toString());
+      formData.append('distributor', (data.distributor ?? false).toString());
       if (data.culture) {
         formData.append('culture', data.culture);
       }
@@ -787,11 +901,28 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
       
       console.log('API response received:', { status: response.status, statusText: response.statusText, headers: Object.fromEntries(response.headers.entries()) });
       
-      let result;
+      let result: any;
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-        console.log('JSON response body:', result);
+        let json: any = null;
+        try {
+          json = await response.json();
+        } catch {}
+        if (json && typeof json === 'object') {
+          result = {
+            success: typeof json.success === 'boolean' ? json.success : response.ok,
+            message: json.message || json.error || (response.ok ? 'Success' : `HTTP ${response.status}: ${response.statusText}`),
+            data: json.data ?? json
+          };
+        } else {
+          const text = await response.text();
+          result = {
+            success: response.ok,
+            message: response.ok ? 'Success' : `HTTP ${response.status}: ${response.statusText}`,
+            data: text
+          };
+        }
+        console.log('JSON response normalized:', result);
       } else {
         const text = await response.text();
         console.log('Text response body:', text);
@@ -822,12 +953,24 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         onSuccess();
         onClose();
       } else {
-        console.error('API error:', result);
+        const fallbackMessage = result && typeof result === 'object'
+          ? (result.message || (response.ok ? 'Unexpected response' : `HTTP ${response.status}: ${response.statusText}`))
+          : `HTTP ${response.status}: ${response.statusText}`;
+        console.error('API error:', fallbackMessage);
+        console.error('API error payload:', result);
         console.error('Request URL:', url);
         console.error('Request method:', method);
         console.error('Response status:', response.status);
         console.error('Response headers:', Object.fromEntries(response.headers.entries()));
-        toast.error(result.message || (editingProduct ? 'Failed to update product' : 'Failed to create product'));
+        if (response.status === 401) {
+          toast.error('Session expired. Please log in again.');
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
+          }
+        } else {
+          const message409 = response.status === 409 ? 'Product Code already available' : undefined;
+          toast.error(message409 || fallbackMessage || (editingProduct ? 'Failed to update product' : 'Failed to create product'));
+        }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -848,15 +991,15 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className={`bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto ${lato.className}`}>
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-black italic">
               {editingProduct ? 'Edit Product' : 'Add New Product'}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-black hover:text-black"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -868,7 +1011,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-lg font-medium text-black mb-2">
                   Product Code
                 </label>
                 <Controller
@@ -887,8 +1030,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Name *
+                <label className="block text-lg font-medium text-black mb-2">
+                  Name
                 </label>
                 <Controller
                   name="name"
@@ -908,8 +1051,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
+              <label className="block text-lg font-medium text-black mb-2">
+                Description
               </label>
               <Controller
                 name="description"
@@ -928,7 +1071,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Full Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-lg font-medium text-black mb-2">
                 Full Description
               </label>
               <Controller
@@ -950,8 +1093,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             {/* Category and Pricing */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
+                <label className="block text-lg font-medium text-black mb-2">
+                  Category
                 </label>
                 <Controller
                   name="category"
@@ -962,7 +1105,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.category ? 'border-red-500' : 'border-gray-300'}`}
                       value={field.value || ''}
                     >
-                      <option value="">Select Category</option>
+                      {categories.length < 1 && (
+                        <option value="">Select Category</option>
+                      )}
                       {categories.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.title}
@@ -974,8 +1119,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 {errors.category && <p className="text-red-500 text-sm mt-1">{errors.category.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sub Category
+                <label className="block text-lg font-medium text-black mb-2">
+                  Subcategory
                 </label>
                 <Controller
                   name="subCategory"
@@ -985,9 +1130,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       {...field}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.subCategory ? 'border-red-500' : 'border-gray-300'}`}
                       value={field.value || ''}
-                      disabled={!watchCategory}
+                      disabled={false}
                     >
-                      <option value="">Select Sub Category</option>
+                      <option value="">Select Subcategory</option>
                       {filteredSubcategories.map((subcategory) => (
                         <option key={subcategory.id} value={subcategory.id}>
                           {subcategory.name}
@@ -999,7 +1144,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 {errors.subCategory && <p className="text-red-500 text-sm mt-1">{errors.subCategory.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-lg font-medium text-black mb-2">
                   Jewelry Type
                 </label>
                 <Controller
@@ -1021,8 +1166,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 {errors.jewelryType && <p className="text-red-500 text-sm mt-1">{errors.jewelryType.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price *
+                <label className="block text-lg font-medium text-black mb-2">
+                  Price
                 </label>
                 <Controller
                   name="price"
@@ -1043,7 +1188,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Culture */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-lg font-medium text-black mb-2">
                 Cultural Background
               </label>
               <Controller
@@ -1068,7 +1213,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Product Images */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-lg font-medium text-black mb-2">
                 Product Images
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
@@ -1102,13 +1247,12 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     </button>
                   </div>
                 ))}
-                {previewImages.length < 5 && (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <p className="text-xs text-gray-500 mt-2">Add Image</p>
+                      <p className="text-xs text-black mt-2">Add Images</p>
                     </div>
                     <input
                       type="file"
@@ -1118,23 +1262,22 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       onChange={handleImageChange}
                     />
                   </label>
-                )}
               </div>
             </div>
 
             {/* Video Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-lg font-medium text-black mb-2">
                 Product Video
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <p className="text-xs text-gray-500 mt-2">Upload Video</p>
+                      <p className="text-xs text-black mt-2">Upload Video</p>
                     </div>
                     <input
                       type="file"
@@ -1168,10 +1311,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Diamond Details */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Diamond Details</h3>
+              <h3 className="text-xl font-semibold italic text-gray-900 mb-4">Diamond Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Diamond Type
                   </label>
                   <Controller
@@ -1192,7 +1335,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondType && <p className="text-red-500 text-sm mt-1">{errors.diamondType.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Diamond Shape/Cut
                   </label>
                   <Controller
@@ -1213,7 +1356,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondShapeCut && <p className="text-red-500 text-sm mt-1">{errors.diamondShapeCut.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Color Grade
                   </label>
                   <Controller
@@ -1234,7 +1377,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondColorGrade && <p className="text-red-500 text-sm mt-1">{errors.diamondColorGrade.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Origin
                   </label>
                   <Controller
@@ -1255,7 +1398,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondOrigin && <p className="text-red-500 text-sm mt-1">{errors.diamondOrigin.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Clarity
                   </label>
                   <Controller
@@ -1276,7 +1419,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondClarityGrade && <p className="text-red-500 text-sm mt-1">{errors.diamondClarityGrade.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Cut Grade
                   </label>
                   <Controller
@@ -1297,7 +1440,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondCutGrade && <p className="text-red-500 text-sm mt-1">{errors.diamondCutGrade.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Metal Details
                   </label>
                   <Controller
@@ -1318,7 +1461,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondMetalDetails && <p className="text-red-500 text-sm mt-1">{errors.diamondMetalDetails.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Certification
                   </label>
                   <Controller
@@ -1339,7 +1482,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.diamondCertification && <p className="text-red-500 text-sm mt-1">{errors.diamondCertification.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Carat Weight
                   </label>
                   <Controller
@@ -1361,10 +1504,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Gold Details */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Gold Details</h3>
+              <h3 className="text-xl font-bold italic text-gray-900 mb-4">Gold Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-gray-700 mb-2">
                     Gold Purity
                   </label>
                   <Controller
@@ -1385,7 +1528,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldPurity && <p className="text-red-500 text-sm mt-1">{errors.goldPurity.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Gold Type
                   </label>
                   <Controller
@@ -1406,7 +1549,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldType && <p className="text-red-500 text-sm mt-1">{errors.goldType.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Gold Weight
                   </label>
                   <Controller
@@ -1427,17 +1570,16 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldWeight && <p className="text-red-500 text-sm mt-1">{errors.goldWeight.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Craftsmanship
                   </label>
                   <Controller
                     name="goldCraftsmanship"
                     control={control}
                     render={({ field }) => (
-                      <input
-                       {...field}
-                       type='text'
-
+                      <textarea
+                        {...field}
+                        rows={4}
                         placeholder="Select or enter craftsmanship"
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldCraftsmanship ? 'border-red-500' : 'border-gray-300'}`}
                       />
@@ -1446,16 +1588,16 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldCraftsmanship && <p className="text-red-500 text-sm mt-1">{errors.goldCraftsmanship.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Design Description
                   </label>
                   <Controller
                     name="goldDesignDescription"
                     control={control}
                     render={({ field }) => (
-                      <input
+                      <textarea
                         {...field}
-                        type="text"
+                        rows={4}
                         placeholder="Select or enter design description"
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black ${errors.goldDesignDescription ? 'border-red-500' : 'border-gray-300'}`}
                       />
@@ -1464,7 +1606,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldDesignDescription && <p className="text-red-500 text-sm mt-1">{errors.goldDesignDescription.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Finished Type
                   </label>
                   <Controller
@@ -1485,7 +1627,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldFinishedType && <p className="text-red-500 text-sm mt-1">{errors.goldFinishedType.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Stones
                   </label>
                   <Controller
@@ -1506,7 +1648,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.goldStones && <p className="text-red-500 text-sm mt-1">{errors.goldStones.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Stone Quality
                   </label>
                   <Controller
@@ -1531,10 +1673,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Platinum Details */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Platinum Details</h3>
+              <h3 className="text-xl italic font-semibold text-gray-900 mb-4">Platinum Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-gray-700 mb-2">
                     Platinum Weight
                   </label>
                   <Controller
@@ -1555,7 +1697,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.platinumWeight && <p className="text-red-500 text-sm mt-1">{errors.platinumWeight.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Platinum Type
                   </label>
                   <Controller
@@ -1580,10 +1722,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Silver Details */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Silver Details</h3>
+              <h3 className="text-xl italic font-semibold text-gray-900 mb-4">Silver Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-gray-700 mb-2">
                     Silver Weight
                   </label>
                   <Controller
@@ -1604,7 +1746,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.silverWeight && <p className="text-red-500 text-sm mt-1">{errors.silverWeight.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Silver Type
                   </label>
                   <Controller
@@ -1629,10 +1771,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* Additional Details */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Details</h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-gray-700 mb-2">
                     Status
                   </label>
                   <Controller
@@ -1656,11 +1798,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
             </div>
 
             {/* Estimated Order Period */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Estimated Order Period</h3>
+            <div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-gray-700 mb-2">
                     Estimated Order Period
                   </label>
                   <Controller
@@ -1740,10 +1881,10 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
             {/* SEO Information */}
             <div className="border-t pt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">SEO Information</h3>
+              <h3 className="text-xl italic font-semibold text-gray-900 mb-4">SEO Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     SEO Title
                   </label>
                   <Controller
@@ -1761,7 +1902,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.seoTitle && <p className="text-red-500 text-sm mt-1">{errors.seoTitle.message}</p>}
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     SEO Slug
                   </label>
                   <Controller
@@ -1781,7 +1922,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
                 {/* Video URL */}
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     Video URL
                   </label>
                   <Controller
@@ -1800,7 +1941,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     SEO Description
                   </label>
                   <Controller
@@ -1818,7 +1959,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   {errors.seoDescription && <p className="text-red-500 text-sm mt-1">{errors.seoDescription.message}</p>}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-medium text-black mb-2">
                     SEO Keywords
                   </label>
                   <Controller
@@ -1862,7 +2003,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     subCategory: formData.subCategory,
                     jewelryType: formData.jewelryType,
                     price: formData.price ? parseFloat(formData.price) : 0,
-                    isActive: formData.isActive,
+                    isActive: formData.isActive ?? false,
                     status: (formData.status as 'draft' | 'active' | 'inactive') || 'draft',
                     
                     // Gold Fields
@@ -1895,9 +2036,9 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                     silverType: formData.silverType,
                     
                     orderDuration: formData.orderDuration,
-                    digitalBrowser: formData.digitalBrowser,
-                    website: formData.website,
-                    distributor: formData.distributor,
+                    digitalBrowser: formData.digitalBrowser ?? false,
+                    website: formData.website ?? false,
+                    distributor: formData.distributor ?? false,
                     culture: formData.culture,
                     seoTitle: formData.seoTitle,
                     seoDescription: formData.seoDescription,
@@ -1922,14 +2063,14 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                   setPreviewData(previewProduct);
                   setIsPreviewOpen(true);
                 }}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="px-6 py-2 bg-[#9A8873] text-white rounded-lg hover:bg-[#242f40] transition-colors"
                 disabled={formIsSubmitting}
               >
                 Preview
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-[#9A8873] text-white rounded-lg hover:bg-[#242f40] transition-colors"
                 disabled={formIsSubmitting}
               >
                 {formIsSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Create Product')}
@@ -1941,7 +2082,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
         {/* Image Cropping Modal */}
         {croppingImageIndex !== null && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Crop Image</h3>
@@ -1961,49 +2102,51 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 </div>
                 
                 <div className="flex flex-col items-center">
-                  <ReactCrop
-                    crop={crop}
-                    onChange={(c) => setCrop(c)}
-                    onComplete={(c) => setCompletedCrop(c)}
-                    aspect={1}
-                    minWidth={100}
-                    minHeight={100}
-                  >
-                    <img
-                      ref={imgRef}
-                      src={croppingImageUrl}
-                      alt="Crop preview"
-                      className="max-h-[70vh]"
-                      onLoad={() => {
-                        const img = imgRef.current;
-                        if (img) {
-                          const { width, height } = img;
-                          const crop = centerCrop(
-                            makeAspectCrop(
-                              {
-                                unit: '%',
-                                width: 50,
-                                height: 50
-                              },
-                              1,
+                  <div className="w-full max-h-[70vh] overflow-auto">
+                    <ReactCrop
+                      crop={crop}
+                      onChange={(c) => setCrop(c)}
+                      onComplete={(c) => setCompletedCrop(c)}
+                      aspect={1}
+                      minWidth={100}
+                      minHeight={100}
+                    >
+                      <img
+                        ref={imgRef}
+                        src={croppingImageUrl}
+                        alt="Crop preview"
+                        className="max-h-[65vh] w-auto"
+                        onLoad={() => {
+                          const img = imgRef.current;
+                          if (img) {
+                            const { width, height } = img;
+                            const crop = centerCrop(
+                              makeAspectCrop(
+                                {
+                                  unit: '%',
+                                  width: 50,
+                                  height: 50
+                                },
+                                1,
+                                width,
+                                height
+                              ),
                               width,
                               height
-                            ),
-                            width,
-                            height
-                          );
-                          setCrop(crop);
-                        }
-                      }}
-                    />
-                  </ReactCrop>
+                            );
+                            setCrop(crop);
+                          }
+                        }}
+                      />
+                    </ReactCrop>
+                  </div>
                   
                   <div className="mt-4 flex space-x-2">
                     <button
                       onClick={handleCompleteCrop}
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-[#9A8873] text-white rounded hover:bg-[#242f40] transition-colors"
                     >
-                      Apply Crop
+                      Confirm Crop
                     </button>
                     <button
                       onClick={() => {
@@ -2045,7 +2188,13 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                   {/* Left side - Product Images */}
-                  <div className="relative aspect-square bg-gray-100 rounded-xl">
+                  <div
+                    className="group relative aspect-square bg-gray-100 rounded-xl"
+                    onMouseEnter={() => setIsImageHovering(true)}
+                    onMouseLeave={() => setIsImageHovering(false)}
+                    onTouchStart={() => setIsImageHovering(true)}
+                    onTouchEnd={() => setIsImageHovering(false)}
+                  >
                     {previewData.images && previewData.images.length > 0 ? (
                       <>
                         <img

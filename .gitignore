@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.env
+api/node_modules/
+admin/node_modules/
+frontend/node_modules/
+api/dist/
+admin/.next/
+frontend/.next/
+api/uploads/
+api/.env
+admin/.env
+frontend/.env

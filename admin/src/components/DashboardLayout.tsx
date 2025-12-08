@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+
 import { 
   BarChart3, 
   FolderOpen, 
@@ -17,26 +20,20 @@ import {
   DollarSign,
   FileText,
   Star,
-  Truck,
-  RotateCcw,
-  XCircle,
   Package2,
   Layers,
   BarChart,
   Mail,
   Gift,
   Target,
-  PieChart,
   UserCheck,
   MessageSquare,
-  TrendingDown,
-  AlertTriangle,
-  Clock,
   FileText as ContentIcon,
   Image as SliderIcon,
   Newspaper as ArticleIcon,
   Info as AboutIcon,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   Database,
   Utensils,
@@ -48,13 +45,12 @@ import {
   FileCheck
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Breadcrumb from "@/components/Breadcrumb";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
-import { motion, AnimatePresence } from "framer-motion";
+import { fetchCsrfToken } from "@/lib/csrfClient";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -63,42 +59,38 @@ interface DashboardLayoutProps {
   showBreadcrumb?: boolean;
 }
 
+interface NavigationItem {
+  id: string;
+  label: string;
+  icon: any;
+  children?: NavigationItem[];
+}
+
 export default function DashboardLayout({ 
   children, 
   title = "Dashboard",
   showBackButton = false,
   showBreadcrumb = true
 }: DashboardLayoutProps) {
-  console.log('DashboardLayout rendered with props:', { title, showBackButton, showBreadcrumb });
   
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const router = useRouter();
   const { user, logout } = useAuth();
-  
-  console.log('User state:', { user, isLoading: !user });
 
   useEffect(() => {
     const checkScreenSize = () => {
       if (typeof window !== 'undefined') {
         const width = window.innerWidth;
         const desktop = width >= 1024;
-        const mobile = width < 768;
-        
         setIsDesktop(desktop);
-        setIsMobile(mobile);
-        
-        // Always hide sidebar on mobile, show on desktop
-        if (desktop) {
-          setSidebarOpen(true);
-        } else {
-          setSidebarOpen(false);
-        }
-        
+        setIsMobile(width < 768);
+        setSidebarOpen(desktop);
       }
     };
 
@@ -107,6 +99,10 @@ export default function DashboardLayout({
       window.addEventListener('resize', checkScreenSize);
       return () => window.removeEventListener('resize', checkScreenSize);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchCsrfToken().catch(() => {});
   }, []);
 
   // Auto-expand content management section when on content management pages
@@ -146,138 +142,75 @@ export default function DashboardLayout({
         : [...prev, sectionId]
     );
   };
+  const routePaths: Record<string, string> = {
+    dashboard: '/dashboard',
+    categories: '/dashboard/categories',
+    'attribute-options': '/dashboard/attribute-options',
+    services: '/dashboard/services',
+    stores: '/dashboard/stores',
+    terms: '/dashboard/terms',
+    'privacy-policy': '/dashboard/privacy-policy',
+    'help-center': '/dashboard/help-center',
+    'return-policy': '/dashboard/return-policy',
+    quotes: '/dashboard/quotes',
+    'wedding-planners': '/dashboard/wedding-planners',
+    cultures: '/dashboard/cultures',
+    'ring-customizations': '/dashboard/ring-customizations',
+    'diamond-certifications': '/dashboard/diamond-certifications',
+    'celebration-processes': '/dashboard/celebration-processes',
+    faqs: '/dashboard/faqs',
+    galleries: '/dashboard/galleries',
+    products: '/dashboard/products',
+    'site-settings': '/dashboard/settings',
+    configuration: '/dashboard/settings/configuration',
+    users: '/dashboard/users',
+    password: '/dashboard/settings/password',
+    'top-banner': '/dashboard?tab=top-banner',
+    'hero-section': '/dashboard/hero-section',
+    'promotional-banners': '/dashboard/promotional-banners',
+    analytics: '/dashboard/analytics',
+    'sales-analytics': '/dashboard/sales-analytics',
+    'product-performance': '/dashboard/product-performance',
+    discounts: '/dashboard/discounts',
+    'all-orders': '/dashboard/orders',
+    'shipped-delivered': '/dashboard/orders/shipped-delivered',
+    returns: '/dashboard/orders/returns',
+    refunds: '/dashboard/orders/refunds',
+    cancellations: '/dashboard/orders/cancellations',
+    reviews: '/dashboard/reviews',
+    media: '/dashboard/media',
+    'media-category': '/dashboard/categories',
+    sliders: '/dashboard/sliders',
+    articles: '/dashboard/articles',
+    about: '/dashboard/about'
+  };
 
   const handleNavigation = (itemId: string, parentId?: string) => {
+    const item = navigationItems.find(i => i.id === itemId) || navigationItems.flatMap(i => i.children || []).find(i => i.id === itemId) || navigationItems.flatMap(i => (i.children || []).flatMap(c => c.children || [])).find(i => i.id === itemId) || null;
+    const hasChildren = !!item?.children?.length;
+    const path = routePaths[itemId] || null;
     if (parentId) {
-      // Handle child navigation
-      if (itemId === 'categories') {
-        router.push('/dashboard/categories');
-      } else if (itemId === 'attribute-options') {
-        router.push('/dashboard/attribute-options');
-      } else if (itemId === 'services') {
-        router.push('/dashboard/services');
-      } else if (itemId === 'stores') {
-        router.push('/dashboard/stores');
-      } else if (itemId === 'terms') {
-        router.push('/dashboard/terms');
-      } else if (itemId === 'privacy-policy') {
-        router.push('/dashboard/privacy-policy');
-      } else if (itemId === 'help-center') {
-        router.push('/dashboard/help-center');
-      } else if (itemId === 'return-policy') {
-        router.push('/dashboard/return-policy');
-      } else if (itemId === 'quotes') {
-        router.push('/dashboard/quotes');
-      } else if (itemId === 'wedding-planners') {
-        router.push('/dashboard/wedding-planners');
-      } else if (itemId === 'cultures') {
-        router.push('/dashboard/cultures');
-      } else if (itemId === 'ring-customizations') {
-        router.push('/dashboard/ring-customizations');
-      } else if (itemId === 'diamond-certifications') {
-        router.push('/dashboard/diamond-certifications');
-      } else if (itemId === 'celebration-processes') {
-        router.push('/dashboard/celebration-processes');
-      } else if (itemId === 'faqs') {
-        router.push('/dashboard/faqs');
-      } else if (itemId === 'galleries') {
-        router.push('/dashboard/galleries');
-      } else if (itemId === 'all-products') {
-        router.push('/dashboard/products');
-      } else if (itemId === 'site-settings') {
-        router.push('/dashboard/settings');
-      } else if (itemId === 'configuration') {
-        router.push('/dashboard/settings/configuration');
-      } else if (itemId === 'users') {
-        router.push('/dashboard/users');
-      } else if (itemId === 'password') {
-        router.push('/dashboard/settings/password');
-      } else if (itemId === 'top-banner') {
-        router.push('/dashboard?tab=top-banner');
-      } else if (itemId === 'hero-section') {
-        router.push('/dashboard/hero-section');
-      } else if (itemId === 'promotional-banners') {
-        router.push('/dashboard/promotional-banners');
-      } else if (itemId === 'site-settings') {
-        router.push('/dashboard/settings');
-      } else if (itemId === 'testimonials') {
-        router.push('/dashboard/testimonials');
-      } else if (itemId === 'popup-banner') {
-        router.push('/dashboard/popup-banner');
-      } else if (itemId === 'popup-management') {
-        router.push('/dashboard/popup-management');
-      } else if (itemId === 'media') {
-        router.push('/dashboard/media');
-      } else if (itemId === 'media-category') {
-        router.push('/dashboard/categories');
-      } else if (itemId === 'about') {
-        router.push('/dashboard/about');
-      } else if (itemId === 'sliders') {
-        router.push('/dashboard/sliders');
-      } else if (itemId === 'analytics') {
-        router.push('/dashboard/analytics');
-      } else if (itemId === 'sales-analytics') {
-        router.push('/dashboard/sales-analytics');
-      } else if (itemId === 'product-performance') {
-        router.push('/dashboard/product-performance');
-      } else if (itemId === 'discounts') {
-        router.push('/dashboard/discounts');
-      } else if (itemId === 'all-orders') {
-        router.push('/dashboard/orders');
-      } else if (itemId === 'shipped-delivered') {
-        router.push('/dashboard/orders/shipped-delivered');
-      } else if (itemId === 'returns') {
-        router.push('/dashboard/orders/returns');
-      } else if (itemId === 'refunds') {
-        router.push('/dashboard/orders/refunds');
-      } else if (itemId === 'cancellations') {
-        router.push('/dashboard/orders/cancellations');
-      } else if (itemId === 'reviews') {
-        router.push('/dashboard/reviews');
-      } else if (itemId === 'all-foods') {
-        router.push('/foods');
-      } else if (itemId === 'food-categories') {
-        router.push('/foods');
-      } else if (itemId === 'food-orders') {
-        router.push('/foods');
+      if (hasChildren && itemId === 'media') {
+        if (path) router.push(path);
+        toggleSection(itemId);
+      } else if (hasChildren) {
+        toggleSection(itemId);
       } else {
-        // Handle other child navigation
-        console.log('Navigate to:', itemId);
+        if (path) router.push(path);
       }
     } else {
-      // Handle parent navigation
-      if (itemId === 'dashboard') {
-        router.push('/dashboard');
-      } else if (itemId === 'categories') {
-        router.push('/dashboard/categories');
-      } else if (itemId === 'products' && navigationItems.find(item => item.id === 'products')?.children?.length) {
+      if (hasChildren) {
         toggleSection(itemId);
-      } else if (itemId === 'settings' && navigationItems.find(item => item.id === 'settings')?.children?.length) {
-        toggleSection(itemId);
-      } else if (itemId === 'foods' && navigationItems.find(item => item.id === 'foods')?.children?.length) {
-        toggleSection(itemId);
-      } else if (itemId === 'content-management' && navigationItems.find(item => item.id === 'content-management')?.children?.length) {
-        toggleSection(itemId);
-      } else if (itemId === 'media') {
-        // Check if media has children (submenu)
-        const mediaItem = navigationItems.find(item => item.id === 'content-management')?.children?.find(child => child.id === 'media');
-        if (mediaItem?.children?.length) {
-          toggleSection(itemId);
-        } else {
-          router.push('/dashboard/media');
-        }
       } else {
-        // Handle other parent navigation
-        console.log('Navigate to:', itemId);
+        if (path) router.push(path);
       }
     }
-    // Close sidebar on mobile after navigation
     if (isMobile) {
       setSidebarOpen(false);
     }
   };
 
-  const navigationItems = [
+  const navigationItems: NavigationItem[] = [
     {
       id: "dashboard",
       label: "Dashboard",
@@ -287,10 +220,54 @@ export default function DashboardLayout({
       ]
     },
     {
+      id: "content-management",
+      label: "Content Management",
+      icon: ContentIcon,
+      children: [
+        { id: "top-banner", label: "Top Banner", icon: SliderIcon },
+        { id: "hero-section", label: "Hero Section", icon: SliderIcon },
+        { id: "promotional-banners", label: "Promotional Banners", icon: SliderIcon },
+        { id: "testimonials", label: "Testimonials", icon: MessageSquare },
+        { id: "services", label: "Services", icon: Utensils },
+        { id: "stores", label: "Stores", icon: Store },
+        { id: "terms", label: "Terms & Conditions", icon: FileCheck },
+        { id: "privacy-policy", label: "Privacy Policy", icon: FileCheck },
+        { id: "help-center", label: "Help Center", icon: FileCheck },
+        { id: "return-policy", label: "Return Policy", icon: FileCheck },
+        { id: "quotes", label: "Quotes", icon: MessageSquare },
+        { id: "wedding-planners", label: "Wedding Planners", icon: Gift },
+        { id: "cultures", label: "Culture Collection", icon: Star },
+        { id: "ring-customizations", label: "Ring Customization", icon: Package },
+        { id: "diamond-certifications", label: "Diamond Certification", icon: Award },
+        { id: "celebration-processes", label: "Celebration Process", icon: Target },
+        { id: "faqs", label: "FAQ", icon: MessageSquare },
+        { id: "galleries", label: "Gallery", icon: Heart },
+        { id: "popup-banner", label: "Pop-up Banner", icon: SliderIcon },
+        { id: "popup-management", label: "Popup Management", icon: SliderIcon },
+        { 
+          id: "media", 
+          label: "Media", 
+          icon: SliderIcon,
+          children: [
+            { id: "media-category", label: "Category", icon: FolderOpen }
+          ]
+        },
+        { id: "sliders", label: "Sliders", icon: SliderIcon },
+        { id: "articles", label: "Articles", icon: ArticleIcon },
+        { id: "about", label: "About", icon: AboutIcon }
+      ]
+    },
+    
+    {
       id: "categories",
       label: "Categories",
-      icon: FolderOpen,
-      children: []
+      icon: FolderOpen
+    },
+    {
+      id: "products",
+      label: "Products",
+      icon: Package,
+     
     },
     {
       id: "orders",
@@ -298,17 +275,6 @@ export default function DashboardLayout({
       icon: ShoppingCart,
       children: [
         { id: "all-orders", label: "All Orders", icon: FileText }
-      ]
-    },
-    {
-      id: "products",
-      label: "Products",
-      icon: Package,
-      children: [
-        { id: "all-products", label: "All Products", icon: Package2 },
-        { id: "categories", label: "Categories", icon: FolderOpen },
-        { id: "attribute-options", label: "Attribute Options", icon: Database },
-        { id: "inventory", label: "Inventory Management", icon: Layers }
       ]
     },
     {
@@ -342,45 +308,7 @@ export default function DashboardLayout({
         { id: "marketing-performance", label: "Marketing Performance", icon: Target }
       ]
     },
-    {
-      id: "content-management",
-      label: "Content Management",
-      icon: ContentIcon,
-      children: [
-        { id: "top-banner", label: "Top Banner", icon: SliderIcon },
-        { id: "hero-section", label: "Hero Section", icon: SliderIcon },
-        { id: "promotional-banners", label: "Promotional Banners", icon: SliderIcon },
-        { id: "categories", label: "Categories", icon: SliderIcon },
-        { id: "testimonials", label: "Testimonials", icon: MessageSquare },
-        { id: "services", label: "Services", icon: Utensils },
-        { id: "stores", label: "Stores", icon: Store },
-        { id: "terms", label: "Terms & Conditions", icon: FileCheck },
-        { id: "privacy-policy", label: "Privacy Policy", icon: FileCheck },
-        { id: "help-center", label: "Help Center", icon: FileCheck },
-        { id: "return-policy", label: "Return Policy", icon: FileCheck },
-        { id: "quotes", label: "Quotes", icon: MessageSquare },
-        { id: "wedding-planners", label: "Wedding Planners", icon: Gift },
-        { id: "cultures", label: "Culture Collection", icon: Star },
-        { id: "ring-customizations", label: "Ring Customization", icon: Package },
-        { id: "diamond-certifications", label: "Diamond Certification", icon: Award },
-        { id: "celebration-processes", label: "Celebration Process", icon: Target },
-        { id: "faqs", label: "FAQ", icon: MessageSquare },
-        { id: "galleries", label: "Gallery", icon: Heart },
-        { id: "popup-banner", label: "Pop-up Banner", icon: SliderIcon },
-        { id: "popup-management", label: "Popup Management", icon: SliderIcon },
-        { 
-          id: "media", 
-          label: "Media", 
-          icon: SliderIcon,
-          children: [
-            { id: "media-category", label: "Category", icon: FolderOpen }
-          ]
-        },
-        { id: "sliders", label: "Sliders", icon: SliderIcon },
-        { id: "articles", label: "Articles", icon: ArticleIcon },
-        { id: "about", label: "About", icon: AboutIcon }
-      ]
-    },
+    
     {
       id: "settings",
       label: "Settings",
@@ -395,54 +323,65 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className={` min-h-screen bg-gray-50 `}>
         {/* Mobile sidebar overlay */}
-        <AnimatePresence>
-          {sidebarOpen && !isDesktop && (
-            <motion.div 
-              className="fixed inset-0 bg-black/50 z-40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-        </AnimatePresence>
+        {/* Removed animation wrapper */}
+        {sidebarOpen && !isDesktop && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
         {/* Sidebar */}
         <motion.div 
           className={`fixed inset-y-0 left-0 z-50 bg-white shadow-lg flex flex-col ${
-            isDesktop ? 'w-64' : 'w-80'
+            isDesktop ? (isCollapsed ? 'w-16' : 'w-64') : 'w-80'
+          } ${
+            isDesktop ? 'translate-x-0' : (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
           }`}
           initial={false}
-          animate={{
-            x: isDesktop ? 0 : (sidebarOpen ? 0 : '-100%')
-          }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
+          animate={{ width: isDesktop ? (isCollapsed ? 64 : 256) : 320 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
         >
           {/* Fixed Header */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8">
-                <Image
-                  src="/celeb.jpg"
-                  alt="Logo"
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="text-xl font-bold text-gray-900">Admin CMS</span>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8">
+              <Image
+                src="/celeb.jpg"
+                alt="Logo"
+                width={32}
+                height={32}
+                className="w-full h-full object-contain"
+              />
             </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-
-            
+            <AnimatePresence initial={false}>
+              {!isCollapsed && (
+                <motion.span
+                  className="text-xl font-bold text-black"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  Admin CMS
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+          <button
+            onClick={() => setIsCollapsed(v => !v)}
+            className="hidden lg:inline-flex p-2 rounded-md text-black hover:bg-gray-100 transition-colors"
+          >
+            {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-2 rounded-md text-black hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
           </div>
 
           {/* Scrollable Navigation */}
@@ -450,13 +389,16 @@ export default function DashboardLayout({
             scrollbarWidth: 'none', 
             msOverflowStyle: 'none'
           }}>
+            {/* Removed animation wrapper */}
             <div className="space-y-1">
               {navigationItems.map((item, index) => {
                 const Icon = item.icon;
                 const isExpanded = expandedSections.includes(item.id);
-                const hasChildren = item.children && item.children.length > 0;
+                const children = item.children ?? [];
+                const hasChildren = children.length > 0;
                 
                 return (
+                  // Removed animation wrapper
                   <div key={item.id}>
                     <button
                       onClick={() => {
@@ -466,143 +408,133 @@ export default function DashboardLayout({
                           handleNavigation(item.id);
                         }
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-3 custom-font font-semibold rounded-lg transition-colors ${
-                        typeof window !== 'undefined' && 
-                        (item.id === 'dashboard' 
-                          ? window.location.pathname === '/dashboard' || window.location.pathname === '/dashboard/'
-                          : window.location.pathname.includes('/' + item.id + '/'))
-                          ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-700'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    className={`w-full flex items-center justify-between px-3 py-3 font-medium text-2xl rounded-lg transition-colors ${
+                        typeof window !== 'undefined' && window.location.pathname.includes(item.id)
+                          ? 'bg-blue-50 text-black border-r-2 border-blue-700'
+                          : 'text-black hover:bg-gray-50'
                       }`}
-                    >
-                      <div className="flex items-center min-w-0 flex-1 ">
-                        <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
-                        <span className="truncate text-lg custom-font">{item.label}</span>
+                  >
+                    <div className="flex items-center min-w-0 flex-1 ">
+                      <Icon className="w-5 h-5 mr-5 flex-shrink-0" />
+                      <AnimatePresence initial={false}>
+                        {!isCollapsed && (
+                          <motion.span
+                            className="truncate text-xl text-black"
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            {item.label}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    {!isCollapsed && hasChildren && (
+                      <div
+                        className="flex-shrink-0 ml-2"
+                        style={{ transform: `rotate(${isExpanded ? 90 : 0}deg)` }}
+                      >
+                        <ChevronRight className="w-4 h-4" />
                       </div>
-                      {hasChildren && (
-                        <motion.div
-                          className="flex-shrink-0 ml-2"
-                          animate={{ rotate: isExpanded ? 90 : 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </motion.div>
-                      )}
-                    </button>
+                    )}
+                  </button>
                     
                     {/* Children */}
-                    <AnimatePresence>
-                      {hasChildren && isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="relative ml-6 mt-1 space-y-1">
-                            {/* Tree connector line */}
-                            <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
-                            
-                            {item.children.map((child, index) => {
-                              const ChildIcon = child.icon;
-                              const isLast = index === item.children.length - 1;
-                              const hasGrandChildren = child.children && child.children.length > 0;
-                              const isChildExpanded = expandedSections.includes(child.id);
+                    {/* Removed animation wrapper */}
+                    {hasChildren && isExpanded && !isCollapsed && (
+                      <div className="relative ml-6 mt-1 space-y-1">
+                        {/* Tree connector line */}
+                        <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+                        
+                        {children.map((child, index) => {
+                          const ChildIcon = child.icon;
+                          
+                          const grandChildren = child.children ?? [];
+                          const hasGrandChildren = grandChildren.length > 0;
+                          const isChildExpanded = expandedSections.includes(child.id);
+                          
+                          return (
+                            // Removed animation wrapper
+                            <div
+                              key={child.id}
+                              className="relative"
+                            >
+                              {/* Curved connector - horizontal line with curve */}
+                              <div className="absolute left-0 top-1/2 w-6 h-3  transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
                               
-                              return (
-                                <div
-                                  key={child.id}
-                                  className="relative"
-                                >
-                                  {/* Curved connector - horizontal line with curve */}
-                                  <div className="absolute left-0 top-1/2 w-6 h-3  transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
-                                  
-                                  <button
-                                    onClick={() => {
-                                      if (hasGrandChildren) {
-                                        // For Media item, we want to both navigate and expand
-                                        if (child.id === 'media') {
-                                          handleNavigation(child.id, item.id);
-                                          toggleSection(child.id);
-                                        } else {
-                                          toggleSection(child.id);
-                                        }
-                                      } else {
-                                        handleNavigation(child.id, item.id);
-                                      }
-                                    }}
-                                    className={`w-full flex items-center pl-8 pr-3 py-3 custom-font font-semibold rounded-lg transition-colors relative ${
-                                      typeof window !== 'undefined' && 
-                                      window.location.pathname.includes('/' + child.id + '/')
-                                        ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-700'
-                                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                                    }`}
+                              <button
+                                onClick={() => {
+                                  if (hasGrandChildren) {
+                                    // For Media item, we want to both navigate and expand
+                                    if (child.id === 'media') {
+                                      handleNavigation(child.id, item.id);
+                                      toggleSection(child.id);
+                                    } else {
+                                      toggleSection(child.id);
+                                    }
+                                  } else {
+                                    handleNavigation(child.id, item.id);
+                                  }
+                                }}
+                                className={`w-full flex items-center pl-8 pr-3 py-3 font-medium rounded-lg transition-colors relative ${
+                                  typeof window !== 'undefined' && window.location.pathname.includes(child.id)
+                                    ? 'bg-blue-50 text-black'
+                                    : 'text-black hover:bg-gray-50'
+                                }`}
+                              >
+                                <ChildIcon className="w-4 h-4 mr-3 flex-shrink-0" />
+                                <span className="truncate text-lg text-black">{child.label}</span>
+                                {hasGrandChildren && (
+                                  <div
+                                    className="flex-shrink-0 ml-2"
+                                    style={{ transform: `rotate(${isChildExpanded ? 90 : 0}deg)` }}
                                   >
-                                    <ChildIcon className="w-4 h-4 mr-3 flex-shrink-0" />
-                                    <span className="truncate">{child.label}</span>
-                                    {hasGrandChildren && (
-                                      <motion.div
-                                        className="flex-shrink-0 ml-2"
-                                        animate={{ rotate: isChildExpanded ? 90 : 0 }}
-                                        transition={{ duration: 0.2 }}
-                                      >
-                                        <ChevronRight className="w-3 h-3" />
-                                      </motion.div>
-                                    )}
-                                  </button>
+                                    <ChevronRight className="w-3 h-3" />
+                                  </div>
+                                )}
+                              </button>
 
-                                  {/* Grand Children (Nested Submenu) */}
-                                  <AnimatePresence>
-                                    {hasGrandChildren && isChildExpanded && (
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="overflow-hidden"
+                              {/* Grand Children (Nested Submenu) */}
+                              {/* Removed animation wrapper */}
+                              {hasGrandChildren && isChildExpanded && (
+                                <div className="relative ml-6 mt-1 space-y-1">
+                                  {/* Tree connector line for nested items */}
+                                  <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
+                                  
+                                  {grandChildren.map((grandChild, grandIndex) => {
+                                    const GrandChildIcon = grandChild.icon;
+                                    
+                                    return (
+                                      // Removed animation wrapper
+                                      <div
+                                        key={grandChild.id}
+                                        className="relative"
                                       >
-                                        <div className="relative ml-6 mt-1 space-y-1">
-                                          {/* Tree connector line for nested items */}
-                                          <div className="absolute left-0 top-0 bottom-0 w-px bg-gray-300"></div>
-                                          
-                                          {child.children.map((grandChild, grandIndex) => {
-                                            const GrandChildIcon = grandChild.icon;
-                                            
-                                            return (
-                                              <div
-                                                key={grandChild.id}
-                                                className="relative"
-                                              >
-                                                {/* Curved connector for nested items */}
-                                                <div className="absolute left-0 top-1/2 w-6 h-3 transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
-                                                
-                                                <button
-                                                  onClick={() => handleNavigation(grandChild.id, child.id)}
-                                                  className={`w-full flex items-center pl-8 pr-3 py-3 custom-font font-semibold rounded-lg transition-colors relative ${
-                                                    typeof window !== 'undefined' && 
-                                                    window.location.pathname.includes('/' + grandChild.id + '/')
-                                                      ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-700'
-                                                      : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
-                                                  }`}
-                                                >
-                                                  <GrandChildIcon className="w-3 h-3 mr-3 flex-shrink-0" />
-                                                  <span className="truncate">{grandChild.label}</span>
-                                                </button>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
+                                        {/* Curved connector for nested items */}
+                                        <div className="absolute left-0 top-1/2 w-6 h-3 transform -translate-y-1/2 border-l-2 border-b-2 border-gray-300 rounded-bl-2xl"></div>
+                                        
+                                        <button
+                                          onClick={() => handleNavigation(grandChild.id, child.id)}
+                                          className={`w-full flex items-center pl-8 pr-3 py-3 font-medium rounded-lg transition-colors relative ${
+                                            typeof window !== 'undefined' && window.location.pathname.includes(grandChild.id)
+                                              ? 'bg-blue-50 text-black'
+                                              : 'text-black hover:bg-gray-50'
+                                          }`}
+                                        >
+                                          <GrandChildIcon className="w-3 h-3 mr-3 flex-shrink-0" />
+                                          <span className="truncate text-base text-black">{grandChild.label}</span>
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -613,7 +545,7 @@ export default function DashboardLayout({
           <div className="p-4 border-t border-gray-200 flex-shrink-0">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-3 py-2 custom-font font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+              className="w-full flex items-center text-xl px-3 py-2  text-black hover:bg-gray-50 rounded-lg transition-colors"
             >
               <LogOut className="w-5 h-5 mr-3" />
               Logout
@@ -622,7 +554,12 @@ export default function DashboardLayout({
         </motion.div>
 
         {/* Main content */}
-        <div className={`${isDesktop ? 'pl-64' : 'pl-0'} w-full`}>
+        <motion.div
+          className={`w-full`}
+          initial={false}
+          animate={{ paddingLeft: isDesktop ? (isCollapsed ? 64 : 256) : 0 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+        >
           {/* Top bar */}
           <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6">
@@ -631,8 +568,8 @@ export default function DashboardLayout({
                   onClick={() => setSidebarOpen(!sidebarOpen)}
                   className={`lg:hidden p-2 rounded-md transition-colors ${
                     sidebarOpen 
-                      ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' 
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      ? 'text-black bg-blue-50 hover:bg-blue-100' 
+                      : 'text-black hover:bg-gray-100'
                   }`}
                 >
                   {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -640,7 +577,7 @@ export default function DashboardLayout({
                 {showBackButton && (
                   <button
                     onClick={() => router.back()}
-                    className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-md text-black hover:bg-gray-100 transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -651,7 +588,7 @@ export default function DashboardLayout({
                     <Breadcrumb />
                   </div>
                 ) : (
-                  <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                  <h1 className="text-xl sm:text-2xl font-bold text-black truncate">
                     {title}
                   </h1>
                 )}
@@ -660,7 +597,7 @@ export default function DashboardLayout({
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-base font-medium text-black hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <span className="hidden sm:inline">Welcome back, {user?.fullname || 'Admin'}</span>
                     <span className="sm:hidden">{user?.fullname || 'Admin'}</span>
@@ -672,38 +609,33 @@ export default function DashboardLayout({
                   </button>
 
                   {/* User Dropdown Menu */}
-                  <AnimatePresence>
-                    {userMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                  {/* Removed animation wrapper */}
+                  {userMenuOpen && (
+                    <div
+                      className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                    >
+                      <button
+                        onClick={() => {
+                          setShowChangePasswordModal(true);
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-base font-medium text-black hover:bg-gray-100 transition-colors"
                       >
-                        <button
-                          onClick={() => {
-                            setShowChangePasswordModal(true);
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <Key className="w-4 h-4" />
-                          <span>Change Password</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleLogout();
-                            setUserMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Logout</span>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        <Key className="w-4 h-4" />
+                        <span>Change Password</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setUserMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-base font-medium text-black hover:bg-gray-100 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -733,25 +665,25 @@ export default function DashboardLayout({
               <div className="flex items-center space-x-2 overflow-x-auto">
                 <button
                   onClick={() => handleNavigation('all-products')}
-                  className="flex-shrink-0 px-3 py-2 custom-font font-semibold text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  className="flex-shrink-0 px-3 py-2 font-bold text-black bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   Products
                 </button>
                 <button
                   onClick={() => handleNavigation('all-orders')}
-                  className="flex-shrink-0 px-3 py-2 custom-font font-semibold text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  className="flex-shrink-0 px-3 py-2 font-bold text-black bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   Orders
                 </button>
                 <button
                   onClick={() => handleNavigation('all-customers')}
-                  className="flex-shrink-0 px-3 py-2 custom-font font-semibold text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  className="flex-shrink-0 px-3 py-2 font-bold text-black bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   Customers
                 </button>
                 <button
                   onClick={() => handleNavigation('sales-analytics')}
-                  className="flex-shrink-0 px-3 py-2 custom-font font-semibold text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  className="flex-shrink-0 px-3 py-2 font-bold text-black bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   Analytics
                 </button>
@@ -760,6 +692,7 @@ export default function DashboardLayout({
           )}
 
           {/* Page content */}
+          {/* Removed animation wrapper */}
           <main 
             className="p-4 sm:p-6"
           >
@@ -767,7 +700,7 @@ export default function DashboardLayout({
               {children}
             </div>
           </main>
-        </div>
+        </motion.div>
       </div>
     </ProtectedRoute>
   );

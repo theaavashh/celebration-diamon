@@ -41,12 +41,15 @@ export interface Hero {
 export interface Category {
     id: string;
     title: string;
+    iconUrl: string | null;
     imageUrl: string | null;
     link: string | null;
     isActive: boolean;
     sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
+    navImage1Url: string | null;
+    navImage2Url: string | null;
 }
 export interface Subcategory {
     id: string;
@@ -221,15 +224,37 @@ export interface Product {
     isActive: boolean;
     status: string;
     goldWeight?: string;
+    goldPurity?: string;
+    goldType?: string;
+    goldCraftsmanship?: string;
+    goldDesignDescription?: string;
+    goldFinishedType?: string;
+    goldStones?: string;
+    goldStoneQuality?: string;
+    diamondType?: string;
+    diamondShapeCut?: string;
+    diamondColorGrade?: string;
+    diamondClarityGrade?: string;
+    diamondCutGrade?: string;
+    diamondMetalDetails?: string;
+    diamondCertification?: string;
+    diamondOrigin?: string;
+    diamondCaratWeight?: string;
     diamondDetails?: string;
     diamondQuantity?: number;
     diamondSize?: string;
     diamondWeight?: string;
     diamondQuality?: string;
-    stoneWeight?: string;
-    caret?: string;
+    platinumWeight?: string;
+    platinumType?: string;
+    silverWeight?: string;
+    silverType?: string;
     otherGemstones?: string;
     orderDuration?: string;
+    stoneWeight?: string;
+    caret?: string;
+    jewelryType?: string;
+    materialType?: string;
     metalType?: string;
     stoneType?: string;
     settingType?: string;
@@ -244,6 +269,7 @@ export interface Product {
     seoDescription?: string;
     seoKeywords?: string;
     seoSlug?: string;
+    videoUrl?: string;
     images?: ProductImage[];
     createdAt: Date;
     updatedAt: Date;
@@ -292,6 +318,7 @@ export interface ApiResponse<T> {
     message?: string;
     data?: T;
     error?: string;
+    stack?: string;
     count?: number;
     total?: number;
     pagination?: {
@@ -341,6 +368,7 @@ export interface UpdateHeroRequest extends Partial<CreateHeroRequest> {
 }
 export interface CreateCategoryRequest {
     title: string;
+    iconUrl?: string;
     imageUrl?: string;
     link?: string;
     isActive?: boolean;

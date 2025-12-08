@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { getApiBaseUrl, getImageUrl } from '@/lib/api';
+import { apiPostFormData, type ApiResponse } from '@/lib/apiClient';
+import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { Urbanist } from 'next/font/google';
+
+const urbanist = Urbanist({ subsets: ['latin'], weight: '400' });
 
 // Type definitions
 interface GalleryItem {
   id?: string;
-  title: string;
   imageUrl: string;
-  description?: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt?: string;
@@ -29,10 +33,8 @@ interface Gallery {
 
 // Local validation schema
 const GalleryItemSchema = z.object({
-  title: z.string().max(100, 'Title must be less than 100 characters').optional().nullable(),
   imageUrl: z.string().optional(),
   imageFile: z.any().optional(),
-  description: z.string().max(500, 'Description must be less than 500 characters').optional().nullable(),
   sortOrder: z.number().int().min(0, 'Sort order must be non-negative'),
   isActive: z.boolean().default(true)
 }).refine((data) => data.imageUrl || data.imageFile, {
@@ -67,10 +69,8 @@ interface GalleryFormData {
 }
 
 interface GalleryItemFormData {
-  title: string;
   imageUrl: string;
   imageFile: File | null;
-  description: string | null;
   sortOrder: number;
   isActive: boolean;
 }
@@ -90,7 +90,7 @@ export default function GalleryForm({
   });
 
   const [galleryItems, setGalleryItems] = useState<GalleryItemFormData[]>([
-    { title: '', imageUrl: '', imageFile: null, description: null, sortOrder: 1, isActive: true }
+    { imageUrl: '', imageFile: null, sortOrder: 1, isActive: true }
   ]);
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -108,10 +108,8 @@ export default function GalleryForm({
       
       if (gallery.galleryItems && gallery.galleryItems.length > 0) {
         setGalleryItems(gallery.galleryItems.map((item: GalleryItem) => ({
-          title: item.title ?? '',
           imageUrl: item.imageUrl ? getImageUrl(item.imageUrl) : '',
           imageFile: null,
-          description: item.description ?? '',
           sortOrder: item.sortOrder ?? 0,
           isActive: item.isActive
         })));
@@ -129,10 +127,8 @@ export default function GalleryForm({
       const mainFormData = {
         ...formData,
         galleryItems: galleryItems.map(item => ({
-          title: item.title.trim(),
           imageUrl: item.imageUrl.trim(),
           imageFile: item.imageFile,
-          description: item.description?.trim() || null,
           sortOrder: item.sortOrder,
           isActive: item.isActive
         }))
@@ -159,28 +155,12 @@ export default function GalleryForm({
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('image', file);
-
-    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-
-    const response = await fetch(`${getApiBaseUrl()}/galleries/upload-image`, {
-      method: 'POST',
-      headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Failed to upload image' }));
-      throw new Error(errorData.error || 'Failed to upload image');
+    const apiBase = getApiBaseUrl();
+    const response: ApiResponse<{ imageUrl: string }> = await apiPostFormData(`${apiBase}/galleries/upload-image`, formData);
+    if (!response.success || !response.data?.imageUrl) {
+      throw new Error(response.error || 'Failed to upload image');
     }
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to upload image');
-    }
-
-    return result.data.imageUrl;
+    return response.data.imageUrl;
   }, []);
 
   // Handle form submission
@@ -219,9 +199,7 @@ export default function GalleryForm({
           }
           
           return {
-            title: item.title.trim(),
             imageUrl: imageUrl,
-            description: item.description?.trim() || null,
             sortOrder: (item.sortOrder ?? index + 1) || index + 1,
             isActive: item.isActive
           };
@@ -287,13 +265,65 @@ export default function GalleryForm({
     ));
   }, []);
 
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [croppingIndex, setCroppingIndex] = useState<number | null>(null);
+  const [croppingImageUrl, setCroppingImageUrl] = useState<string>('');
+
+  const handleCropImage = (index: number) => {
+    setCroppingIndex(index);
+    setCroppingImageUrl(galleryItems[index].imageUrl);
+    setCrop({ unit: '%', width: 50, height: 50, x: 25, y: 25 });
+  };
+
+  const handleCompleteCrop = () => {
+    if (imgRef.current && completedCrop && croppingIndex !== null) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const image = imgRef.current;
+      const pixelRatio = window.devicePixelRatio;
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      canvas.width = completedCrop.width * pixelRatio;
+      canvas.height = completedCrop.height * pixelRatio;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width,
+        completedCrop.height
+      );
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const fileName = `cropped-${Date.now()}.png`;
+          const croppedFile = new File([blob], fileName, { type: 'image/png' });
+          setGalleryItems(prev => prev.map((it, i) => i === croppingIndex ? {
+            ...it,
+            imageFile: croppedFile,
+            imageUrl: URL.createObjectURL(croppedFile)
+          } : it));
+          setCroppingIndex(null);
+          setCroppingImageUrl('');
+          setCrop(undefined);
+          setCompletedCrop(undefined);
+        }
+      }, 'image/png');
+    }
+  };
+
   // Add new gallery item
   const addGalleryItem = useCallback(() => {
     setGalleryItems(prev => [...prev, {
-      title: '',
       imageUrl: '',
       imageFile: null,
-      description: null,
       sortOrder: prev.length + 1,
       isActive: true
     }]);
@@ -328,9 +358,10 @@ export default function GalleryForm({
   }, [formData, galleryItems]);
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-6xl mx-auto">
+    <>
+    <div className={`${urbanist.className} bg-white rounded-lg shadow-lg p-6 max-w-6xl mx-auto`}>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-black">
+        <h2 className="text-3xl font-bold text-black">
           {gallery ? 'Edit Gallery' : 'Add New Gallery'}
         </h2>
         <button
@@ -347,14 +378,14 @@ export default function GalleryForm({
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Main Content Section */}
         <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-black border-b border-gray-200 pb-2">
+          <h3 className="text-2xl font-semibold text-black border-b border-gray-200 pb-2">
             Gallery Information
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Title */}
             <div className="md:col-span-2">
-              <label htmlFor="title" className="block text-sm font-medium text-black mb-2">
+              <label htmlFor="title" className="block text-lg font-medium text-black mb-2">
                 Gallery Title *
               </label>
               <input
@@ -376,7 +407,7 @@ export default function GalleryForm({
 
             {/* Subtitle */}
             <div className="md:col-span-2">
-              <label htmlFor="subtitle" className="block text-sm font-medium text-black mb-2">
+              <label htmlFor="subtitle" className="block text-lg font-medium text-black mb-2">
                 Gallery Subtitle *
               </label>
               <textarea
@@ -394,7 +425,7 @@ export default function GalleryForm({
               {getFieldError('subtitle') && (
                 <p className="mt-1 text-sm text-red-600">{getFieldError('subtitle')}</p>
               )}
-              <p className="mt-1 text-sm text-black">
+              <p className="mt-1 text-base text-black">
                 {formData.subtitle.length}/500 characters
               </p>
             </div>
@@ -405,7 +436,7 @@ export default function GalleryForm({
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-black border-b border-gray-200 pb-2">
+              <h3 className="text-2xl font-semibold text-black border-b border-gray-200 pb-2">
                 Gallery Items
               </h3>
               <p className="text-sm text-gray-600 mt-1">
@@ -417,14 +448,14 @@ export default function GalleryForm({
             <button
               type="button"
               onClick={addGalleryItem}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-md"
+              className="px-4 py-2 text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-md"
               disabled={isLoading}
             >
               + Add Item
             </button>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
             {galleryItems.map((item, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
@@ -442,29 +473,9 @@ export default function GalleryForm({
                 </div>
 
                 <div className="space-y-4">
-                  {/* Item Title */}
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-2">
-                      Title (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={item.title}
-                      onChange={(e) => handleGalleryItemChange(index, 'title', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black ${
-                        getFieldError(`galleryItems.${index}.title`) ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="e.g., Moments of Tranquility (optional)"
-                      disabled={isLoading}
-                    />
-                    {getFieldError(`galleryItems.${index}.title`) && (
-                      <p className="mt-1 text-sm text-red-600">{getFieldError(`galleryItems.${index}.title`)}</p>
-                    )}
-                  </div>
-
                   {/* Item Media Upload */}
                   <div>
-                    <label className="block text-sm font-medium text-black mb-2">
+                    <label className="block text-lg font-medium text-black mb-2">
                       Image/Video Upload *
                     </label>
                     <input
@@ -479,6 +490,18 @@ export default function GalleryForm({
                       }`}
                       disabled={isLoading}
                     />
+                    {(item.imageUrl || item.imageFile) && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCropImage(index)}
+                          className="px-3 py-1 bg-gray-800 text-white rounded-md"
+                          disabled={isLoading}
+                        >
+                          Crop Image
+                        </button>
+                      </div>
+                    )}
                     {getFieldError(`galleryItems.${index}.imageUrl`) && (
                       <p className="mt-1 text-sm text-red-600">{getFieldError(`galleryItems.${index}.imageUrl`)}</p>
                     )}
@@ -486,31 +509,10 @@ export default function GalleryForm({
                       Supported formats: Images (JPG, PNG, GIF, WebP) - Max 5MB
                     </p>
                   </div>
-
-                  {/* Item Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-2">
-                      Description (Optional)
-                    </label>
-                    <textarea
-                      value={item.description || ''}
-                      onChange={(e) => handleGalleryItemChange(index, 'description', e.target.value || null)}
-                      rows={2}
-                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black ${
-                        getFieldError(`galleryItems.${index}.description`) ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Optional description for this gallery item"
-                      disabled={isLoading}
-                    />
-                    {getFieldError(`galleryItems.${index}.description`) && (
-                      <p className="mt-1 text-sm text-red-600">{getFieldError(`galleryItems.${index}.description`)}</p>
-                    )}
-                  </div>
-
                   {/* Media Preview */}
                   {(item.imageUrl || item.imageFile) && (
                     <div>
-                      <label className="block text-sm font-medium text-black mb-2">Preview</label>
+                      <label className="block text-lg font-medium text-black mb-2">Preview</label>
                       <div className="w-full h-48 bg-gray-100 overflow-hidden">
                         <img
                           src={item.imageUrl}
@@ -522,7 +524,7 @@ export default function GalleryForm({
                         />
                       </div>
                       {item.imageFile && (
-                        <p className="mt-1 text-sm text-gray-600">
+                        <p className="mt-1 text-base text-gray-600">
                           Selected: {item.imageFile.name} ({(item.imageFile.size / 1024 / 1024).toFixed(2)} MB)
                           {item.imageFile.type && ` - Type: ${item.imageFile.type}`}
                         </p>
@@ -539,7 +541,7 @@ export default function GalleryForm({
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       disabled={isLoading}
                     />
-                    <label className="ml-2 block text-sm text-gray-700">
+                    <label className="ml-2 block text-base text-gray-700">
                       Active (visible to users)
                     </label>
                   </div>
@@ -551,14 +553,14 @@ export default function GalleryForm({
 
         {/* Settings Section */}
         <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-black border-b border-gray-200 pb-2">
+          <h3 className="text-2xl font-semibold text-black border-b border-gray-200 pb-2">
             Settings
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Sort Order */}
             <div>
-              <label htmlFor="sortOrder" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="sortOrder" className="block text-lg font-medium text-gray-700 mb-2">
                 Sort Order
               </label>
               <input
@@ -576,7 +578,7 @@ export default function GalleryForm({
               {getFieldError('sortOrder') && (
                 <p className="mt-1 text-sm text-red-600">{getFieldError('sortOrder')}</p>
               )}
-              <p className="mt-1 text-sm text-black">
+              <p className="mt-1 text-base text-black">
                 Lower numbers appear first
               </p>
             </div>
@@ -592,7 +594,7 @@ export default function GalleryForm({
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 disabled={isLoading}
               />
-              <label htmlFor="isActive" className="ml-2 block text-sm text-black">
+              <label htmlFor="isActive" className="ml-2 block text-base text-black">
                 Active (visible to users)
               </label>
             </div>
@@ -601,7 +603,7 @@ export default function GalleryForm({
 
         {/* Submit Error */}
         {errors.submit && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-base">
             {errors.submit}
           </div>
         )}
@@ -611,14 +613,14 @@ export default function GalleryForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-black bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            className="px-4 py-2 text-base font-medium text-black bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
             disabled={isLoading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className={`px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${
+            className={`px-4 py-2 text-base font-medium text-white border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${
               !isFormValid || isValidating
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
@@ -640,5 +642,87 @@ export default function GalleryForm({
         </div>
       </form>
     </div>
+    {croppingIndex !== null && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className={`${urbanist.className} bg-white rounded-lg shadow-xl w-full max-w-2xl`}>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-semibold">Crop Image</h3>
+              <button
+                onClick={() => {
+                  setCroppingIndex(null);
+                  setCroppingImageUrl('');
+                  setCrop(undefined);
+                  setCompletedCrop(undefined);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-col items-center">
+              <ReactCrop
+                crop={crop}
+                onChange={(c) => setCrop(c)}
+                onComplete={(c) => setCompletedCrop(c)}
+                aspect={1}
+                minWidth={100}
+                minHeight={100}
+              >
+                <img
+                  ref={imgRef}
+                  src={croppingImageUrl}
+                  alt="Crop preview"
+                  className="max-h-[70vh]"
+                  onLoad={() => {
+                    const img = imgRef.current;
+                    if (img) {
+                      const { width, height } = img;
+                      const crop = centerCrop(
+                        makeAspectCrop(
+                          {
+                            unit: '%',
+                            width: 50,
+                            height: 50
+                          },
+                          1,
+                          width,
+                          height
+                        ),
+                        width,
+                        height
+                      );
+                      setCrop(crop);
+                    }
+                  }}
+                />
+              </ReactCrop>
+              <div className="mt-4 flex space-x-2">
+                <button
+                  onClick={handleCompleteCrop}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Apply Crop
+                </button>
+                <button
+                  onClick={() => {
+                    setCroppingIndex(null);
+                    setCroppingImageUrl('');
+                    setCrop(undefined);
+                    setCompletedCrop(undefined);
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

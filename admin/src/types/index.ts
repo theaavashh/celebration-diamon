@@ -72,9 +72,9 @@ export interface Culture {
 
 export interface GalleryItem {
   id?: string;
-  title: string;
   imageUrl: string;
-  description?: string | null;
+  title?: string;
+  description?: string;
   sortOrder: number;
   isActive: boolean;
   createdAt?: string;

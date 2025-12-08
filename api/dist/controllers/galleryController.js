@@ -71,8 +71,7 @@ const getAllGalleries = async (req, res) => {
             ...(search && {
                 OR: [
                     { title: { contains: search, mode: 'insensitive' } },
-                    { subtitle: { contains: search, mode: 'insensitive' } },
-                    { galleryItems: { some: { title: { contains: search, mode: 'insensitive' } } } }
+                    { subtitle: { contains: search, mode: 'insensitive' } }
                 ]
             })
         };
@@ -128,8 +127,7 @@ const getAllGalleriesAdmin = async (req, res) => {
             ...(search && {
                 OR: [
                     { title: { contains: search, mode: 'insensitive' } },
-                    { subtitle: { contains: search, mode: 'insensitive' } },
-                    { galleryItems: { some: { title: { contains: search, mode: 'insensitive' } } } }
+                    { subtitle: { contains: search, mode: 'insensitive' } }
                 ]
             })
         };
@@ -230,9 +228,7 @@ const createGallery = async (req, res) => {
                     sortOrder: galleryData.sortOrder,
                     galleryItems: galleryData.galleryItems ? {
                         create: galleryData.galleryItems.map((item, index) => ({
-                            title: item.title,
                             imageUrl: item.imageUrl,
-                            description: item.description,
                             sortOrder: item.sortOrder || index + 1,
                             isActive: item.isActive
                         }))
@@ -303,9 +299,7 @@ const updateGallery = async (req, res) => {
                 await tx.galleryItem.createMany({
                     data: updateData.galleryItems.map((item, index) => ({
                         galleryId: id,
-                        title: item.title,
                         imageUrl: item.imageUrl,
-                        description: item.description,
                         sortOrder: item.sortOrder || index + 1,
                         isActive: item.isActive
                     }))

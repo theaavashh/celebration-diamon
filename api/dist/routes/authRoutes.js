@@ -45,6 +45,7 @@ const generateToken = (adminId) => {
     }
     return jsonwebtoken_1.default.sign({ id: adminId }, secret, { expiresIn: '7d' });
 };
+const csrfMiddleware_1 = require("../middleware/csrfMiddleware");
 router.post('/login', loginValidation, async (req, res) => {
     try {
         const errors = (0, express_validator_1.validationResult)(req);
@@ -52,7 +53,7 @@ router.post('/login', loginValidation, async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Validation failed',
-                errors: errors.array()
+                error: errors.array()[0].msg
             });
         }
         const { email, password } = req.body;
@@ -84,15 +85,16 @@ router.post('/login', loginValidation, async (req, res) => {
         res.cookie('authToken', token, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: 'strict',
+            sameSite: isProduction ? 'strict' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000,
             path: '/',
+            domain: isProduction ? process.env['COOKIE_DOMAIN'] || '' : '',
         });
         res.json({
             success: true,
             message: 'Login successful',
             data: {
-                admin: adminData,
+                admin: adminData
             }
         });
     }
@@ -111,7 +113,7 @@ router.post('/register', registerValidation, async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Validation failed',
-                errors: errors.array()
+                error: errors.array()[0].msg
             });
         }
         const { fullname, username, email, password } = req.body;
@@ -263,53 +265,12 @@ router.post('/retailer/create', retailerAdminValidation, async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Validation failed',
-                errors: errors.array()
+                error: errors.array()[0].msg
             });
         }
-        const { fullname, username, email, password, shopName, panVatNo, phone, address, city, state, zipCode, country, status = 'active' } = req.body;
-        const existingRetailer = await database_1.default.retailer.findFirst({
-            where: {
-                OR: [
-                    { email: email.toLowerCase() },
-                    { username }
-                ]
-            }
-        });
-        if (existingRetailer) {
-            return res.status(400).json({
-                success: false,
-                message: 'Retailer with this email or username already exists'
-            });
-        }
-        const saltRounds = 12;
-        const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
-        const retailer = await database_1.default.retailer.create({
-            data: {
-                name: fullname,
-                username,
-                email: email.toLowerCase(),
-                password: hashedPassword,
-                shopName,
-                panVatNo,
-                phone,
-                address,
-                city,
-                state,
-                zipCode,
-                country,
-                status: status || 'active',
-                totalOrders: 0,
-                totalRevenue: 0,
-                lastLogin: null
-            }
-        });
-        const { password: _, ...retailerData } = retailer;
-        res.status(201).json({
-            success: true,
-            message: 'Retailer created successfully',
-            data: {
-                retailer: retailerData
-            }
+        return res.status(400).json({
+            success: false,
+            message: 'Retailer registration is temporarily unavailable'
         });
     }
     catch (error) {
@@ -317,6 +278,35 @@ router.post('/retailer/create', retailerAdminValidation, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error during retailer creation'
+        });
+    }
+});
+router.get('/csrf-token', (req, res) => {
+    try {
+        console.log('Generating CSRF token for request');
+        console.log('Request IP:', req.ip);
+        console.log('Node environment:', process.env.NODE_ENV);
+        let sessionIdentifier;
+        if (process.env.NODE_ENV === 'development') {
+            sessionIdentifier = 'development-session';
+        }
+        else {
+            sessionIdentifier = req.ip || 'anonymous';
+        }
+        console.log('Generation session identifier:', sessionIdentifier);
+        const token = (0, csrfMiddleware_1.generateCsrfToken)(req, res);
+        console.log('Generated CSRF token:', token);
+        res.json({
+            success: true,
+            data: { csrfToken: token },
+            message: 'CSRF token generated successfully'
+        });
+    }
+    catch (error) {
+        console.error('CSRF token generation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate CSRF token'
         });
     }
 });
@@ -383,11 +373,13 @@ router.get('/me', async (req, res) => {
 });
 router.post('/logout', async (req, res) => {
     try {
+        const isProduction = process.env['NODE_ENV'] === 'production';
         res.clearCookie('authToken', {
             httpOnly: true,
-            secure: process.env['NODE_ENV'] === 'production',
-            sameSite: 'strict',
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax',
             path: '/',
+            domain: isProduction ? process.env['COOKIE_DOMAIN'] || '' : '',
         });
         res.json({
             success: true,

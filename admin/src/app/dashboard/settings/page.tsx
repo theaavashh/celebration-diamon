@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Settings, 
@@ -9,8 +9,6 @@ import {
   Mail, 
   Phone, 
   MapPin, 
-  CreditCard,
-  Palette,
   Database,
   Shield,
   Bell,
@@ -27,6 +25,8 @@ import {
   Star
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { getApiBaseUrl } from "@/lib/api";
+import { fetchCsrfToken, addCsrfToken } from "@/lib/csrfClient";
 import DashboardLayout from "@/components/DashboardLayout";
 
 interface SiteSettings {
@@ -49,16 +49,12 @@ interface SiteSettings {
   timezone: string;
   language: string;
   
-  // Payment Settings
-  paymentMethods: string[];
-  taxRate: number;
-  shippingCost: number;
+  // Media Links
+  facebookUrl: string;
+  instagramUrl: string;
+  tiktokUrl: string;
   
-  // Appearance Settings
-  primaryColor: string;
-  secondaryColor: string;
-  theme: 'light' | 'dark' | 'auto';
-  
+
   // Notification Settings
   emailNotifications: boolean;
   smsNotifications: boolean;
@@ -103,7 +99,7 @@ export default function SettingsPage() {
     // General Settings
     siteName: "Celebration Diamond",
     siteDescription: "Your trusted diamond studio",
-    siteUrl: "https://gharsamma.com",
+    siteUrl: "https://celebrationdiamond.com",
     siteLogo: "/image.png",
     siteFavicon: "/favicon.ico",
     
@@ -119,15 +115,10 @@ export default function SettingsPage() {
     timezone: "Asia/Kathmandu",
     language: "en",
     
-    // Payment Settings
-    paymentMethods: ["cash", "card", "bank_transfer", "esewa", "khalti"],
-    taxRate: 13,
-    shippingCost: 100,
-    
-    // Appearance Settings
-    primaryColor: "#3B82F6",
-    secondaryColor: "#10B981",
-    theme: "light",
+    // Media Links
+    facebookUrl: "",
+    instagramUrl: "",
+    tiktokUrl: "",
     
     // Notification Settings
     emailNotifications: true,
@@ -145,32 +136,47 @@ export default function SettingsPage() {
     trackInventory: true,
     
     // SEO Settings
-    seoTitle: "Gharsamma Ecommerce - Your Trusted Online Shopping Destination",
-    seoDescription: "Shop the latest products at Gharsamma Ecommerce. Quality products, competitive prices, and excellent customer service. Free delivery across Nepal.",
-    seoKeywords: "online shopping, ecommerce, nepal, electronics, clothing, books, home, garden, beauty, health",
-    ogTitle: "Gharsamma Ecommerce - Online Shopping in Nepal",
-    ogDescription: "Discover amazing products at Gharsamma Ecommerce. Quality guaranteed, fast delivery, and great prices.",
+    seoTitle: "Celebration Diamond Studio — Fine Jewelry & Diamonds",
+    seoDescription: "Discover handcrafted fine jewelry and certified diamonds at Celebration Diamond. Expert service, quality craftsmanship, and a personalized experience.",
+    seoKeywords: "celebration diamond, fine jewelry, diamonds, engagement rings, jewelry, nepal",
+    ogTitle: "Celebration Diamond — Fine Jewelry & Diamonds",
+    ogDescription: "Handcrafted jewelry, certified diamonds, and expert service.",
     ogImage: "/image.png",
     ogType: "website",
     twitterCard: "summary_large_image",
-    twitterSite: "@gharsamma",
-    twitterCreator: "@gharsamma",
-    canonicalUrl: "https://gharsamma.com",
+    twitterSite: "@celebrationdiamond",
+    twitterCreator: "@celebrationdiamond",
+    canonicalUrl: "https://celebrationdiamond.com",
     robotsIndex: true,
     robotsFollow: true,
-    sitemapUrl: "https://gharsamma.com/sitemap.xml",
+    sitemapUrl: "https://celebrationdiamond.com/sitemap.xml",
     googleAnalyticsId: "",
     googleTagManagerId: "",
     facebookPixelId: "",
     structuredData: "",
   });
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const apiBase = getApiBaseUrl();
+        const response = await fetch(`${apiBase}/settings`, { credentials: 'include' });
+        const result = await response.json();
+        if (response.ok && result?.success && result?.data) {
+          setSettings(prev => ({ ...prev, ...result.data }));
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+    loadSettings();
+  }, []);
+
   const tabs = [
     { id: 'general', label: 'General', icon: Globe },
     { id: 'contact', label: 'Contact', icon: Mail },
     { id: 'business', label: 'Business', icon: ShoppingCart },
-    { id: 'payment', label: 'Payment', icon: CreditCard },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'media', label: 'Media Links', icon: Link },
     { id: 'seo', label: 'SEO & Analytics', icon: Search },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
@@ -184,25 +190,35 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleArrayChange = (field: keyof SiteSettings, value: string[]) => {
-    setSettings(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success("Settings saved successfully!");
+      const apiBase = getApiBaseUrl();
+      await fetchCsrfToken();
+      const response = await fetch(`${apiBase}/settings`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...addCsrfToken()
+        },
+        body: JSON.stringify(settings)
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Failed to save settings');
+      }
+      toast.success(result?.message || "Settings saved successfully!");
     } catch (error) {
       toast.error("Failed to save settings. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  
 
   const renderGeneralSettings = () => (
     <div className="space-y-6">
@@ -420,141 +436,46 @@ export default function SettingsPage() {
     </div>
   );
 
-  const renderPaymentSettings = () => (
+  const renderMediaSettings = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Settings</h3>
-        <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Media Links</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Payment Methods
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {[
-                { id: 'cash', label: 'Cash on Delivery' },
-                { id: 'card', label: 'Credit/Debit Card' },
-                { id: 'bank_transfer', label: 'Bank Transfer' },
-                { id: 'esewa', label: 'eSewa' },
-                { id: 'khalti', label: 'Khalti' },
-                { id: 'connect_ips', label: 'Connect IPS' }
-              ].map((method) => (
-                <label key={method.id} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={settings.paymentMethods.includes(method.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        handleArrayChange('paymentMethods', [...settings.paymentMethods, method.id]);
-                      } else {
-                        handleArrayChange('paymentMethods', settings.paymentMethods.filter(m => m !== method.id));
-                      }
-                    }}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{method.label}</span>
-                </label>
-              ))}
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Facebook URL</label>
+            <input
+              type="url"
+              value={settings.facebookUrl}
+              onChange={(e) => handleInputChange('facebookUrl', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              placeholder="https://facebook.com/yourpage"
+            />
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tax Rate (%)
-              </label>
-              <input
-                type="number"
-                value={settings.taxRate}
-                onChange={(e) => handleInputChange('taxRate', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                min="0"
-                max="100"
-                step="0.01"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Shipping Cost ({settings.currency})
-              </label>
-              <input
-                type="number"
-                value={settings.shippingCost}
-                onChange={(e) => handleInputChange('shippingCost', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                min="0"
-                step="0.01"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Instagram URL</label>
+            <input
+              type="url"
+              value={settings.instagramUrl}
+              onChange={(e) => handleInputChange('instagramUrl', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              placeholder="https://instagram.com/yourhandle"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">TikTok URL</label>
+            <input
+              type="url"
+              value={settings.tiktokUrl}
+              onChange={(e) => handleInputChange('tiktokUrl', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              placeholder="https://tiktok.com/@yourhandle"
+            />
           </div>
         </div>
       </div>
     </div>
   );
 
-  const renderAppearanceSettings = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Appearance Settings</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Primary Color
-            </label>
-            <div className="flex space-x-2">
-              <input
-                type="color"
-                value={settings.primaryColor}
-                onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={settings.primaryColor}
-                onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Secondary Color
-            </label>
-            <div className="flex space-x-2">
-              <input
-                type="color"
-                value={settings.secondaryColor}
-                onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={settings.secondaryColor}
-                onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Theme
-            </label>
-            <select
-              value={settings.theme}
-              onChange={(e) => handleInputChange('theme', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="auto">Auto</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   const renderNotificationSettings = () => (
     <div className="space-y-6">
@@ -1018,10 +939,8 @@ export default function SettingsPage() {
         return renderContactSettings();
       case 'business':
         return renderBusinessSettings();
-      case 'payment':
-        return renderPaymentSettings();
-      case 'appearance':
-        return renderAppearanceSettings();
+      case 'media':
+        return renderMediaSettings();
       case 'seo':
         return renderSEOSettings();
       case 'notifications':

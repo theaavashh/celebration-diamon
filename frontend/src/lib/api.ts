@@ -2,14 +2,14 @@
  * Get the API base URL from environment variables
  */
 const normalizeApiBase = (base: string | undefined): string => {
-  if (!base) {
-    throw new Error('API base URL is not defined');
-  }
-  return base.endsWith('/api') ? base : `${base.replace(/\/$/, '')}/api`;
+  const resolved = base && base.trim().length > 0 ? base : 'http://localhost:5000/api';
+  return resolved.endsWith('/api') ? resolved : `${resolved.replace(/\/$/, '')}/api`;
 };
 
 export const getApiBaseUrl = (): string => {
-  return normalizeApiBase(process.env.NEXT_PUBLIC_API_BASE_URL);
+  const fromBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const fromUrl = process.env.NEXT_PUBLIC_API_URL;
+  return normalizeApiBase(fromBase || fromUrl);
 };
 
 /**
@@ -26,7 +26,7 @@ export const getApiUrl = (): string => {
     return normalizeApiBase(base).replace(/\/api$/, '');
   }
 
-  throw new Error('NEXT_PUBLIC_API_URL or NEXT_PUBLIC_API_BASE_URL must be defined in environment variables');
+  return 'http://localhost:5000';
 };
 
 /**

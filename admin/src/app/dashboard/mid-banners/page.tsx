@@ -168,17 +168,16 @@ export default function MidBannersPage() {
       fetchBanners();
       setIsModalOpen(false);
       setEditingBanner(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving mid banner:', error);
-      
-      // Handle validation errors
-      if (error.response?.status === 400) {
-        const errorData = error.response.data;
-        if (errorData.errors && Array.isArray(errorData.errors)) {
-          const errorMessages = errorData.errors.map((err: any) => err.msg).join(', ');
+      const err = error as { response?: { status?: number; data?: any } };
+      if (err.response?.status === 400) {
+        const errorData = err.response.data;
+        if (errorData?.errors && Array.isArray(errorData.errors)) {
+          const errorMessages = errorData.errors.map((e: any) => e.msg).join(', ');
           toast.error(`Validation error: ${errorMessages}`);
         } else {
-          toast.error(errorData.message || 'Validation failed');
+          toast.error(errorData?.message || 'Validation failed');
         }
       } else {
         toast.error('Failed to save mid banner');

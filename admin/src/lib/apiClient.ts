@@ -1,7 +1,10 @@
 // Utility functions for making authenticated API calls using cookies
+import axios, { AxiosResponse } from 'axios';
+import { getApiBaseUrl } from './api';
+import type { Gallery, NewGallery } from '@/types';
 import { addCsrfToken, fetchCsrfToken, refreshCsrfTokenIfNeeded, getCsrfToken } from './csrfClient';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -21,34 +24,20 @@ export interface ApiResponse<T = any> {
  */
 export async function apiGet<T>(url: string): Promise<ApiResponse<T>> {
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const result = await response.json();
-    
-    if (!response.ok) {
-      return {
-        success: false,
-        error: result.message || 'Request failed',
-        message: result.message || 'Request failed'
-      };
-    }
-
-    return {
-      success: true,
-      data: result.data,
-      message: result.message
-    };
-  } catch (error) {
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.get(url, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      message: 'Network error'
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
     };
   }
 }
@@ -56,48 +45,31 @@ export async function apiGet<T>(url: string): Promise<ApiResponse<T>> {
 /**
  * Make an authenticated POST request
  */
-export async function apiPost<T>(url: string, data?: any): Promise<ApiResponse<T>> {
+export async function apiPost<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
   try {
-    // Ensure we have a CSRF token
     await fetchCsrfToken();
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...addCsrfToken()
-      },
-      body: JSON.stringify(data)
-    });
-
-    // If we get a CSRF error, try refreshing the token
-    if (response.status === 403) {
-      // Clone the response to avoid consuming the original body stream
-      const clonedResponse = response.clone();
-      const result = await clonedResponse.json();
-      if (result.message && result.message.includes('CSRF')) {
-        await refreshCsrfTokenIfNeeded();
-        // Retry the request with the new token
-        const retryResponse = await fetch(url, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...addCsrfToken()
-          },
-          body: JSON.stringify(data)
-        });
-        return await handleResponse(retryResponse);
-      }
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.post(url, data, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 403 && typeof error.response?.data?.message === 'string' && error.response.data.message.includes('CSRF')) {
+      await refreshCsrfTokenIfNeeded();
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const retryResponse = await axios.post(url, data, { withCredentials: true, headers });
+      return handleAxiosResponse<T>(retryResponse);
     }
-
-    return await handleResponse(response);
-  } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      message: 'Network error'
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
     };
   }
 }
@@ -107,55 +79,29 @@ export async function apiPost<T>(url: string, data?: any): Promise<ApiResponse<T
  */
 export async function apiPostFormData<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
   try {
-    // Ensure we have a CSRF token
     await fetchCsrfToken();
-    
-    // Debugging: Log the CSRF token
-    console.log('CSRF Token:', getCsrfToken());
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        ...addCsrfToken()
-        // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
-      },
-      body: formData
-    });
-
-    // Debugging: Log the response
-    console.log('Response status:', response.status);
-    console.log('Response headers:', [...response.headers.entries()]);
-    
-    // If we get a CSRF error, try refreshing the token
-    if (response.status === 403) {
-      // Clone the response to avoid consuming the original body stream
-      const clonedResponse = response.clone();
-      const result = await clonedResponse.json();
-      console.log('CSRF Error response:', result);
-      if (result.message && result.message.includes('CSRF')) {
-        await refreshCsrfTokenIfNeeded();
-        // Retry the request with the new token
-        const retryResponse = await fetch(url, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            ...addCsrfToken()
-            // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
-          },
-          body: formData
-        });
-        return await handleResponse(retryResponse);
-      }
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { ...addCsrfToken() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.post(url, formData, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 403 && typeof error.response?.data?.message === 'string' && error.response.data.message.includes('CSRF')) {
+      await refreshCsrfTokenIfNeeded();
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const headers: Record<string, string> = { ...addCsrfToken() };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const retryResponse = await axios.post(url, formData, { withCredentials: true, headers });
+      return handleAxiosResponse<T>(retryResponse);
     }
-
-    return await handleResponse(response);
-  } catch (error) {
-    console.error('Error in apiPostFormData:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      message: 'Network error'
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
     };
   }
 }
@@ -163,48 +109,60 @@ export async function apiPostFormData<T>(url: string, formData: FormData): Promi
 /**
  * Make an authenticated PUT request
  */
-export async function apiPut<T>(url: string, data?: any): Promise<ApiResponse<T>> {
+export async function apiPut<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
   try {
-    // Ensure we have a CSRF token
     await fetchCsrfToken();
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...addCsrfToken()
-      },
-      body: JSON.stringify(data)
-    });
-
-    // If we get a CSRF error, try refreshing the token
-    if (response.status === 403) {
-      // Clone the response to avoid consuming the original body stream
-      const clonedResponse = response.clone();
-      const result = await clonedResponse.json();
-      if (result.message && result.message.includes('CSRF')) {
-        await refreshCsrfTokenIfNeeded();
-        // Retry the request with the new token
-        const retryResponse = await fetch(url, {
-          method: 'PUT',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...addCsrfToken()
-          },
-          body: JSON.stringify(data)
-        });
-        return await handleResponse(retryResponse);
-      }
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.put(url, data, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 403 && typeof error.response?.data?.message === 'string' && error.response.data.message.includes('CSRF')) {
+      await refreshCsrfTokenIfNeeded();
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const retryResponse = await axios.put(url, data, { withCredentials: true, headers });
+      return handleAxiosResponse<T>(retryResponse);
     }
-
-    return await handleResponse(response);
-  } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      message: 'Network error'
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
+    };
+  }
+}
+
+export async function apiPatch<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+  try {
+    await fetchCsrfToken();
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.patch(url, data, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 403 && typeof error.response?.data?.message === 'string' && error.response.data.message.includes('CSRF')) {
+      await refreshCsrfTokenIfNeeded();
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const retryResponse = await axios.patch(url, data, { withCredentials: true, headers });
+      return handleAxiosResponse<T>(retryResponse);
+    }
+    return {
+      success: false,
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
     };
   }
 }
@@ -214,55 +172,29 @@ export async function apiPut<T>(url: string, data?: any): Promise<ApiResponse<T>
  */
 export async function apiPutFormData<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
   try {
-    // Ensure we have a CSRF token
     await fetchCsrfToken();
-    
-    // Debugging: Log the CSRF token
-    console.log('CSRF Token:', getCsrfToken());
-    
-    const response = await fetch(url, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: {
-        ...addCsrfToken()
-        // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
-      },
-      body: formData
-    });
-
-    // Debugging: Log the response
-    console.log('Response status:', response.status);
-    console.log('Response headers:', [...response.headers.entries()]);
-    
-    // If we get a CSRF error, try refreshing the token
-    if (response.status === 403) {
-      // Clone the response to avoid consuming the original body stream
-      const clonedResponse = response.clone();
-      const result = await clonedResponse.json();
-      console.log('CSRF Error response:', result);
-      if (result.message && result.message.includes('CSRF')) {
-        await refreshCsrfTokenIfNeeded();
-        // Retry the request with the new token
-        const retryResponse = await fetch(url, {
-          method: 'PUT',
-          credentials: 'include',
-          headers: {
-            ...addCsrfToken()
-            // Don't set Content-Type header for FormData - let the browser set it with the correct boundary
-          },
-          body: formData
-        });
-        return await handleResponse(retryResponse);
-      }
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { ...addCsrfToken() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.put(url, formData, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 403 && typeof error.response?.data?.message === 'string' && error.response.data.message.includes('CSRF')) {
+      await refreshCsrfTokenIfNeeded();
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const headers: Record<string, string> = { ...addCsrfToken() };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const retryResponse = await axios.put(url, formData, { withCredentials: true, headers });
+      return handleAxiosResponse<T>(retryResponse);
     }
-
-    return await handleResponse(response);
-  } catch (error) {
-    console.error('Error in apiPutFormData:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      message: 'Network error'
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
     };
   }
 }
@@ -272,61 +204,32 @@ export async function apiPutFormData<T>(url: string, formData: FormData): Promis
  */
 export async function apiDelete<T>(url: string): Promise<ApiResponse<T>> {
   try {
-    // Ensure we have a CSRF token
     await fetchCsrfToken();
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        ...addCsrfToken()
-      }
-    });
-
-    // Handle case where DELETE returns no content (204)
-    if (response.status === 204) {
-      return {
-        success: true,
-        message: 'Deleted successfully'
-      };
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await axios.delete(url, { withCredentials: true, headers });
+    return handleAxiosResponse<T>(response);
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && error.response?.status === 204) {
+      return { success: true, message: 'Deleted successfully' };
     }
-
-    // If we get a CSRF error, try refreshing the token
-    if (response.status === 403) {
-      // Clone the response to avoid consuming the original body stream
-      const clonedResponse = response.clone();
-      const result = await clonedResponse.json();
-      if (result.message && result.message.includes('CSRF')) {
-        await refreshCsrfTokenIfNeeded();
-        // Retry the request with the new token
-        const retryResponse = await fetch(url, {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...addCsrfToken()
-          }
-        });
-        
-        // Handle case where DELETE returns no content (204) after retry
-        if (retryResponse.status === 204) {
-          return {
-            success: true,
-            message: 'Deleted successfully'
-          };
-        }
-        
-        return await handleResponse(retryResponse);
-      }
+    if (axios.isAxiosError(error) && error.response?.status === 403 && typeof error.response?.data?.message === 'string' && error.response.data.message.includes('CSRF')) {
+      await refreshCsrfTokenIfNeeded();
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...addCsrfToken() };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const retryResponse = await axios.delete(url, { withCredentials: true, headers });
+      return handleAxiosResponse<T>(retryResponse);
     }
-
-    return await handleResponse(response);
-  } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      message: 'Network error'
+      error: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : (error instanceof Error ? error.message : 'An unknown error occurred'),
+      message: axios.isAxiosError(error)
+        ? (typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Network error')
+        : 'Network error'
     };
   }
 }
@@ -334,17 +237,15 @@ export async function apiDelete<T>(url: string): Promise<ApiResponse<T>> {
 /**
  * Handle API response
  */
-async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  const result = await response.json();
-  
-  if (!response.ok) {
+function handleAxiosResponse<T>(response: AxiosResponse<unknown>): ApiResponse<T> {
+  const result = (response.data ?? {}) as { message?: string; data?: T };
+  if (response.status < 200 || response.status >= 300) {
     return {
       success: false,
       error: result.message || 'Request failed',
       message: result.message || 'Request failed'
     };
   }
-
   return {
     success: true,
     data: result.data,
@@ -368,3 +269,57 @@ export function handleAuthError(message: string | undefined): boolean {
   }
   return false;
 }
+
+export const apiService = {
+  get: async <T>(path: string): Promise<ApiResponse<T>> => {
+    const base = getApiBaseUrl();
+    return apiGet<T>(`${base}${path}`);
+  },
+  post: async <T>(path: string, data?: unknown, _config?: unknown): Promise<ApiResponse<T>> => {
+    const base = getApiBaseUrl();
+    const url = `${base}${path}`;
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      return apiPostFormData<T>(url, data);
+    }
+    return apiPost<T>(url, data);
+  },
+  put: async <T>(path: string, data?: unknown, _config?: unknown): Promise<ApiResponse<T>> => {
+    const base = getApiBaseUrl();
+    const url = `${base}${path}`;
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      return apiPutFormData<T>(url, data);
+    }
+    return apiPut<T>(url, data);
+  },
+  patch: async <T>(path: string, data?: unknown, _config?: unknown): Promise<ApiResponse<T>> => {
+    const base = getApiBaseUrl();
+    return apiPatch<T>(`${base}${path}`, data);
+  },
+  delete: async <T>(path: string): Promise<ApiResponse<T>> => {
+    const base = getApiBaseUrl();
+    return apiDelete<T>(`${base}${path}`);
+  }
+};
+
+export const galleryApi = {
+  async getGalleriesAdmin(): Promise<ApiResponse<Gallery[]>> {
+    const base = getApiBaseUrl();
+    return apiGet<Gallery[]>(`${base}/galleries/admin`);
+  },
+  async createGallery(data: Omit<NewGallery, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Gallery>> {
+    const base = getApiBaseUrl();
+    return apiPost<Gallery>(`${base}/galleries`, data);
+  },
+  async updateGallery(id: string, data: Omit<NewGallery, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Gallery>> {
+    const base = getApiBaseUrl();
+    return apiPut<Gallery>(`${base}/galleries/${id}`, data);
+  },
+  async deleteGallery(id: string): Promise<ApiResponse<void>> {
+    const base = getApiBaseUrl();
+    return apiDelete<void>(`${base}/galleries/${id}`);
+  },
+  async toggleGalleryStatus(id: string): Promise<ApiResponse<Gallery>> {
+    const base = getApiBaseUrl();
+    return apiPatch<Gallery>(`${base}/galleries/${id}/toggle`);
+  }
+};

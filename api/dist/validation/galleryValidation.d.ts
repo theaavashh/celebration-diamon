@@ -1,8 +1,6 @@
 import { z } from 'zod';
 export declare const GalleryItemSchema: z.ZodObject<{
-    title: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
     imageUrl: z.ZodString;
-    description: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
     sortOrder: z.ZodNumber;
     isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
 }, z.core.$strip>;
@@ -12,9 +10,7 @@ export declare const GallerySchema: z.ZodObject<{
     sortOrder: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
     galleryItems: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
-        title: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
         imageUrl: z.ZodString;
-        description: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
         sortOrder: z.ZodNumber;
         isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
     }, z.core.$strip>>>>;
@@ -25,9 +21,7 @@ export declare const CreateGalleryRequestSchema: z.ZodObject<{
     sortOrder: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
     galleryItems: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
-        title: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
         imageUrl: z.ZodString;
-        description: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
         sortOrder: z.ZodNumber;
         isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
     }, z.core.$strip>>>>;
@@ -38,9 +32,7 @@ export declare const UpdateGalleryRequestSchema: z.ZodObject<{
     sortOrder: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodNumber>>>;
     isActive: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodBoolean>>>;
     galleryItems: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        title: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
         imageUrl: z.ZodString;
-        description: z.ZodPipe<z.ZodNullable<z.ZodOptional<z.ZodString>>, z.ZodTransform<string | null, string | null | undefined>>;
         sortOrder: z.ZodNumber;
         isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
     }, z.core.$strip>>>;
@@ -70,9 +62,7 @@ export declare const GalleryQuerySchema: z.ZodObject<{
 export declare const GalleryItemResponseSchema: z.ZodObject<{
     id: z.ZodString;
     galleryId: z.ZodString;
-    title: z.ZodString;
     imageUrl: z.ZodString;
-    description: z.ZodNullable<z.ZodString>;
     isActive: z.ZodBoolean;
     sortOrder: z.ZodNumber;
     createdAt: z.ZodDate;
@@ -89,9 +79,7 @@ export declare const GalleryResponseSchema: z.ZodObject<{
     galleryItems: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         galleryId: z.ZodString;
-        title: z.ZodString;
         imageUrl: z.ZodString;
-        description: z.ZodNullable<z.ZodString>;
         isActive: z.ZodBoolean;
         sortOrder: z.ZodNumber;
         createdAt: z.ZodDate;
@@ -110,9 +98,7 @@ export declare const GalleryListResponseSchema: z.ZodObject<{
         galleryItems: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             galleryId: z.ZodString;
-            title: z.ZodString;
             imageUrl: z.ZodString;
-            description: z.ZodNullable<z.ZodString>;
             isActive: z.ZodBoolean;
             sortOrder: z.ZodNumber;
             createdAt: z.ZodDate;

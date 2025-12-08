@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
+import { getApiBaseUrl } from '@/lib/api';
 import { 
   UserPlus, 
   Edit, 
@@ -65,7 +66,7 @@ export default function UsersPage() {
   const fetchAdmins = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admins`, {
+      const response = await fetch(`${getApiBaseUrl()}/admins`, {
         credentials: 'include',
       });
 
@@ -87,7 +88,7 @@ export default function UsersPage() {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/roles`, {
+      const response = await fetch(`${getApiBaseUrl()}/roles`, {
         credentials: 'include',
       });
 
@@ -106,7 +107,7 @@ export default function UsersPage() {
     e.preventDefault();
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+      const apiUrl = getApiBaseUrl();
       const url = editingAdmin 
         ? `${apiUrl}/admins/${editingAdmin.id}`
         : `${apiUrl}/admins`;
@@ -149,9 +150,10 @@ export default function UsersPage() {
       toast.success(`User ${editingAdmin ? 'updated' : 'created'} successfully`);
       resetForm();
       fetchAdmins();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving user:', error);
-      toast.error(error.message || 'Failed to save user');
+      const err = error as { message?: string };
+      toast.error(err?.message || 'Failed to save user');
     }
   };
 
@@ -159,7 +161,7 @@ export default function UsersPage() {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admins/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/admins/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -178,7 +180,7 @@ export default function UsersPage() {
 
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/admins/${id}/toggle`, {
+      const response = await fetch(`${getApiBaseUrl()}/admins/${id}/toggle`, {
         method: 'PATCH',
         credentials: 'include',
       });

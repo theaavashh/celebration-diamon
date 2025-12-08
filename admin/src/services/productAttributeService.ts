@@ -1,5 +1,3 @@
-import { apiGet } from '@/lib/apiClient';
-
 // Define the attribute types we want to track
 export type AttributeType = 
   | 'diamondType'
@@ -73,7 +71,7 @@ export class ProductAttributeService {
       const result = await response.json();
 
       if (response.ok && result.success && result.data) {
-        const options = result.data.map((option: any) => ({
+        const options = result.data.map((option: { id: string; value: string }) => ({
           id: option.id,
           value: option.value
         })).sort((a: AttributeOption, b: AttributeOption) => a.value.localeCompare(b.value));

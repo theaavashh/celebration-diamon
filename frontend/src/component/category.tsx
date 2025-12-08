@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { Lato } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { getApiBaseUrl, getImageUrl } from "@/lib/api";
+
+const lato = Lato({ subsets: ["latin"], weight: ["400", "700"], display: "swap" });
 
 interface Category {
   id: string;
@@ -103,13 +106,13 @@ export default function Category() {
   return (
     <section className="w-full py-12 sm:py-16  px-4 sm:px-6 md:px-8 bg-white">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-center text-lg sm:text-xl lg:text-2xl font-semibold text-amber-600 mb-2 font-sans">
+        <h2 className={`${lato.className} text-center text-lg sm:text-2xl lg:text-4xl font-semibold text-amber-600 mb-2`}>
           Our Collection
         </h2>
         <h2 className="text-center text-2xl sm:text-3xl lg:text-5xl font-semibold text-gray-900 mb-2 jimthompson">
           Shop by Category
         </h2>
-        <p className="text-center text-lg sm:text-xl lg:text-2xl text-gray-600 mb-8 sm:mb-12 font-sans pt-4">
+        <p className={`${lato.className} text-center text-lg sm:text-xl lg:text-2xl text-gray-600 font-normal mb-8 sm:mb-12 `}>
           Explore our exquisite collection of diamond jewelry
         </p>
                 

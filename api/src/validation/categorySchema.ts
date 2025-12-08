@@ -6,13 +6,13 @@ const emptyStringToNull = z.string().transform((val) => val === '' ? null : val)
 // Schema for category creation/update
 export const categorySchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be between 1 and 100 characters'),
-  link: z.string().regex(/^\/[a-zA-Z0-9\-\/]*$/, 'Link must be a valid internal path (e.g., /products, /about)').optional().nullable(),
+  link: emptyStringToNull.refine((val) => val === null || /^\/[a-zA-Z0-9\-\/]*$/.test(val), 'Link must be a valid internal path (e.g., /products, /about)').optional(),
   iconUrl: emptyStringToNull.optional(),
   imageUrl: emptyStringToNull.optional(),
   navImage1Url: emptyStringToNull.optional(),
   navImage2Url: emptyStringToNull.optional(),
   isActive: z.boolean().optional().default(true),
-  sortOrder: z.number().int().nonnegative().optional().default(0),
+  sortOrder: z.coerce.number().int().nonnegative().optional().default(0),
 });
 
 // Schema for subcategory
@@ -25,26 +25,26 @@ export const subcategorySchema = z.object({
 // Schema for creating category with subcategories
 export const createCategoryWithSubcategoriesSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be between 1 and 100 characters'),
-  link: z.string().regex(/^\/[a-zA-Z0-9\-\/]*$/, 'Link must be a valid internal path (e.g., /products, /about)').optional().nullable(),
+  link: emptyStringToNull.refine((val) => val === null || /^\/[a-zA-Z0-9\-\/]*$/.test(val), 'Link must be a valid internal path (e.g., /products, /about)').optional(),
   iconUrl: emptyStringToNull.optional(),
   imageUrl: emptyStringToNull.optional(),
   navImage1Url: emptyStringToNull.optional(),
   navImage2Url: emptyStringToNull.optional(),
   isActive: z.boolean().optional().default(true),
-  sortOrder: z.number().int().nonnegative().optional().default(0),
+  sortOrder: z.coerce.number().int().nonnegative().optional().default(0),
   subcategories: z.array(subcategorySchema).optional().default([]),
 });
 
 // Schema for updating category
 export const updateCategorySchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be between 1 and 100 characters').optional(),
-  link: z.string().regex(/^\/[a-zA-Z0-9\-\/]*$/, 'Link must be a valid internal path (e.g., /products, /about)').optional().nullable(),
+  link: emptyStringToNull.refine((val) => val === null || /^\/[a-zA-Z0-9\-\/]*$/.test(val), 'Link must be a valid internal path (e.g., /products, /about)').optional(),
   iconUrl: emptyStringToNull.optional(),
   imageUrl: emptyStringToNull.optional(),
   navImage1Url: emptyStringToNull.optional(),
   navImage2Url: emptyStringToNull.optional(),
   isActive: z.boolean().optional(),
-  sortOrder: z.number().int().nonnegative().optional(),
+  sortOrder: z.coerce.number().int().nonnegative().optional(),
 }).partial();
 
 export type CategoryInput = z.infer<typeof categorySchema>;

@@ -11,14 +11,10 @@ export const validateRequest = (schema: ZodSchema) => {
         ...req.query
       };
 
-      // Handle special case for subcategories - parse JSON string if needed
       if (requestData.subcategories && typeof requestData.subcategories === 'string') {
         try {
           requestData.subcategories = JSON.parse(requestData.subcategories);
-        } catch (parseError) {
-          console.error('Failed to parse subcategories JSON:', parseError);
-          // If parsing fails, leave it as is and let validation handle it
-        }
+        } catch {}
       }
 
       // Convert string booleans to actual booleans
@@ -26,8 +22,6 @@ export const validateRequest = (schema: ZodSchema) => {
         requestData.isActive = requestData.isActive.toLowerCase() === 'true';
       }
 
-      console.log('Validating request data:', requestData);
-      
       // Parse and validate the request data
       const result = schema.safeParse(requestData);
       

@@ -80,9 +80,9 @@ export default function TestimonialsPage() {
       } else {
         throw new Error(response.error || 'Failed to fetch testimonials');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching testimonials:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch testimonials';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch testimonials';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -135,9 +135,9 @@ export default function TestimonialsPage() {
       } else {
         throw new Error(response.error || 'Failed to update testimonial settings');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving testimonial settings:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to save testimonial settings';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save testimonial settings';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -186,9 +186,9 @@ export default function TestimonialsPage() {
       } else {
         throw new Error(response.error || 'Failed to save testimonial');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving testimonial:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to save testimonial';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save testimonial';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -227,9 +227,9 @@ export default function TestimonialsPage() {
       } else {
         throw new Error(response.error || 'Failed to delete testimonial');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting testimonial:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to delete testimonial';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete testimonial';
       toast.error(errorMessage);
     }
   }, [fetchTestimonials]);
@@ -245,9 +245,9 @@ export default function TestimonialsPage() {
       } else {
         throw new Error(response.error || 'Failed to toggle testimonial status');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error toggling testimonial status:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to toggle testimonial status';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to toggle testimonial status';
       toast.error(errorMessage);
     }
   }, [fetchTestimonials]);

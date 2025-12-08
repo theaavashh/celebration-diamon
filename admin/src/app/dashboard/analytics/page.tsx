@@ -20,7 +20,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { toast } from 'react-hot-toast';
-import apiService from '@/lib/apiClient';
+import { apiService } from '@/lib/apiClient';
 
 interface AnalyticsData {
   overview: {
@@ -70,16 +70,15 @@ export default function AnalyticsPage() {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.get(`/analytics/overview?period=${period}`);
-      
-      if (response.data.success && response.data.data) {
-        setAnalyticsData(response.data.data);
+      const response = await apiService.get<AnalyticsData>(`/analytics/overview?period=${period}`);
+      if (response.success && response.data) {
+        setAnalyticsData(response.data);
       } else {
-        throw new Error(response.data.error || 'Failed to fetch analytics data');
+        throw new Error(response.error || 'Failed to fetch analytics data');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching analytics:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch analytics data';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch analytics data';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -92,12 +91,11 @@ export default function AnalyticsPage() {
     try {
       setRealTimeLoading(true);
       
-      const response = await apiService.get('/analytics/realtime');
-      
-      if (response.data.success && response.data.data) {
-        setRealTimeData(response.data.data);
+      const response = await apiService.get<RealTimeData>('/analytics/realtime');
+      if (response.success && response.data) {
+        setRealTimeData(response.data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching real-time data:', error);
     } finally {
       setRealTimeLoading(false);

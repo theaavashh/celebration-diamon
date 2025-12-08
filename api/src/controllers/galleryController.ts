@@ -106,12 +106,11 @@ export const getAllGalleries = async (req: Request, res: Response): Promise<void
 
     // Build where clause
     const where: Prisma.GalleryWhereInput = {
-      isActive: isActive ?? true, // Default to active galleries only for public
+      isActive: isActive ?? true,
       ...(search && {
         OR: [
           { title: { contains: search, mode: 'insensitive' } },
-          { subtitle: { contains: search, mode: 'insensitive' } },
-          { galleryItems: { some: { title: { contains: search, mode: 'insensitive' } } } }
+          { subtitle: { contains: search, mode: 'insensitive' } }
         ]
       })
     };
@@ -179,8 +178,7 @@ export const getAllGalleriesAdmin = async (req: Request, res: Response): Promise
       ...(search && {
         OR: [
           { title: { contains: search, mode: 'insensitive' } },
-          { subtitle: { contains: search, mode: 'insensitive' } },
-          { galleryItems: { some: { title: { contains: search, mode: 'insensitive' } } } }
+          { subtitle: { contains: search, mode: 'insensitive' } }
         ]
       })
     };
@@ -301,9 +299,7 @@ export const createGallery = async (req: Request, res: Response): Promise<void> 
           sortOrder: galleryData.sortOrder,
           galleryItems: galleryData.galleryItems ? {
             create: galleryData.galleryItems.map((item, index) => ({
-              title: item.title,
               imageUrl: item.imageUrl,
-              description: item.description,
               sortOrder: item.sortOrder || index + 1,
               isActive: item.isActive
             }))
@@ -391,9 +387,7 @@ export const updateGallery = async (req: Request, res: Response): Promise<void> 
         await tx.galleryItem.createMany({
           data: updateData.galleryItems.map((item, index) => ({
             galleryId: id,
-            title: item.title,
             imageUrl: item.imageUrl,
-            description: item.description,
             sortOrder: item.sortOrder || index + 1,
             isActive: item.isActive
           }))

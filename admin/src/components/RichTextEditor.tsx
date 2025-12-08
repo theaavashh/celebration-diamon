@@ -112,6 +112,7 @@ function RichTextEditor({ value, onChange, height = '200px' }: RichTextEditorPro
         </div>
         <HistoryPlugin />
         <InitialContentPlugin html={value} />
+        <SyncContentOnValuePlugin html={value} />
         <OnChangePlugin onChange={handleChange} />
         <ListPlugin />
         <LinkPlugin />
@@ -171,6 +172,26 @@ function InitialContentPlugin({ html }: { html: string }) {
     isInitializedRef.current = true;
   }, [html, editor]);
   
+  return null;
+}
+
+// Plugin to sync HTML content when value prop updates and editor is empty
+function SyncContentOnValuePlugin({ html }: { html: string }) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    if (!html || html.trim() === '') return;
+    editor.update(() => {
+      const root = $getRoot();
+      const currentText = root.getTextContent().trim();
+      if (!currentText) {
+        const parser = new DOMParser();
+        const dom = parser.parseFromString(html, 'text/html');
+        const nodes = $generateNodesFromDOM(editor, dom);
+        root.clear();
+        root.append(...nodes);
+      }
+    }, { discrete: true });
+  }, [html, editor]);
   return null;
 }
 

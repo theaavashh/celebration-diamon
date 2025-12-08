@@ -1,15 +1,24 @@
 import { render, screen } from '@testing-library/react';
+import type { PropsWithChildren, HTMLAttributes } from 'react';
 import Loader from './loader';
 
 // Mock framer-motion for testing
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    h1: ({ children, ...props }: any) => <h1 {...props}>{children}</h1>,
-    p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+    div: ({ children, ...props }: PropsWithChildren<HTMLAttributes<HTMLDivElement>>) => (
+      <div {...props}>{children}</div>
+    ),
+    h1: ({ children, ...props }: PropsWithChildren<HTMLAttributes<HTMLHeadingElement>>) => (
+      <h1 {...props}>{children}</h1>
+    ),
+    p: ({ children, ...props }: PropsWithChildren<HTMLAttributes<HTMLParagraphElement>>) => (
+      <p {...props}>{children}</p>
+    ),
+    span: ({ children, ...props }: PropsWithChildren<HTMLAttributes<HTMLSpanElement>>) => (
+      <span {...props}>{children}</span>
+    ),
   },
-  AnimatePresence: ({ children }: any) => <div>{children}</div>,
+  AnimatePresence: ({ children }: PropsWithChildren<object>) => <div>{children}</div>,
 }));
 
 describe('Loader Component', () => {

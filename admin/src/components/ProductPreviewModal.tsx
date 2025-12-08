@@ -1,6 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Lato } from 'next/font/google';
+
+const lato = Lato({ subsets: ['latin'], display: 'swap', weight: ['400','700'] });
 import { X } from 'lucide-react';
 
 interface ProductImage {
@@ -116,10 +119,45 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
 }) => {
   if (!isOpen || !product) return null;
 
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isImageHovering, setIsImageHovering] = useState(false);
+
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [product]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!product?.images || product.images.length <= 1) return;
+      if (e.key === 'ArrowLeft') {
+        setCurrentImageIndex(prev => (prev > 0 ? prev - 1 : product!.images!.length - 1));
+      } else if (e.key === 'ArrowRight') {
+        setCurrentImageIndex(prev => (prev < product!.images!.length - 1 ? prev + 1 : 0));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [product]);
+
+  useEffect(() => {
+    let interval: number | undefined;
+    if (isImageHovering && product?.images && product.images.length > 1) {
+      interval = window.setInterval(() => {
+        setCurrentImageIndex(prev => {
+          const len = product.images!.length;
+          return prev < len - 1 ? prev + 1 : 0;
+        });
+      }, 1500);
+    }
+    return () => {
+      if (interval) window.clearInterval(interval);
+    };
+  }, [isImageHovering, product]);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]" onClick={onClose}>
       <div 
-        className="bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-200"
+        className={`bg-white rounded-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-200 ${lato.className}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-8">
@@ -127,7 +165,7 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
             <h2 className="text-3xl font-bold text-black">{product.name}</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
+              className="text-black hover:text-black transition-colors p-2 hover:bg-gray-100 rounded-full"
             >
               <X className="w-6 h-6" />
             </button>
@@ -135,17 +173,69 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Left side - Product Image */}
-            <div className="relative aspect-square bg-gray-100 rounded-xl">
+            <div
+              className="group relative aspect-square bg-gray-100 rounded-xl"
+              onMouseEnter={() => setIsImageHovering(true)}
+              onMouseLeave={() => setIsImageHovering(false)}
+              onTouchStart={() => setIsImageHovering(true)}
+              onTouchEnd={() => setIsImageHovering(false)}
+            >
               {product.images && product.images.length > 0 ? (
-                <img
-                  src={product.images[0].url.startsWith('http') ? product.images[0].url : `http://localhost:5000${product.images[0].url}`}
-                  alt={product.name}
-                  className="object-cover w-full h-full rounded-xl shadow-lg"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'https://via.placeholder.com/400x400?text=No+Image';
-                  }}
-                />
+                <>
+                  <img
+                    src={product.images[currentImageIndex].url.startsWith('http') ? product.images[currentImageIndex].url : `http://localhost:5000${product.images[currentImageIndex].url}`}
+                    alt={`${product.name} - Image ${currentImageIndex + 1}`}
+                    className="object-cover w-full h-full rounded-xl shadow-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://via.placeholder.com/400x400?text=No+Image';
+                    }}
+                  />
+
+                  {product.images.length > 1 && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(prev => (prev > 0 ? prev - 1 : product.images!.length - 1));
+                        }}
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                        aria-label="Previous image"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(prev => (prev < product.images!.length - 1 ? prev + 1 : 0));
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                        aria-label="Next image"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                        {product.images.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex(index);
+                            }}
+                            className={`w-2 h-2 rounded-full transition-all ${index === currentImageIndex ? 'bg-white w-4' : 'bg-white/50 hover:bg-white/75'}`}
+                            aria-label={`Go to image ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
               ) : product.imageUrl ? (
                 <img
                   src={product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`}
@@ -158,7 +248,7 @@ const ProductPreviewModal: React.FC<ProductPreviewModalProps> = ({
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-16 h-16 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>

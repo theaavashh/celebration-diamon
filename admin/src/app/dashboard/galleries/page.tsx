@@ -44,9 +44,9 @@ export default function GalleriesPage() {
       } else {
         throw new Error(response.error || 'Failed to fetch galleries');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching galleries:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch galleries';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch galleries';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -95,9 +95,9 @@ export default function GalleriesPage() {
       } else {
         throw new Error(response.error || `Failed to ${editingGallery ? 'update' : 'create'} gallery`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving gallery:', error);
-      const errorMessage = error.response?.data?.error || error.message || `Failed to ${editingGallery ? 'update' : 'create'} gallery`;
+      const errorMessage = error instanceof Error ? error.message : `Failed to ${editingGallery ? 'update' : 'create'} gallery`;
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -128,9 +128,9 @@ export default function GalleriesPage() {
       } else {
         throw new Error(response.error || 'Failed to delete gallery');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting gallery:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to delete gallery';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete gallery';
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -153,9 +153,9 @@ export default function GalleriesPage() {
       } else {
         throw new Error(response.error || 'Failed to toggle gallery status');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error toggling gallery status:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to toggle gallery status';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to toggle gallery status';
       setError(errorMessage);
       toast.error(errorMessage);
     }

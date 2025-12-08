@@ -6,6 +6,9 @@ import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Category, Subcategory } from '@/types/category';
 import { categoryService } from '@/services/categoryService';
+import { Urbanist } from 'next/font/google';
+
+const urbanist = Urbanist({ subsets: ['latin'], weight: ['400', '600', '700'], display: 'swap' });
 
 // Add these interfaces for temporary subcategories
 interface TempSubcategory {
@@ -18,6 +21,9 @@ const CategoriesPage = () => {
   // State for categories and loading
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubcategorySubmitting, setIsSubcategorySubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
   // State for modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +40,7 @@ const CategoriesPage = () => {
     title: '',
     link: '',
     isActive: true,
+    sortOrder: 0,
   });
   
   const [subcategoryForm, setSubcategoryForm] = useState({
@@ -146,6 +153,7 @@ const CategoriesPage = () => {
       title: '',
       link: '',
       isActive: true,
+      sortOrder: 0,
     });
     resetTempSubcategories();
     setSelectedIcon(null);
@@ -167,6 +175,7 @@ const CategoriesPage = () => {
       title: category.title,
       link: category.link || '',
       isActive: category.isActive,
+      sortOrder: category.sortOrder || 0,
     });
     setSelectedIcon(null);
     setSelectedImage(null);
@@ -261,8 +270,8 @@ const CategoriesPage = () => {
       return;
     }
     
-    // Validate link format if provided
-    if (categoryForm.link && !categoryForm.link.startsWith('/')) {
+    // Validate link format only if provided
+    if (categoryForm.link && categoryForm.link.trim() && !categoryForm.link.startsWith('/')) {
       toast.error('Link must start with a forward slash (e.g., /products, /about)');
       return;
     }
@@ -284,13 +293,17 @@ const CategoriesPage = () => {
     }
     
     try {
+      setIsSubmitting(true);
       if (editingCategory) {
         // For editing, use the existing endpoint
         // Create FormData for file upload
         const formData = new FormData();
         formData.append('title', categoryForm.title);
-        formData.append('link', categoryForm.link);
+        if (categoryForm.link && categoryForm.link.trim()) {
+          formData.append('link', categoryForm.link.trim());
+        }
         formData.append('isActive', categoryForm.isActive ? 'true' : 'false'); // Convert boolean to string
+        formData.append('sortOrder', String(categoryForm.sortOrder ?? 0));
         
         // Handle icon upload
         if (selectedIcon) {
@@ -356,8 +369,11 @@ const CategoriesPage = () => {
         // Create FormData for file upload
         const formData = new FormData();
         formData.append('title', categoryForm.title);
-        formData.append('link', categoryForm.link);
+        if (categoryForm.link && categoryForm.link.trim()) {
+          formData.append('link', categoryForm.link.trim());
+        }
         formData.append('isActive', categoryForm.isActive ? 'true' : 'false'); // Convert boolean to string
+        formData.append('sortOrder', String(categoryForm.sortOrder ?? 0));
         
         // Add subcategories as JSON string (filter out empty ones)
         const validSubcategories = tempSubcategories.filter(sub => sub.name.trim() !== '');
@@ -416,6 +432,8 @@ const CategoriesPage = () => {
     } catch (error) {
       console.error('Error saving category:', error);
       toast.error('Failed to save category');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -424,6 +442,7 @@ const CategoriesPage = () => {
     e.preventDefault();
     
     try {
+      setIsSubcategorySubmitting(true);
       let response;
       
       if (editingSubcategory) {
@@ -448,6 +467,8 @@ const CategoriesPage = () => {
     } catch (error) {
       console.error('Error saving subcategory:', error);
       toast.error('Failed to save subcategory');
+    } finally {
+      setIsSubcategorySubmitting(false);
     }
   };
 
@@ -551,12 +572,12 @@ const CategoriesPage = () => {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-black">Category Management</h1>
-            <p className="text-black">Manage your main product categories and subcategories</p>
+            <h1 className="text-3xl font-bold italic text-black">Category Management</h1>
+            <p className="text-black text-lg">Manage your main product categories and subcategories</p>
           </div>
           <button
             onClick={openCategoryModal}
-            className="bg-[#b29168] text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center"
+            className="bg-[#9A8873] rounded-sm text-xl text-white px-3 py-3  hover:bg-[#242f40]  transition-colors font-medium flex items-center"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add New Category
@@ -573,6 +594,8 @@ const CategoriesPage = () => {
               type="text"
               placeholder="Search categories"
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-black placeholder-black"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
@@ -589,11 +612,11 @@ const CategoriesPage = () => {
               <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
                 <ImageIcon className="w-8 h-8 text-gray-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No categories found</h3>
-              <p className="text-gray-500 mb-4">Create your first category to get started</p>
+              <h3 className="text-2xl font-semibold text-gray-700 mb-2">No categories found</h3>
+              <p className="text-gray-500 mb-4 text-xl">Create your first category to get started</p>
               <button
                 onClick={openCategoryModal}
-                className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+                className="bg-purple-600 text-white text-2xl px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center mx-auto"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create First Category
@@ -601,8 +624,10 @@ const CategoriesPage = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {categories.map((category) => {
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {categories
+              .filter(c => c.title.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map((category) => {
               const isExpanded = expandedCategory === category.id;
               
               return (
@@ -844,7 +869,7 @@ const CategoriesPage = () => {
                           />
                           <label
                             htmlFor="icon-upload"
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer flex items-center"
+                            className="bg-[#9A8873] text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer flex items-center"
                           >
                             <Upload className="w-4 h-4 mr-2" />
                             Choose Icon
@@ -887,7 +912,7 @@ const CategoriesPage = () => {
                           />
                           <label
                             htmlFor="category-image-upload"
-                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
+                            className="bg-[#9A8873] text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
                           >
                             <ImageIcon className="w-4 h-4 mr-2" />
                             Choose Image
@@ -935,7 +960,7 @@ const CategoriesPage = () => {
                           />
                           <label
                             htmlFor="nav-image-1-upload"
-                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
+                            className="bg-[#9A8873] text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
                           >
                             <ImageIcon className="w-4 h-4 mr-2" />
                             Choose Image
@@ -983,7 +1008,7 @@ const CategoriesPage = () => {
                           />
                           <label
                             htmlFor="nav-image-2-upload"
-                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
+                            className="bg-[#9A8873] text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors cursor-pointer flex items-center"
                           >
                             <ImageIcon className="w-4 h-4 mr-2" />
                             Choose Image
@@ -1104,7 +1129,7 @@ const CategoriesPage = () => {
                                 setNewSubcategoryName('');
                               }
                             }}
-                            className="bg-purple-600 text-white px-4 py-2 rounded-r-lg hover:bg-purple-700 transition-colors"
+                            className="bg-[#9A8873] text-white px-4 py-2 rounded-r-lg hover:bg-[#242f40] transition-colors"
                           >
                             Add
                           </button>
@@ -1179,6 +1204,19 @@ const CategoriesPage = () => {
                       <option value="inactive">Inactive</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-2">
+                      Sort Order
+                    </label>
+                    <input
+                      type="number"
+                      value={categoryForm.sortOrder}
+                      onChange={(e) => handleCategoryFormChange('sortOrder', parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                      min="0"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
@@ -1190,14 +1228,14 @@ const CategoriesPage = () => {
                 </button>
                 <button
                   onClick={handleCategorySubmit}
-                  disabled={!categoryForm.title.trim()}
+                  disabled={!categoryForm.title.trim() || isSubmitting}
                   className={`px-4 py-2 rounded-lg transition-colors ${
-                    categoryForm.title.trim()
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    categoryForm.title.trim() && !isSubmitting
+                      ? 'bg-[#9A8873] text-white hover:bg-[#242f40]'
                       : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                   }`}
                 >
-                  {editingCategory ? 'Update Category' : 'Create Category'}
+                  {isSubmitting ? 'Saving...' : (editingCategory ? 'Update Category' : 'Create Category')}
                 </button>
               </div>
             </div>
@@ -1295,9 +1333,12 @@ const CategoriesPage = () => {
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      disabled={isSubcategorySubmitting}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        isSubcategorySubmitting ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
                     >
-                      {editingSubcategory ? 'Update' : 'Create'}
+                      {isSubcategorySubmitting ? 'Saving...' : (editingSubcategory ? 'Update' : 'Create')}
                     </button>
                   </div>
                 </form>

@@ -1,8 +1,70 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Product, ApiResponse } from '../types';
 
 const prisma = new PrismaClient();
+
+function toBool(v: any, fallback: boolean = false): boolean {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') return v.toLowerCase() === 'true';
+  return fallback;
+}
+
+function toNum(v: any, fallback: number = 0): number {
+  if (v === '' || v === null || v === undefined) return fallback;
+  const n = Number(v);
+  return Number.isNaN(n) ? fallback : n;
+}
+
+function toStr(v: any, fallback: string = ''): string {
+  return typeof v === 'string' ? v : fallback;
+}
+
+function extractUploads(req: Request) {
+  let imageUrls: string[] = [];
+  let uploadedVideoUrl: string | null = null;
+  if (req.files) {
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (files.images) {
+      imageUrls = files.images.map(f => `/uploads/products/${f.filename}`);
+    }
+    if (files.video && files.video.length > 0) {
+      uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
+    }
+  }
+  return { imageUrls, uploadedVideoUrl };
+}
+
+async function upsertImages(productId: string, uploaded: string[], preserved?: string[] | null) {
+  if (uploaded.length > 0) {
+    const existingImages = await prisma.productImage.findMany({ where: { productId } });
+    const productImages = uploaded.map((url, i) => ({ productId, url, order: i, isActive: true }));
+    await prisma.productImage.createMany({ data: productImages });
+    for (const image of existingImages) {
+      await prisma.productImage.update({ where: { id: image.id }, data: { isActive: false } });
+    }
+    return uploaded[0] || null;
+  }
+  if (preserved && preserved.length > 0) {
+    const existingImages = await prisma.productImage.findMany({ where: { productId } });
+    for (let i = 0; i < preserved.length; i++) {
+      const url = preserved[i];
+      const existing = existingImages.find(img => img.url === url);
+      if (existing) {
+        await prisma.productImage.update({ where: { id: existing.id }, data: { order: i, isActive: true } });
+      } else {
+        await prisma.productImage.create({ data: { productId, url, order: i, isActive: true } });
+      }
+    }
+    const keep = new Set(preserved);
+    const deactivate = existingImages.filter(img => !keep.has(img.url));
+    for (const image of deactivate) {
+      await prisma.productImage.update({ where: { id: image.id }, data: { isActive: false } });
+    }
+    return preserved[0] || null;
+  }
+  return null;
+}
 
 // Get all products (public)
 export const getAllProducts = async (req: Request, res: Response<ApiResponse<Product[]>>) => {
@@ -46,10 +108,14 @@ export const getAllProducts = async (req: Request, res: Response<ApiResponse<Pro
       prisma.product.count({ where })
     ]);
     
+    const sanitized = products.map((p: any) => {
+      const { caret, otherGemstones, stoneWeight, stoneType, settingType, size, color, ...rest } = p;
+      return rest;
+    });
     res.json({
       success: true,
-      data: products as unknown as Product[],
-      count: products.length,
+      data: sanitized as unknown as Product[],
+      count: sanitized.length,
       total,
       pagination: {
         page: Number(page),
@@ -112,10 +178,14 @@ export const getAdminProducts = async (req: Request, res: Response<ApiResponse<P
       prisma.product.count({ where })
     ]);
     
+    const sanitized = products.map((p: any) => {
+      const { caret, otherGemstones, stoneWeight, stoneType, settingType, size, color, ...rest } = p;
+      return rest;
+    });
     res.json({
       success: true,
-      data: products as unknown as Product[],
-      count: products.length,
+      data: sanitized as unknown as Product[],
+      count: sanitized.length,
       total,
       pagination: {
         page: Number(page),
@@ -155,9 +225,10 @@ export const getProductById = async (req: Request, res: Response<ApiResponse<Pro
       });
     }
     
+    const { caret, otherGemstones, stoneWeight, stoneType, settingType, size, color, ...rest } = product as any;
     res.json({
       success: true,
-      data: product as unknown as Product
+      data: rest as unknown as Product
     });
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -213,17 +284,10 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       silverWeight,
       silverType,
       // Other Fields
-      otherGemstones,
       orderDuration,
-      stoneWeight,
-      caret,
       jewelryType,
       materialType,
       metalType,
-      stoneType,
-      settingType,
-      size,
-      color,
       finish,
       digitalBrowser = false,
       website = false,
@@ -236,44 +300,22 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       videoUrl
     } = req.body;
     
-    // Validate required fields
-    if (!name || !category) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name and category are required fields'
-      });
-    }
-    
-    // Get uploaded file paths
-    let imageUrls: string[] = [];
-    let uploadedVideoUrl: string | null = null;
-    
-    if (req.files) {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
-      // Handle image uploads
-      if (files.images) {
-        imageUrls = files.images.map(file => `/uploads/products/${file.filename}`);
-      }
-      
-      // Handle video upload
-      if (files.video && files.video.length > 0) {
-        uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
-      }
-    }
+    const safeName = toStr(name);
+    const safeCategory = toStr(category);
+    const { imageUrls, uploadedVideoUrl } = extractUploads(req);
     
     // Create product first
     const product = await prisma.product.create({
       data: {
         productCode,
-        name,
+        name: safeName,
         description,
         fullDescription: fullDescription || null,
-        category,
+        category: safeCategory,
         subCategory,
-        price: price && price !== '' ? Number(price) : 0,
-        stock: Number(stock) || 0,
-        isActive: isActive === 'true' || isActive === true,
+        price: toNum(price, 0),
+        stock: toNum(stock, 0),
+        isActive: toBool(isActive, true),
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
         // Gold Fields
         goldWeight,
@@ -295,7 +337,7 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         diamondOrigin,
         diamondCaratWeight,
         diamondDetails,
-        diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
+        diamondQuantity: diamondQuantity ? toNum(diamondQuantity) : null,
         diamondSize,
         diamondWeight,
         diamondQuality,
@@ -306,21 +348,14 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
         silverWeight,
         silverType,
         // Other Fields
-        otherGemstones,
         orderDuration,
-        stoneWeight,
-        caret,
         jewelryType,
         materialType,
         metalType,
-        stoneType,
-        settingType,
-        size,
-        color,
         finish,
-        digitalBrowser: digitalBrowser === 'true' || digitalBrowser === true,
-        website: website === 'true' || website === true,
-        distributor: distributor === 'true' || distributor === true,
+        digitalBrowser: toBool(digitalBrowser, false),
+        website: toBool(website, false),
+        distributor: toBool(distributor, false),
         culture: culture || null,
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
@@ -332,18 +367,9 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
       } as any
     });
     
-    // Create product images if any were uploaded
     if (imageUrls.length > 0) {
-      const productImages = imageUrls.map((url: string, index: number) => ({
-        productId: product.id,
-        url,
-        order: index,
-        isActive: true
-      }));
-      
-      await prisma.productImage.createMany({
-        data: productImages
-      });
+      const productImages = imageUrls.map((url: string, index: number) => ({ productId: product.id, url, order: index, isActive: true }));
+      await prisma.productImage.createMany({ data: productImages });
     }
     
     // Fetch the complete product with images
@@ -363,14 +389,24 @@ export const createProduct = async (req: Request, res: Response<ApiResponse<Prod
     });
   } catch (error) {
     console.error('Error creating product:', error);
-    // Provide more detailed error information
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(409).json({
+        success: false,
+        message: 'Product Code already available',
+        error: 'Unique constraint violation'
+      });
+      return;
+    }
     if (error instanceof Error) {
-      res.status(500).json({
+      const response: any = {
         success: false,
         message: 'Failed to create product',
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
+        error: error.message
+      };
+      if (process.env.NODE_ENV === 'development' && error.stack) {
+        response.stack = error.stack;
+      }
+      res.status(500).json(response);
     } else {
       res.status(500).json({
         success: false,
@@ -427,17 +463,10 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       silverWeight,
       silverType,
       // Other Fields
-      otherGemstones,
       orderDuration,
-      stoneWeight,
-      caret,
       jewelryType,
       materialType,
       metalType,
-      stoneType,
-      settingType,
-      size,
-      color,
       finish,
       digitalBrowser,
       website,
@@ -467,138 +496,25 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       });
     }
     
-    // Convert string boolean to actual boolean if present
-    if (isActive !== undefined) {
-      isActive = isActive === 'true' || isActive === true;
-    }
-    if (digitalBrowser !== undefined) {
-      digitalBrowser = digitalBrowser === 'true' || digitalBrowser === true;
-    }
-    if (website !== undefined) {
-      website = website === 'true' || website === true;
-    }
-    if (distributor !== undefined) {
-      distributor = distributor === 'true' || distributor === true;
-    }
+    if (isActive !== undefined) isActive = toBool(isActive, existingProduct.isActive);
+    if (digitalBrowser !== undefined) digitalBrowser = toBool(digitalBrowser, (existingProduct as any)?.digitalBrowser ?? false);
+    if (website !== undefined) website = toBool(website, (existingProduct as any)?.website ?? false);
+    if (distributor !== undefined) distributor = toBool(distributor, (existingProduct as any)?.distributor ?? false);
     
-    // Convert numeric fields
-    if (price !== undefined) {
-      // If price is empty string, set to 0, otherwise convert to number
-      price = price === '' || price === null ? 0 : Number(price);
-    }
-    if (stock !== undefined) {
-      stock = Number(stock);
-    }
-    if (diamondQuantity !== undefined) {
-      diamondQuantity = diamondQuantity ? Number(diamondQuantity) : null;
-    }
+    if (price !== undefined) price = toNum(price, 0);
+    if (stock !== undefined) stock = toNum(stock, 0);
+    if (diamondQuantity !== undefined) diamondQuantity = diamondQuantity ? toNum(diamondQuantity) : null;
     
-    // Handle image uploads
-    let imageUrls: string[] = [];
-    let uploadedVideoUrl: string | null = null;
+    const { imageUrls, uploadedVideoUrl } = extractUploads(req);
     
-    if (req.files) {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
-      // Handle image uploads
-      if (files.images) {
-        imageUrls = files.images.map(file => `/uploads/products/${file.filename}`);
-      }
-      
-      // Handle video upload
-      if (files.video && files.video.length > 0) {
-        uploadedVideoUrl = `/uploads/products/${files.video[0].filename}`;
-      }
-    }
-    
-    // Check if image URLs are provided in the request body (for preserving existing images)
     let preservedImageUrls: string[] | null = null;
     if (req.body.imageUrls) {
-      try {
-        preservedImageUrls = JSON.parse(req.body.imageUrls);
-        console.log('Parsed preserved image URLs:', preservedImageUrls);
-      } catch (parseError) {
-        console.error('Error parsing imageUrls:', parseError);
-      }
+      try { preservedImageUrls = JSON.parse(req.body.imageUrls); } catch {}
     }
     
     // If new images are uploaded, update the product and create new image records
-    if (imageUrls.length > 0) {
-      // Update the main image URL for backward compatibility
-      (req.body as any).imageUrl = imageUrls[0];
-      
-      // Get existing images for this product
-      const existingImages = await prisma.productImage.findMany({
-        where: { productId: id }
-      });
-      
-      // Create new image records for uploaded images
-      const productImages = imageUrls.map((url: string, index: number) => ({
-        productId: id,
-        url,
-        order: index,
-        isActive: true
-      }));
-      
-      await prisma.productImage.createMany({
-        data: productImages
-      });
-      
-      // Soft delete existing images
-      for (const image of existingImages) {
-        await prisma.productImage.update({
-          where: { id: image.id },
-          data: { isActive: false }
-        });
-      }
-    } else if (preservedImageUrls && preservedImageUrls.length > 0) {
-      // If image URLs are provided in the request body, update them
-      console.log('Preserving existing image URLs:', preservedImageUrls);
-      (req.body as any).imageUrl = preservedImageUrls[0]; // Keep for backward compatibility
-      
-      // Get existing images for this product
-      const existingImages = await prisma.productImage.findMany({
-        where: { productId: id }
-      });
-      
-      // Update existing images or create new ones as needed
-      for (let i = 0; i < preservedImageUrls.length; i++) {
-        const url = preservedImageUrls[i];
-        const existingImage = existingImages.find(img => img.url === url);
-        
-        if (existingImage) {
-          // Update existing image
-          await prisma.productImage.update({
-            where: { id: existingImage.id },
-            data: { 
-              order: i,
-              isActive: true
-            }
-          });
-        } else {
-          // Create new image record
-          await prisma.productImage.create({
-            data: {
-              productId: id,
-              url,
-              order: i,
-              isActive: true
-            }
-          });
-        }
-      }
-      
-      // Soft delete images that are no longer in the list
-      const urlsToKeep = new Set(preservedImageUrls);
-      const imagesToDeactivate = existingImages.filter(img => !urlsToKeep.has(img.url));
-      
-      for (const image of imagesToDeactivate) {
-        await prisma.productImage.update({
-          where: { id: image.id },
-          data: { isActive: false }
-        });
-      }
-    }
+    const mainImageUrl = await upsertImages(id, imageUrls, preservedImageUrls);
+    (req.body as any).imageUrl = mainImageUrl;
     
     console.log('Final update data:', {
       productCode,
@@ -641,17 +557,10 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
       silverWeight,
       silverType,
       // Other Fields
-      otherGemstones,
       orderDuration,
-      stoneWeight,
-      caret,
       jewelryType,
       materialType,
       metalType,
-      stoneType,
-      settingType,
-      size,
-      color,
       finish,
       digitalBrowser,
       website,
@@ -673,12 +582,12 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
         fullDescription: fullDescription || null,
         category,
         subCategory,
-        price: price && price !== '' ? Number(price) : 0,
-        stock: Number(stock) || 0,
-        isActive: isActive === 'true' || isActive === true,
+        price: toNum(price, 0),
+        stock: toNum(stock, 0),
+        isActive: toBool(isActive, true),
         // @ts-ignore - status exists in schema but TypeScript is not recognizing it
         status: status || 'draft',
-        imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Keep for backward compatibility
+        imageUrl: mainImageUrl,
         // Gold Fields
         goldWeight,
         goldPurity,
@@ -699,7 +608,7 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
         diamondOrigin,
         diamondCaratWeight,
         diamondDetails,
-        diamondQuantity: diamondQuantity ? Number(diamondQuantity) : null,
+        diamondQuantity: diamondQuantity ? toNum(diamondQuantity) : null,
         diamondSize,
         diamondWeight,
         diamondQuality,
@@ -710,21 +619,14 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
         silverWeight,
         silverType,
         // Other Fields
-        otherGemstones,
         orderDuration,
-        stoneWeight,
-        caret,
         jewelryType,
         materialType,
         metalType,
-        stoneType,
-        settingType,
-        size,
-        color,
         finish,
-        digitalBrowser: digitalBrowser === 'true' || digitalBrowser === true,
-        website: website === 'true' || website === true,
-        distributor: distributor === 'true' || distributor === true,
+        digitalBrowser: toBool(digitalBrowser, false),
+        website: toBool(website, false),
+        distributor: toBool(distributor, false),
         culture: culture || null,
         seoTitle: seoTitle || null,
         seoDescription: seoDescription || null,
@@ -753,14 +655,24 @@ export const updateProduct = async (req: Request, res: Response<ApiResponse<Prod
     });
   } catch (error) {
     console.error('Error updating product:', error);
-    // Provide more detailed error information
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(409).json({
+        success: false,
+        message: 'Product Code already available',
+        error: 'Unique constraint violation'
+      });
+      return;
+    }
     if (error instanceof Error) {
-      res.status(500).json({
+      const response: any = {
         success: false,
         message: 'Failed to update product',
-        error: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
+        error: error.message
+      };
+      if (process.env.NODE_ENV === 'development' && error.stack) {
+        response.stack = error.stack;
+      }
+      res.status(500).json(response);
     } else {
       res.status(500).json({
         success: false,

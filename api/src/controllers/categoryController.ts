@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
-import { Category, Subcategory } from '@prisma/client';
+import { Category, Subcategory, Prisma } from '@prisma/client';
 // Import Zod types
 import { 
   CreateCategoryWithSubcategoriesInput, 
@@ -106,29 +106,12 @@ export const getCategoryById = async (req: Request<{ id: string }, ApiResponse<C
 // Create category with subcategories in a single transaction
 export const createCategoryWithSubcategories = async (req: Request<{}, ApiResponse<CategoryWithSubcategories>, CreateCategoryWithSubcategoriesInput>, res: Response<ApiResponse<CategoryWithSubcategories>>) => {
   try {
-    console.log('Received request body:', req.body);
-    console.log('Received files:', req.files);
-    
-    // Convert string booleans to actual booleans
     const isActiveValue = req.body.isActive;
-    console.log('isActiveValue:', isActiveValue, 'type:', typeof isActiveValue);
-    
-    let isActive = true;
-    if (typeof isActiveValue === 'string') {
-      isActive = (isActiveValue as string).toLowerCase() === 'true';
-    } else if (typeof isActiveValue === 'boolean') {
-      isActive = isActiveValue;
-    }
-    
-    // Parse subcategories if needed
-    let subcategories = req.body.subcategories || [];
-    if (typeof subcategories === 'string') {
-      try {
-        subcategories = JSON.parse(subcategories);
-      } catch (parseError) {
-        console.error('Failed to parse subcategories JSON:', parseError);
-      }
-    }
+    const isActive = typeof isActiveValue === 'string'
+      ? isActiveValue.toLowerCase() === 'true'
+      : (typeof isActiveValue === 'boolean' ? isActiveValue : true);
+
+    let subcategories = Array.isArray(req.body.subcategories) ? req.body.subcategories : [];
     
     const {
       title,
@@ -139,8 +122,6 @@ export const createCategoryWithSubcategories = async (req: Request<{}, ApiRespon
       navImage2Url: navImage2UrlFromBody,
       sortOrder = 0
     } = req.body;
-
-    console.log('Parsed fields:', { title, link, iconUrlFromBody, imageUrlFromBody, navImage1UrlFromBody, navImage2UrlFromBody, isActive, sortOrder, subcategories });
 
     // Handle file uploads
     let iconUrl = iconUrlFromBody || null;
@@ -166,55 +147,65 @@ export const createCategoryWithSubcategories = async (req: Request<{}, ApiRespon
       }
     }
 
-    console.log('Final URLs:', { iconUrl, imageUrl, navImage1Url, navImage2Url });
-
-    // Create category with subcategories in a transaction
-    const result = await prisma.$transaction(async (prisma) => {
-      // Create the category first
-      // @ts-ignore - Prisma client needs to be regenerated after schema update
-      const category = await prisma.category.create({
-        data: {
+    const createTransaction = async (includeNavFields: boolean) => {
+      return prisma.$transaction(async (tx) => {
+        const data: any = {
           title,
           iconUrl,
           imageUrl,
-          // @ts-ignore - Prisma client needs to be regenerated after schema update
-          navImage1Url,
-          // @ts-ignore - Prisma client needs to be regenerated after schema update
-          navImage2Url,
           link: link || null,
           isActive,
-          sortOrder
+          sortOrder: typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder || 0
+        };
+
+        if (includeNavFields) {
+          if (navImage1Url) data.navImage1Url = navImage1Url;
+          if (navImage2Url) data.navImage2Url = navImage2Url;
         }
-      });
 
-      // Create subcategories if provided
-      if (subcategories.length > 0) {
-        const subcategoryData = subcategories.map((sub: SubcategoryInput, index: number) => ({
-          name: sub.name,
-          categoryId: category.id,
-          isActive: sub.isActive !== undefined ? sub.isActive : true,
-          sortOrder: sub.sortOrder !== undefined ? sub.sortOrder : index
-        }));
-
-        await prisma.subcategory.createMany({
-          data: subcategoryData
+        const category = await tx.category.create({
+          data
         });
-      }
 
-      // Fetch the complete category with subcategories
-      // @ts-ignore - Prisma client needs to be regenerated after schema update
-      const completeCategory = await prisma.category.findUnique({
-        where: { id: category.id },
-        include: {
-          subcategories: {
-            orderBy: { sortOrder: 'asc' }
-          }
+        if (subcategories.length > 0) {
+          const subcategoryData = subcategories.map((sub: SubcategoryInput, index: number) => ({
+            name: sub.name,
+            categoryId: category.id,
+            isActive: sub.isActive !== undefined ? sub.isActive : true,
+            sortOrder: sub.sortOrder !== undefined ? sub.sortOrder : index
+          }));
+
+          await tx.subcategory.createMany({
+            data: subcategoryData
+          });
         }
-      });
 
-      // @ts-ignore - Prisma client needs to be regenerated after schema update
-      return completeCategory as CategoryWithSubcategories;
-    });
+        const completeCategory = await tx.category.findUnique({
+          where: { id: category.id },
+          include: {
+            subcategories: {
+              orderBy: { sortOrder: 'asc' }
+            }
+          }
+        });
+
+        return completeCategory as CategoryWithSubcategories;
+      });
+    };
+
+    let result: CategoryWithSubcategories | null = null;
+    try {
+      result = await createTransaction(true);
+    } catch (err: any) {
+      const isValidationError = err instanceof Prisma.PrismaClientValidationError;
+      const message = err?.message || '';
+      const unknownNavArg = isValidationError && (message.includes('Unknown arg') || message.includes('Unknown argument')) && (message.includes('navImage1Url') || message.includes('navImage2Url'));
+      if (unknownNavArg) {
+        result = await createTransaction(false);
+      } else {
+        throw err;
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -222,7 +213,6 @@ export const createCategoryWithSubcategories = async (req: Request<{}, ApiRespon
       data: result
     });
   } catch (error) {
-    console.error('Error creating category with subcategories:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create category with subcategories',
@@ -261,26 +251,54 @@ export const updateCategory = async (req: Request<{ id: string }, ApiResponse<Ca
       }
     }
 
-    // Prepare update data, excluding file URLs if they weren't updated
     const dataToUpdate: any = {};
     
     // Only include fields that were actually provided
     if (updateData.title !== undefined) dataToUpdate.title = updateData.title;
-    if (updateData.link !== undefined) dataToUpdate.link = updateData.link;
-    if (updateData.isActive !== undefined) dataToUpdate.isActive = updateData.isActive;
-    if (updateData.sortOrder !== undefined) dataToUpdate.sortOrder = updateData.sortOrder;
+    if (updateData.link !== undefined) {
+      dataToUpdate.link = updateData.link === '' ? null : updateData.link;
+    }
+    if (updateData.isActive !== undefined) {
+      dataToUpdate.isActive = typeof updateData.isActive === 'string'
+        ? updateData.isActive.toLowerCase() === 'true'
+        : updateData.isActive;
+    }
+    if (updateData.sortOrder !== undefined) {
+      const parsed = typeof updateData.sortOrder === 'string' ? parseInt(updateData.sortOrder, 10) : updateData.sortOrder;
+      dataToUpdate.sortOrder = Number.isNaN(parsed as any) ? 0 : parsed;
+    }
     
     // Handle file URLs separately to preserve existing values
-    if (iconUrl !== undefined) dataToUpdate.iconUrl = iconUrl;
-    if (imageUrl !== undefined) dataToUpdate.imageUrl = imageUrl;
-    if (navImage1Url !== undefined) dataToUpdate.navImage1Url = navImage1Url;
-    if (navImage2Url !== undefined) dataToUpdate.navImage2Url = navImage2Url;
+    if (iconUrl !== undefined) dataToUpdate.iconUrl = iconUrl === '' ? null : iconUrl;
+    if (imageUrl !== undefined) dataToUpdate.imageUrl = imageUrl === '' ? null : imageUrl;
+    if (navImage1Url !== undefined) dataToUpdate.navImage1Url = navImage1Url === '' ? null : navImage1Url;
+    if (navImage2Url !== undefined) dataToUpdate.navImage2Url = navImage2Url === '' ? null : navImage2Url;
 
-    // @ts-ignore - Prisma client needs to be regenerated after schema update
-    const category = await prisma.category.update({
-      where: { id },
-      data: dataToUpdate
-    });
+    const tryUpdate = async (includeNavFields: boolean) => {
+      const data: any = { ...dataToUpdate };
+      if (!includeNavFields) {
+        delete data.navImage1Url;
+        delete data.navImage2Url;
+      }
+      return prisma.category.update({
+        where: { id },
+        data
+      });
+    };
+
+    let category: Category | null = null;
+    try {
+      category = await tryUpdate(true);
+    } catch (err: any) {
+      const isValidationError = err instanceof Prisma.PrismaClientValidationError;
+      const message = err?.message || '';
+      const unknownNavArg = isValidationError && (message.includes('Unknown arg') || message.includes('Unknown argument')) && (message.includes('navImage1Url') || message.includes('navImage2Url'));
+      if (unknownNavArg) {
+        category = await tryUpdate(false);
+      } else {
+        throw err;
+      }
+    }
 
     res.json({
       success: true,
