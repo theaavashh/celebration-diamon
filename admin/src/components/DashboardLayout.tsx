@@ -123,7 +123,9 @@ export default function DashboardLayout({
           path.includes('/dashboard/diamond-certifications') ||
           path.includes('/dashboard/celebration-processes') ||
           path.includes('/dashboard/faqs') ||
-          path.includes('/dashboard/galleries')) {
+          path.includes('/dashboard/galleries') ||
+          path.includes('/dashboard/mid-banners') ||
+          path.includes('/dashboard/promotional-banners')) {
         setExpandedSections(prev => 
           prev.includes('content-management') ? prev : [...prev, 'content-management']
         );
@@ -168,6 +170,7 @@ export default function DashboardLayout({
     'top-banner': '/dashboard?tab=top-banner',
     'hero-section': '/dashboard/hero-section',
     'promotional-banners': '/dashboard/promotional-banners',
+    'mid-banners': '/dashboard/mid-banners',
     analytics: '/dashboard/analytics',
     'sales-analytics': '/dashboard/sales-analytics',
     'product-performance': '/dashboard/product-performance',
@@ -227,6 +230,7 @@ export default function DashboardLayout({
         { id: "top-banner", label: "Top Banner", icon: SliderIcon },
         { id: "hero-section", label: "Hero Section", icon: SliderIcon },
         { id: "promotional-banners", label: "Promotional Banners", icon: SliderIcon },
+        { id: "mid-banners", label: "Advertisement Banners", icon: SliderIcon },
         { id: "testimonials", label: "Testimonials", icon: MessageSquare },
         { id: "services", label: "Services", icon: Utensils },
         { id: "stores", label: "Stores", icon: Store },

@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
+import AdvancedProductFilter from '@/components/AdvancedProductFilter';
+import { ProductFilterData } from '@/schemas/productSchema';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ProductForm from '@/components/ProductForm';
 import ProductPreviewModal from '@/components/ProductPreviewModal';
-import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X, Diamond } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit, Eye, EyeOff, Trash2, ChevronDown, ChevronUp, Star, MessageSquare, Info, ExternalLink, X, Diamond, Search, Filter, ListFilter } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { getCsrfToken } from '@/lib/csrfClient';
 import { Lato } from 'next/font/google';
 
@@ -135,6 +139,7 @@ interface Review {
 
 export default function ProductsPage() {
   const { isAuthenticated, isLoading } = useAuth();
+  const searchParams = useSearchParams();
   
   // Helper function to get correct API URL
   const getApiUrl = (endpoint: string) => {
@@ -166,6 +171,41 @@ export default function ProductsPage() {
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [advancedFilters, setAdvancedFilters] = useState<ProductFilterData>({
+    search: '',
+    categoryId: '',
+    isActive: undefined,
+    priceMin: undefined,
+    priceMax: undefined,
+    stockMin: undefined,
+    stockMax: undefined,
+    isFeatured: undefined,
+    isDigital: undefined,
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
+
+  const handleFilterChange = useCallback((filters: ProductFilterData) => {
+    setAdvancedFilters(filters);
+    setSearchTerm(filters.search || '');
+    setSelectedCategory(filters.categoryId || '');
+    const status = filters.isActive === undefined ? 'all' : filters.isActive ? 'active' : 'inactive';
+    setSelectedStatus(status);
+  }, []);
+
+  useEffect(() => {
+    if (isSearchExpanded) {
+      searchInputRef.current?.focus();
+    }
+  }, [isSearchExpanded]);
+  
+
+  
 
   // Reset current image index when preview product changes
   useEffect(() => {
@@ -315,10 +355,10 @@ export default function ProductsPage() {
 
   // Toggle all products on current page
   const toggleSelectAll = () => {
-    if (selectedProducts.size === allProducts.length) {
+    if (selectedProducts.size === displayedProducts.length) {
       setSelectedProducts(new Set());
     } else {
-      setSelectedProducts(new Set(allProducts.map(p => p.id)));
+      setSelectedProducts(new Set(displayedProducts.map(p => p.id)));
     }
   };
 
@@ -473,6 +513,94 @@ export default function ProductsPage() {
       setIsPageLoading(false);
     }
   }, [isAuthenticated, isLoading, currentPage, itemsPerPage, searchTerm, selectedCategory, selectedStatus]);
+
+  const displayedProducts = React.useMemo(() => {
+    let products = [...allProducts];
+
+    const search = (advancedFilters.search || '').trim().toLowerCase();
+    if (search) {
+      products = products.filter(p => {
+        return (
+          (p.name && p.name.toLowerCase().includes(search)) ||
+          (p.productCode && p.productCode.toLowerCase().includes(search)) ||
+          (p.description && p.description.toLowerCase().includes(search))
+        );
+      });
+    }
+
+    if (advancedFilters.categoryId) {
+      products = products.filter(p => p.category === advancedFilters.categoryId);
+    }
+
+    if (advancedFilters.isActive !== undefined) {
+      const wantActive = advancedFilters.isActive;
+      products = products.filter(p => (p.status === 'active') === wantActive);
+    }
+
+    if (advancedFilters.priceMin !== undefined) {
+      products = products.filter(p => p.price >= Number(advancedFilters.priceMin));
+    }
+    if (advancedFilters.priceMax !== undefined) {
+      products = products.filter(p => p.price <= Number(advancedFilters.priceMax));
+    }
+
+    if (advancedFilters.stockMin !== undefined) {
+      products = products.filter(p => p.stock >= Number(advancedFilters.stockMin));
+    }
+    if (advancedFilters.stockMax !== undefined) {
+      products = products.filter(p => p.stock <= Number(advancedFilters.stockMax));
+    }
+
+    if (advancedFilters.isFeatured !== undefined) {
+      products = products.filter(p => (p as any).isFeatured === advancedFilters.isFeatured);
+    }
+    if (advancedFilters.isDigital !== undefined) {
+      const isDigital = advancedFilters.isDigital;
+      products = products.filter(p => ((p as any).isDigital ?? (p as any).digitalBrowser) === isDigital);
+    }
+
+    const parseDate = (val?: string) => (val ? new Date(val) : undefined);
+    const from = parseDate(advancedFilters.dateFrom);
+    const to = parseDate(advancedFilters.dateTo);
+    if (from) {
+      products = products.filter(p => new Date(p.createdAt) >= from);
+    }
+    if (to) {
+      products = products.filter(p => new Date(p.createdAt) <= to);
+    }
+
+    const sortKey = advancedFilters.sortBy || 'createdAt';
+    const order = advancedFilters.sortOrder === 'asc' ? 1 : -1;
+    products.sort((a, b) => {
+      let va: number | string | Date = 0;
+      let vb: number | string | Date = 0;
+      switch (sortKey) {
+        case 'name':
+          va = a.name || '';
+          vb = b.name || '';
+          return String(va).localeCompare(String(vb)) * order;
+        case 'price':
+          va = a.price || 0;
+          vb = b.price || 0;
+          return (Number(va) - Number(vb)) * order;
+        case 'stock':
+          va = a.stock || 0;
+          vb = b.stock || 0;
+          return (Number(va) - Number(vb)) * order;
+        case 'updatedAt':
+          va = new Date(a.updatedAt);
+          vb = new Date(b.updatedAt);
+          return ((va as Date).getTime() - (vb as Date).getTime()) * order;
+        case 'createdAt':
+        default:
+          va = new Date(a.createdAt);
+          vb = new Date(b.createdAt);
+          return ((va as Date).getTime() - (vb as Date).getTime()) * order;
+      }
+    });
+
+    return products;
+  }, [allProducts, advancedFilters]);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -965,7 +1093,7 @@ export default function ProductsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
             <h1 className="text-4xl italic font-bold text-black">Product Management</h1>
-            <p className="text-black text-2xl">Manage your jewelry products</p>
+            <p className="text-black text-lg text-gray-600">Manage your jewelry products</p>
               </div>
           <div className="flex items-center space-x-4">
             {/* View Toggle */}
@@ -1005,57 +1133,106 @@ export default function ProductsPage() {
             </button>
           </div>
         </div>
-          
-        {/* Search and Filter */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-                <input
-                  type="text"
-              placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black placeholder-black"
-                />
-            </div>
-                <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.title}
-              </option>
-            ))}
-                </select>
-                {/* Status Filter */}
-                <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black"
-          >
-            <option value="all">All Statuses</option>
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-                </select>
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setSelectedCategory('');
-              setSelectedStatus('all'); // Reset status filter
-            }}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Clear Filters
-          </button>
-              </div>
+        
+        <div className="mb-6 px-2 py-2 flex items-center justify-between border-b border-gray-200">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                setSelectedStatus('all');
+                setAdvancedFilters(prev => ({ ...prev, isActive: undefined }));
+                setCurrentPage(1);
+              }}
+              className={`px-0 py-0 text-base font-medium ${
+                selectedStatus === 'all' ? 'text-[#9A8873]' : 'text-black hover:text-[#9A8873]'
+              }`}
+            >
+              Products
+            </button>
+            <button
+              onClick={() => {
+                setSelectedStatus('draft');
+                setAdvancedFilters(prev => ({ ...prev, isActive: undefined }));
+                setCurrentPage(1);
+              }}
+              className={`px-0 py-0 text-base font-medium ${
+                selectedStatus === 'draft' ? 'text-[#9A8873]' : 'text-black hover:text-[#9A8873]'
+              }`}
+            >
+              Product Draft
+            </button>
+          </div>
+          <div className="relative ml-auto">
+            <AnimatePresence initial={false}>
+              {isSearchExpanded && (
+                <motion.div
+                  key="search-input"
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className="relative"
+                >
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    ref={searchInputRef}
+                    value={searchTerm}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSearchTerm(val);
+                      setAdvancedFilters(prev => ({ ...prev, search: val }));
+                    }}
+                    onBlur={() => {
+                      if (!searchTerm) setIsSearchExpanded(false);
+                    }}
+                    type="text"
+                    placeholder="Search products..."
+                    className="w-72 pl-10 pr-4 py-2 rounded-full border border-gray-300 focus:ring-2 focus:ring-[#9A8873] focus:border-[#9A8873] text-base text-black transition-all"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {!isSearchExpanded && (
+              <button
+                onClick={() => setIsSearchExpanded(true)}
+                className="inline-flex items-center gap-2 text-black hover:text-[#9A8873]"
+              >
+                <Search className="w-4 h-4 text-gray-500" />
+                <span className="text-base">Search</span>
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setIsFilterModalOpen(prev => !prev)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-base text-[#9A8873] hover:bg-gray-50 transition-colors"
+            >
+              <ListFilter />
+              Filter
+            </button>
+            <AnimatePresence>
+              {isFilterModalOpen && (
+                <motion.div
+                  key="filter-dropdown"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute right-0 mt-2 w-[28rem] bg-white border border-gray-200 rounded-xl shadow-lg z-20"
+                >
+                  <div className="p-4">
+                    <AdvancedProductFilter
+                      onFilterChange={handleFilterChange}
+                      categories={categories.map(c => ({ id: c.id, name: c.title }))}
+                      isLoading={isPageLoading}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+        
+        {/* Inline dropdown replaces previous modal */}
 
         {/* Products List */}
         {isPageLoading ? (
@@ -1063,7 +1240,7 @@ export default function ProductsPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
             <p className="mt-2 text-black">Loading products...</p>
           </div>
-        ) : allProducts.length === 0 ? (
+        ) : displayedProducts.length === 0 ? (
           <div className="p-8 text-center text-black">
             <div className=" p-8">
               <div className="w-16 h-16  mx-auto flex items-center justify-center">
@@ -1112,7 +1289,7 @@ export default function ProductsPage() {
                     <th className="px-6 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedProducts.size === allProducts.length && allProducts.length > 0}
+                        checked={selectedProducts.size === displayedProducts.length && displayedProducts.length > 0}
                         onChange={toggleSelectAll}
                         className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
@@ -1124,7 +1301,7 @@ export default function ProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {allProducts.map((product) => (
+                  {displayedProducts.map((product) => (
                     <React.Fragment key={product.id}>
                       {/* Main Info Row */}
                       <tr className="hover:bg-gray-50">
@@ -1584,7 +1761,7 @@ export default function ProductsPage() {
         ) : (
           /* Card View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {allProducts.map((product) => (
+            {displayedProducts.map((product) => (
               <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200">
                 {/* Product Image */}
                 <div className="relative h-48 bg-gray-100">
@@ -1724,7 +1901,7 @@ export default function ProductsPage() {
         {allProducts.length > 0 && totalPages > 1 && (
           <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow-sm border border-gray-200">
             <div className="text-sm text-gray-700">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min((currentPage - 1) * itemsPerPage + allProducts.length, serverTotalCount)} of {serverTotalCount} products
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min((currentPage - 1) * itemsPerPage + displayedProducts.length, serverTotalCount)} of {serverTotalCount} products
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1819,6 +1996,8 @@ export default function ProductsPage() {
             </div>
           </div>
         )}
+
+        
         {isPreviewOpen && previewProduct && <ProductPreviewModal isOpen={isPreviewOpen} onClose={() => { setIsPreviewOpen(false); setPreviewProduct(null); }} product={previewProduct} categories={categories} subcategories={subcategories} />}
       </div>
     </DashboardLayout>

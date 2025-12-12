@@ -5,6 +5,8 @@ import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import RichTextEditor from '@/components/RichTextEditor';
 import { apiService } from '@/lib/apiClient';
+import { getImageUrl } from '@/lib/api';
+import { fetchCsrfToken } from '@/lib/csrfClient';
 
 interface AboutUsData {
   id?: string;
@@ -84,24 +86,21 @@ export default function AboutUsPage() {
   const fetchAboutUs = async () => {
     setIsLoading(true);
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE_URL}/api/about-us/admin`, {
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.data?.aboutUs) {
+      const result = await apiService.get<{ aboutUs: AboutUsData; teamMembers: TeamMember[] }>(
+        '/api/about-us/admin'
+      );
+      if (result.success && result.data) {
+        const { aboutUs, teamMembers } = result.data as any;
+        if (aboutUs) {
           setAboutUsData({
-            ...result.data.aboutUs,
-            values: result.data.aboutUs.values || [],
-            whyChooseUs: result.data.aboutUs.whyChooseUs || [],
-            milestones: result.data.aboutUs.milestones || []
+            ...aboutUs,
+            values: (aboutUs as any).values || [],
+            whyChooseUs: (aboutUs as any).whyChooseUs || [],
+            milestones: (aboutUs as any).milestones || []
           });
         }
-        if (result.data?.teamMembers) {
-          setTeamMembers(result.data.teamMembers);
+        if (Array.isArray(teamMembers)) {
+          setTeamMembers(teamMembers);
         }
       }
     } catch (error) {
@@ -113,7 +112,10 @@ export default function AboutUsPage() {
   };
 
   useEffect(() => {
-    fetchAboutUs();
+    (async () => {
+      await fetchCsrfToken();
+      await fetchAboutUs();
+    })();
   }, []);
 
   // Handle form changes
@@ -154,9 +156,8 @@ export default function AboutUsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      await fetchCsrfToken();
       const formData = new FormData();
-      
       formData.append('heroTitle', aboutUsData.heroTitle);
       formData.append('heroSubtitle', aboutUsData.heroSubtitle || '');
       formData.append('storyTitle', aboutUsData.storyTitle);
@@ -175,29 +176,27 @@ export default function AboutUsPage() {
       formData.append('contactPhone', aboutUsData.contactPhone || '');
       formData.append('contactEmail', aboutUsData.contactEmail || '');
       formData.append('isActive', aboutUsData.isActive.toString());
-      
       if (selectedImage) {
         formData.append('image', selectedImage);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/about-us/admin`, {
-        method: aboutUsData.id ? 'PUT' : 'POST',
-        credentials: 'include',
-        body: formData
-      });
+      const result = aboutUsData.id
+        ? await apiService.put('/api/about-us/admin', formData)
+        : await apiService.post('/api/about-us/admin', formData);
 
-      if (response.ok) {
+      if (result.success) {
         toast.success('About Us content saved successfully!');
         setSelectedImage(null);
         setPreviewImage(null);
         fetchAboutUs();
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to save About Us content');
+        toast.error(result.message || 'Failed to save About Us content');
       }
     } catch (error) {
       console.error('Error saving About Us:', error);
-      toast.error('Failed to save About Us content');
+      toast.error(
+        error instanceof Error ? (error.message || 'Failed to save About Us content') : 'Failed to save About Us content'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -216,7 +215,7 @@ export default function AboutUsPage() {
         sortOrder: member.sortOrder,
         isActive: member.isActive
       });
-      setPreviewTeamImage(member.imageUrl ? `http://localhost:5000${member.imageUrl}` : null);
+      setPreviewTeamImage(member.imageUrl ? getImageUrl(member.imageUrl) : null);
     } else {
       setEditingTeamMember(null);
       setTeamForm({
@@ -236,9 +235,8 @@ export default function AboutUsPage() {
 
   const handleSaveTeamMember = async () => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      await fetchCsrfToken();
       const formData = new FormData();
-      
       formData.append('name', teamForm.name);
       formData.append('role', teamForm.role);
       formData.append('bio', teamForm.bio);
@@ -246,38 +244,29 @@ export default function AboutUsPage() {
       formData.append('linkedin', teamForm.linkedin);
       formData.append('sortOrder', teamForm.sortOrder.toString());
       formData.append('isActive', teamForm.isActive.toString());
-      
       if (editingTeamMember?.imageUrl && !selectedTeamImage) {
         formData.append('imageUrl', editingTeamMember.imageUrl);
       }
-      
       if (selectedTeamImage) {
         formData.append('image', selectedTeamImage);
       }
 
-      const url = editingTeamMember 
-        ? `${API_BASE_URL}/api/about-us/admin/team/${editingTeamMember.id}`
-        : `${API_BASE_URL}/api/about-us/admin/team`;
-      
-      const response = await fetch(url, {
-        method: editingTeamMember ? 'PUT' : 'POST',
-        credentials: 'include',
-        body: formData
-      });
+      const result = editingTeamMember
+        ? await apiService.put(`/api/about-us/admin/team/${editingTeamMember.id}`, formData)
+        : await apiService.post('/api/about-us/admin/team', formData);
 
-      if (response.ok) {
+      if (result.success) {
         toast.success(editingTeamMember ? 'Team member updated!' : 'Team member created!');
         setIsTeamModalOpen(false);
         setSelectedTeamImage(null);
         setPreviewTeamImage(null);
         fetchAboutUs();
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to save team member');
+        toast.error(result.message || 'Failed to save team member');
       }
     } catch (error) {
       console.error('Error saving team member:', error);
-      toast.error('Failed to save team member');
+      toast.error(error instanceof Error ? (error.message || 'Failed to save team member') : 'Failed to save team member');
     }
   };
 
@@ -285,41 +274,33 @@ export default function AboutUsPage() {
     if (!confirm('Are you sure you want to delete this team member?')) return;
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE_URL}/api/about-us/admin/team/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
+      await fetchCsrfToken();
+      const result = await apiService.delete(`/api/about-us/admin/team/${id}`);
+      if (result.success) {
         toast.success('Team member deleted!');
         fetchAboutUs();
       } else {
-        toast.error('Failed to delete team member');
+        toast.error(result.message || 'Failed to delete team member');
       }
     } catch (error) {
       console.error('Error deleting team member:', error);
-      toast.error('Failed to delete team member');
+      toast.error(error instanceof Error ? (error.message || 'Failed to delete team member') : 'Failed to delete team member');
     }
   };
 
   const handleToggleTeamStatus = async (id: string) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE_URL}/api/about-us/admin/team/${id}/toggle`, {
-        method: 'PATCH',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
+      await fetchCsrfToken();
+      const result = await apiService.patch(`/api/about-us/admin/team/${id}/toggle`);
+      if (result.success) {
         toast.success('Team member status updated!');
         fetchAboutUs();
       } else {
-        toast.error('Failed to update status');
+        toast.error(result.message || 'Failed to update status');
       }
     } catch (error) {
       console.error('Error toggling status:', error);
-      toast.error('Failed to update status');
+      toast.error(error instanceof Error ? (error.message || 'Failed to update status') : 'Failed to update status');
     }
   };
 
@@ -444,12 +425,12 @@ export default function AboutUsPage() {
 
         {activeTab === 'content' ? (
           <div className="space-y-8">
-            {/* Hero Section */}
+            {/* Main Title */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold text-black mb-4">Hero Section</h2>
+              <h2 className="text-xl font-bold text-black mb-4">Main Title</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Hero Title *</label>
+                  <label className="block text-sm font-medium text-black mb-2">Main Title *</label>
                   <input
                     type="text"
                     value={aboutUsData.heroTitle}
@@ -459,7 +440,7 @@ export default function AboutUsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">Hero Subtitle</label>
+                  <label className="block text-sm font-medium text-black mb-2">Subtitle</label>
                   <input
                     type="text"
                     value={aboutUsData.heroSubtitle || ''}
@@ -467,6 +448,25 @@ export default function AboutUsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
                     placeholder="Nepal's First and Finest Diamond Studio"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">Main Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  {previewImage && (
+                    <img src={previewImage} alt="Preview" className="mt-2 w-48 h-48 object-cover rounded-lg" />
+                  )}
+                  {aboutUsData.storyImageUrl && !previewImage && (
+                    <img
+                      src={`http://localhost:5000${aboutUsData.storyImageUrl}`}
+                      alt="Current"
+                      className="mt-2 w-48 h-48 object-cover rounded-lg"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -760,7 +760,7 @@ export default function AboutUsPage() {
                   <div className="relative w-full h-48 bg-gray-100 rounded-lg mb-4 overflow-hidden">
                     {member.imageUrl ? (
                       <img
-                        src={`http://localhost:5000${member.imageUrl}`}
+                        src={getImageUrl(member.imageUrl)}
                         alt={member.name}
                         className="w-full h-full object-cover"
                       />

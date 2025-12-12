@@ -43,9 +43,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import DashboardLayout from "@/components/DashboardLayout";
+import { getApiBaseUrl } from "@/lib/api";
 import RichTextEditor from "@/components/RichTextEditor";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Toaster } from "react-hot-toast";
+import { fetchCsrfToken, getCsrfToken } from "@/lib/csrfClient";
 
 type SectionTitleProps = { children: React.ReactNode; className?: string };
 const SectionTitle = ({ children, className }: SectionTitleProps) => (
@@ -153,6 +155,8 @@ function DashboardContent() {
   });
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
   const searchParams = useSearchParams();
 
   // Read tab parameter from URL
@@ -174,6 +178,7 @@ function DashboardContent() {
   useEffect(() => {
     if (activeTab === 'dashboard') {
       fetchDashboardStats();
+      fetchAppointments();
     }
   }, [activeTab]);
 
@@ -210,14 +215,36 @@ function DashboardContent() {
     }
   };
 
+  const fetchAppointments = async () => {
+    setIsLoadingAppointments(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${base}/api/appointments`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const list = Array.isArray(data.data) ? data.data : [];
+        setAppointments(list);
+      } else {
+        toast.error('Failed to fetch appointments');
+      }
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      toast.error('Network error while loading appointments');
+    } finally {
+      setIsLoadingAppointments(false);
+    }
+  };
+
 
 
   // Function to fetch banners
   const fetchBanners = async () => {
     setIsLoadingBanners(true);
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-      const apiUrl = `${base}/api/banners`;
+      const apiUrl = `${getApiBaseUrl()}/banners`;
       console.log('Fetching banners from:', apiUrl);
       const response = await fetch(apiUrl);
       if (response.ok) {
@@ -287,11 +314,14 @@ function DashboardContent() {
 
   // Reset form when modal opens
   const openModal = () => {
+    const nextPriority = banners && banners.length > 0
+      ? Math.max(...banners.map((b: any) => (typeof b?.priority === 'number' ? b.priority : 0))) + 1
+      : 0;
     setBannerForm({
       title: '',
       text: '',
       isActive: true,
-      priority: 0
+      priority: nextPriority
     });
     setEditingBanner(null);
     setIsBannerModalOpen(true);
@@ -301,7 +331,7 @@ function DashboardContent() {
   const openEditModal = (banner: any) => {
     setBannerForm({
       title: banner.title || '',
-      text: banner.title || '', // Set text same as title for editing
+      text: banner.text || banner.title || '',
       isActive: banner.isActive !== undefined ? banner.isActive : true,
       priority: banner.priority || 0
     });
@@ -334,11 +364,16 @@ function DashboardContent() {
         text: stripHtml(bannerForm.text)
       };
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${editingBanner.id}`, {
+      await fetchCsrfToken();
+      const csrfToken = getCsrfToken();
+      const bearer = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const response = await fetch(`${getApiBaseUrl()}/banners/${editingBanner.id}`, {
         method: 'PUT',
-        credentials: 'include', // Use cookies for authentication
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+          ...(bearer ? { 'Authorization': `Bearer ${bearer}` } : {})
         },
         body: JSON.stringify(bannerDataToSend),
       });
@@ -348,21 +383,42 @@ function DashboardContent() {
         setIsBannerModalOpen(false);
         setEditingBanner(null);
         fetchBanners(); // Refresh the list
-      } else {
-        const errorText = await response.text();
-        let errorMessage = 'Failed to update banner';
+      } else if (response.status === 401) {
+        const responseText = await response.text();
+        let errorData: any = {};
         try {
-          const errorJson = JSON.parse(errorText);
-          // Show specific validation errors if available
-          if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
-            const validationErrors = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
-            errorMessage = validationErrors;
-          } else {
-            errorMessage = errorJson.message || errorMessage;
-          }
-        } catch (e) {
-          console.error('Could not parse error response as JSON');
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { message: responseText || 'Unauthorized' };
         }
+        console.error('Authentication failed while updating banner:', { status: response.status, errorData, responseText });
+        const msg = typeof errorData.message === 'string' ? errorData.message : 'Session expired. Please log in again.';
+        toast.error(msg);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      } else {
+        const contentType = response.headers.get('content-type') || '';
+        let errorMessage = 'Failed to update banner';
+        if (contentType.includes('application/json')) {
+          try {
+            const errorJson = await response.json();
+            if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
+              errorMessage = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
+            } else if (typeof errorJson.message === 'string') {
+              errorMessage = errorJson.message;
+            } else if (typeof errorJson.error === 'string') {
+              errorMessage = errorJson.error;
+            }
+          } catch {
+            const errorText = await response.text();
+            errorMessage = errorText || `${response.status} ${response.statusText}`;
+          }
+        } else {
+          const errorText = await response.text();
+          errorMessage = errorText || `${response.status} ${response.statusText}`;
+        }
+        console.error('Failed to update banner:', { status: response.status, statusText: response.statusText });
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -384,11 +440,16 @@ function DashboardContent() {
     try {
       console.log('Deleting banner:', { id: bannerToDelete.id });
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete.id}`, {
+      await fetchCsrfToken();
+      const csrfToken = getCsrfToken();
+      const bearer = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
+      const response = await fetch(`${getApiBaseUrl()}/banners/${bannerToDelete.id}`, {
         method: 'DELETE',
-        credentials: 'include', // Use cookies for authentication
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+          ...(bearer ? { 'Authorization': `Bearer ${bearer}` } : {})
         }
       });
 
@@ -414,19 +475,28 @@ function DashboardContent() {
         }
       } else {
         const responseText = await response.text();
-        let errorData: any = {};
+        let errorMessage = 'Failed to delete banner';
         try {
-          errorData = JSON.parse(responseText);
+          const errorJson = JSON.parse(responseText);
+          if (errorJson.errors && Array.isArray(errorJson.errors) && errorJson.errors.length > 0) {
+            errorMessage = errorJson.errors.map((err: any) => err.msg || err.message).join(', ');
+          } else if (typeof errorJson.message === 'string') {
+            errorMessage = errorJson.message;
+          } else if (typeof errorJson.error === 'string') {
+            errorMessage = errorJson.error;
+          } else if (responseText) {
+            errorMessage = responseText;
+          } else {
+            errorMessage = `Failed to delete banner: ${response.status} ${response.statusText}`;
+          }
         } catch (e) {
-          errorData = { message: responseText || 'Failed to delete banner' };
+          errorMessage = responseText || `Failed to delete banner: ${response.status} ${response.statusText}`;
         }
-        const errorMessage = errorData.message || errorData.error || `Failed to delete banner: ${response.status} ${response.statusText}`;
         console.error('Failed to delete banner:', { 
           status: response.status, 
           statusText: response.statusText,
-          errorData, 
           responseText,
-          url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete.id}`,
+          url: `${getApiBaseUrl()}/banners/${bannerToDelete.id}`,
           bannerId: bannerToDelete.id
         });
         toast.error(errorMessage);
@@ -436,7 +506,7 @@ function DashboardContent() {
       console.error('Error deleting banner:', { 
         error, 
         message: errorMessage,
-        url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners/${bannerToDelete?.id}`,
+        url: `${getApiBaseUrl()}/banners/${bannerToDelete?.id}`,
         bannerId: bannerToDelete?.id
       });
       toast.error(`Failed to delete banner: ${errorMessage}`);
@@ -484,20 +554,20 @@ function DashboardContent() {
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 xl:col-span-4 col-span-12">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center"><MessageSquare className="w-5 h-5 mr-2 text-blue-600" />Recent Quote Requests</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center"><MessageSquare className="w-5 h-5 mr-2 text-blue-600" />Recent Activity</h3>
                   <div className="space-y-3">
-                    {dashboardStats?.recentQuotes && dashboardStats.recentQuotes.length > 0 ? (
-                      dashboardStats.recentQuotes.slice(0, 5).map((quote: any, index: number) => (
+                    {dashboardStats?.recentQuoteRequests && dashboardStats.recentQuoteRequests.length > 0 ? (
+                      dashboardStats.recentQuoteRequests.slice(0, 5).map((item: any, index: number) => (
                         <div key={index} className="flex justify-between items-center">
                           <div className="flex flex-col">
-                            <span className="text-base text-gray-700">{quote.name}</span>
-                            <span className="text-sm text-gray-500">{new Date(quote.createdAt).toLocaleDateString()}</span>
+                            <span className="text-base text-gray-700">{item.name}</span>
+                            <span className="text-sm text-gray-500">{new Date(item.createdAt).toLocaleDateString()}</span>
                           </div>
-                          <span className="text-base font-medium text-blue-600">{quote.status || 'New'}</span>
+                          <span className="text-base font-medium text-blue-600">{item.status || 'New'}</span>
                         </div>
                       ))
                     ) : (
-                      <div className="text-base text-gray-500">No recent quotes</div>
+                      <div className="text-base text-gray-500">No recent activity</div>
                     )}
                   </div>
                 </div>
@@ -518,6 +588,30 @@ function DashboardContent() {
                       <span className="text-lg font-medium text-gray-700">{dashboardStats?.growth?.quoteRequests?.previous || 0}</span>
                     </div>
                   </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 xl:col-span-8 col-span-12">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Appointment Booking</h3>
+                  {isLoadingAppointments ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {appointments && appointments.length > 0 ? (
+                        appointments.slice(0, 5).map((a: any) => (
+                          <div key={a.id} className="flex justify-between items-center">
+                            <div className="flex flex-col">
+                              <span className="text-base text-gray-700">{a.name}</span>
+                              <span className="text-sm text-gray-500">{a.preferredDate} {a.preferredTime}</span>
+                            </div>
+                            <span className="text-sm font-medium px-3 py-1 rounded-full border border-gray-200 text-gray-700">{a.status}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-base text-gray-500">No appointments found</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -803,10 +897,10 @@ function DashboardContent() {
                       Banner Title *
                     </label>
                     <RichTextEditor
-                      value={bannerForm.title}
+                      value={bannerForm.text}
                       onChange={(value) => {
+                        handleFormChange('text', value);
                         handleFormChange('title', value);
-                        handleFormChange('text', value); // Set text same as title
                       }}
                     />
                     <p className="text-sm text-gray-500 mt-1">Use the rich text editor to format your banner content with custom styling</p>
@@ -854,7 +948,7 @@ function DashboardContent() {
                     <div className="text-center">
                       <div 
                         className="text-base font-medium text-gray-900"
-                        dangerouslySetInnerHTML={{ __html: bannerForm.title || 'Banner content will appear here' }}
+                        dangerouslySetInnerHTML={{ __html: bannerForm.text || 'Banner content will appear here' }}
                       />
                     </div>
                   </div>
@@ -884,7 +978,7 @@ function DashboardContent() {
                     }
 
                     try {
-                      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/banners`;
+                      const apiUrl = `${getApiBaseUrl()}/banners`;
                       // Using cookie-based authentication instead of localStorage
                             // const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
                       
@@ -898,12 +992,17 @@ function DashboardContent() {
                       
                       console.log('Creating banner at:', apiUrl);
                       console.log('Banner form data:', bannerDataToSend);
+                      await fetchCsrfToken();
+                      const csrfToken = getCsrfToken();
+                      const bearer = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('adminToken')) : null;
                       
                       const response = await fetch(apiUrl, {
                         method: 'POST',
                         credentials: 'include',
                         headers: {
                           'Content-Type': 'application/json',
+                          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
+                          ...(bearer ? { 'Authorization': `Bearer ${bearer}` } : {})
                         },
                         body: JSON.stringify(bannerDataToSend)
                       });
@@ -920,8 +1019,12 @@ function DashboardContent() {
                           isActive: true,
                           priority: 0
                         });
-                        // Refresh banner list
-                        // fetchBanners(); // This function is not in scope here
+                        // Immediately update UI without full reload
+                        if (result?.data) {
+                          setBanners(prev => [result.data, ...prev]);
+                        } else {
+                          fetchBanners();
+                        }
                       } else if (response.status === 401) {
                         const errorText = await response.text();
                         let errorJson: any = {};

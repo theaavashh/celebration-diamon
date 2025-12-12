@@ -3,7 +3,8 @@
  */
 export const getApiBaseUrl = (): string => {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-  return base.endsWith('/api') ? base : `${base.replace(/\/$/, '')}/api`;
+  const cleaned = base.replace(/\/api\/?$/, '').replace(/\/$/, '');
+  return `${cleaned}/api`;
 };
 
 /**

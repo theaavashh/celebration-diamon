@@ -91,6 +91,9 @@ export default function PromotionalBannersPage() {
 
   // Open modal for creating new banner
   const openCreateModal = () => {
+    const nextPriority = banners && banners.length > 0
+      ? Math.max(...banners.map((b: any) => (typeof b?.priority === 'number' ? b.priority : 0))) + 1
+      : 0;
     setBannerForm({
       title: '',
       description: '',
@@ -100,7 +103,7 @@ export default function PromotionalBannersPage() {
       backgroundColor: '#ff6b35',
       textColor: '#ffffff',
       isActive: true,
-      priority: 0,
+      priority: nextPriority,
       startDate: '',
       endDate: ''
     });

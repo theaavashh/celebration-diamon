@@ -273,31 +273,43 @@ export function handleAuthError(message: string | undefined): boolean {
 export const apiService = {
   get: async <T>(path: string): Promise<ApiResponse<T>> => {
     const base = getApiBaseUrl();
-    return apiGet<T>(`${base}${path}`);
+    const normalizedPath = path.replace(/^\/api(\/|$)/, '/');
+    const result = await apiGet<T>(`${base}${normalizedPath}`);
+    return result;
   },
   post: async <T>(path: string, data?: unknown, _config?: unknown): Promise<ApiResponse<T>> => {
     const base = getApiBaseUrl();
-    const url = `${base}${path}`;
+    const normalizedPath = path.replace(/^\/api(\/|$)/, '/');
+    const url = `${base}${normalizedPath}`;
     if (typeof FormData !== 'undefined' && data instanceof FormData) {
-      return apiPostFormData<T>(url, data);
+      const result = await apiPostFormData<T>(url, data);
+      return result;
     }
-    return apiPost<T>(url, data);
+    const result = await apiPost<T>(url, data);
+    return result;
   },
   put: async <T>(path: string, data?: unknown, _config?: unknown): Promise<ApiResponse<T>> => {
     const base = getApiBaseUrl();
-    const url = `${base}${path}`;
+    const normalizedPath = path.replace(/^\/api(\/|$)/, '/');
+    const url = `${base}${normalizedPath}`;
     if (typeof FormData !== 'undefined' && data instanceof FormData) {
-      return apiPutFormData<T>(url, data);
+      const result = await apiPutFormData<T>(url, data);
+      return result;
     }
-    return apiPut<T>(url, data);
+    const result = await apiPut<T>(url, data);
+    return result;
   },
   patch: async <T>(path: string, data?: unknown, _config?: unknown): Promise<ApiResponse<T>> => {
     const base = getApiBaseUrl();
-    return apiPatch<T>(`${base}${path}`, data);
+    const normalizedPath = path.replace(/^\/api(\/|$)/, '/');
+    const result = await apiPatch<T>(`${base}${normalizedPath}`, data);
+    return result;
   },
   delete: async <T>(path: string): Promise<ApiResponse<T>> => {
     const base = getApiBaseUrl();
-    return apiDelete<T>(`${base}${path}`);
+    const normalizedPath = path.replace(/^\/api(\/|$)/, '/');
+    const result = await apiDelete<T>(`${base}${normalizedPath}`);
+    return result;
   }
 };
 

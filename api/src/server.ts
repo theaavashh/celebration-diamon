@@ -106,7 +106,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CSRF protection middleware
-import { csrfValidate } from './middleware/csrfMiddleware';
+import { csrfValidate, csrfGenerate } from './middleware/csrfMiddleware';
 // Apply CSRF protection to all routes except GET, HEAD, OPTIONS
 app.use(csrfValidate);
 
@@ -131,6 +131,11 @@ app.get('/health', (_req, res) => {
     uptime: process.uptime(),
     environment: process.env['NODE_ENV']
   });
+});
+
+// CSRF token endpoint
+app.get('/api/csrf-token', csrfGenerate, (req, res) => {
+  res.status(200).json({ csrfToken: res.locals.csrfToken });
 });
 
 // API routes

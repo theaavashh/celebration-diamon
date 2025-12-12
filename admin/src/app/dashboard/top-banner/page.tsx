@@ -382,6 +382,10 @@ export default function TopBannerPage() {
   const handleNewBanner = () => {
     setEditingBanner(null);
     reset();
+    const nextPriority = banners && banners.length > 0
+      ? Math.max(...banners.map((b) => (typeof b?.priority === 'number' ? b.priority : 0))) + 1
+      : 0;
+    setValue('priority', nextPriority);
     setIsFormOpen(true);
   };
 

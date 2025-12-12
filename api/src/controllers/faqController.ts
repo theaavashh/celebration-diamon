@@ -6,10 +6,7 @@ const prisma = new PrismaClient();
 // Get all FAQs (public)
 export const getAllFAQs = async (req: Request, res: Response) => {
   try {
-    const faqs = await prisma.fAQ.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' }
-    });
+    const faqs = await prisma.fAQ.findMany();
     res.json({
       success: true,
       data: faqs
@@ -23,9 +20,7 @@ export const getAllFAQs = async (req: Request, res: Response) => {
 // Get all FAQs (admin)
 export const getAllFAQsAdmin = async (req: Request, res: Response) => {
   try {
-    const faqs = await prisma.fAQ.findMany({
-      orderBy: { sortOrder: 'asc' }
-    });
+    const faqs = await prisma.fAQ.findMany();
     res.json({
       success: true,
       data: faqs
@@ -61,7 +56,7 @@ export const getFAQById = async (req: Request, res: Response) => {
 // Create new FAQ
 export const createFAQ = async (req: Request, res: Response) => {
   try {
-    const { question, answer, category, isActive, sortOrder } = req.body;
+    const { question, answer } = req.body;
 
     if (!question || question.trim() === '') {
       return res.status(400).json({ success: false, error: 'Question is required' });
@@ -74,10 +69,7 @@ export const createFAQ = async (req: Request, res: Response) => {
     const faq = await prisma.fAQ.create({
       data: {
         question: question.trim(),
-        answer: answer.trim(),
-        category: category?.trim() || null,
-        isActive: isActive !== undefined ? isActive : true,
-        sortOrder: sortOrder || 0
+        answer: answer.trim()
       }
     });
 
@@ -95,7 +87,7 @@ export const createFAQ = async (req: Request, res: Response) => {
 export const updateFAQ = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { question, answer, category, isActive, sortOrder } = req.body;
+    const { question, answer } = req.body;
 
     if (!question || question.trim() === '') {
       return res.status(400).json({ success: false, error: 'Question is required' });
@@ -117,10 +109,7 @@ export const updateFAQ = async (req: Request, res: Response) => {
       where: { id },
       data: {
         question: question.trim(),
-        answer: answer.trim(),
-        category: category?.trim() || null,
-        isActive: isActive !== undefined ? isActive : existingFAQ.isActive,
-        sortOrder: sortOrder !== undefined ? sortOrder : existingFAQ.sortOrder
+        answer: answer.trim()
       }
     });
 
@@ -158,35 +147,7 @@ export const deleteFAQ = async (req: Request, res: Response) => {
   }
 };
 
-// Toggle FAQ status
-export const toggleFAQStatus = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const existingFAQ = await prisma.fAQ.findUnique({
-      where: { id }
-    });
-
-    if (!existingFAQ) {
-      return res.status(404).json({ success: false, error: 'FAQ not found' });
-    }
-
-    const faq = await prisma.fAQ.update({
-      where: { id },
-      data: {
-        isActive: !existingFAQ.isActive
-      }
-    });
-
-    res.json({
-      success: true,
-      data: faq
-    });
-  } catch (error) {
-    console.error('Toggle FAQ status error:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-};
+ 
 
 
 

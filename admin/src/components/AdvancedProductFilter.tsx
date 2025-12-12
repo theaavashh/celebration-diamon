@@ -55,10 +55,12 @@ const AdvancedProductFilter: React.FC<AdvancedProductFilterProps> = ({
 
   const watchedValues = watch();
 
-  // Apply filters on change
   React.useEffect(() => {
-    onFilterChange(watchedValues);
-  }, [watchedValues, onFilterChange]);
+    const subscription = watch((values) => {
+      onFilterChange(values as ProductFilterData);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onFilterChange]);
 
   const handleReset = () => {
     reset();

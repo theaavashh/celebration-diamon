@@ -12,3 +12,4 @@ api/uploads/
 api/.env
 admin/.env
 frontend/.env
+frontend/.env.local

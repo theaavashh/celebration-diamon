@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Public_Sans } from 'next/font/google';
+import { getApiBaseUrl } from '@/lib/api';
 
 interface Store {
   id: string;
@@ -21,6 +23,8 @@ interface Store {
   updatedAt: string;
 }
 
+const publicSans = Public_Sans({ subsets: ['latin'], weight: ['400', '600', '700'], display: 'swap' });
+
 const StoresPage = () => {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<{ remove: () => void } | null>(null)
@@ -34,8 +38,7 @@ const StoresPage = () => {
     const fetchStores = async () => {
       try {
         setIsLoading(true);
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
-        const response = await fetch(`${apiBaseUrl}/stores`);
+        const response = await fetch(`${getApiBaseUrl()}/stores`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -210,13 +213,13 @@ const StoresPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`${publicSans.className} min-h-screen bg-white`}>
       {/* Main Content */}
       <main className="container mt-5 mx-auto px-4 py-12 max-w-6xl">
         {/* Page Title */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">STORES</h1>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <h1 className="text-4xl font-semibold tracking-wide text-gray-900 mb-2">Stores</h1>
+          <p className="text-gray-700 text-base lg:text-lg max-w-2xl mx-auto">
             {currentStore?.description || "Step into our store and immerse yourself in a world of timeless elegance and quality craftsmanship. Experience our collection of fine jewelry and diamond certification services in person."}
           </p>
         </div>
@@ -224,15 +227,15 @@ const StoresPage = () => {
         {/* Store Selector (if multiple stores) */}
         {stores.length > 1 && (
           <div className="flex justify-center mb-8">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-3">
               {stores.map((store, index) => (
                 <button
                   key={store.id}
                   onClick={() => setCurrentStoreIndex(index)}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
+                  className={`px-4 py-2 rounded-full border transition-all ${
                     index === currentStoreIndex
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white text-gray-800 border-gray-300 hover:border-gray-500'
                   }`}
                 >
                   {store.title}
@@ -305,27 +308,22 @@ const StoresPage = () => {
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Our Services</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">Diamond Certification</h4>
-                  <p className="text-sm text-gray-600">IGI, GIA, and AGS certified diamonds</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">Custom Design</h4>
-                  <p className="text-sm text-gray-600">Personalized jewelry creation</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">Appraisal</h4>
-                  <p className="text-sm text-gray-600">Professional jewelry appraisal</p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">Repair & Maintenance</h4>
-                  <p className="text-sm text-gray-600">Expert jewelry care services</p>
-                </div>
+                {[
+                  { title: 'Diamond Certification', desc: 'IGI, GIA, and AGS certified diamonds' },
+                  { title: 'Custom Design', desc: 'Personalized jewelry creation' },
+                  { title: 'Appraisal', desc: 'Professional jewelry appraisal' },
+                  { title: 'Repair & Maintenance', desc: 'Expert jewelry care services' },
+                ].map((s) => (
+                  <div key={s.title} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm">
+                    <h4 className="font-medium text-gray-900 mb-1">{s.title}</h4>
+                    <p className="text-sm text-gray-600">{s.desc}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Contact CTA */}
-            <div className="bg-gray-50 p-6 rounded-lg">
+            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Plan Your Visit</h3>
               <p className="text-gray-600 mb-4">
                 Book an appointment for a personalized consultation with our diamond experts.
@@ -334,7 +332,7 @@ const StoresPage = () => {
                 {storeLocation.phone && (
                   <a
                     href={`tel:${storeLocation.phone}`}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200"
+                    className="inline-flex items-center justify-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors duration-200"
                   >
                     Call Now
                   </a>
@@ -342,7 +340,7 @@ const StoresPage = () => {
                 {storeLocation.email && (
                   <a
                     href={`mailto:${storeLocation.email}`}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 transition-colors duration-200"
                   >
                     Email Us
                   </a>
@@ -353,7 +351,7 @@ const StoresPage = () => {
 
           {/* Map */}
           <div className="space-y-6">
-            <div className="bg-gray-100 rounded-lg overflow-hidden" style={{ height: '400px' }}>
+            <div className="bg-gray-100 rounded-xl overflow-hidden shadow-sm" style={{ height: '400px' }}>
               <div 
                 ref={mapRef} 
                 className="w-full h-full"
@@ -365,7 +363,7 @@ const StoresPage = () => {
             </div>
             
             {/* Directions */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Getting Here</h3>
               <div className="space-y-3 text-sm text-gray-600">
                 <div>
@@ -422,29 +420,9 @@ const StoresPage = () => {
             <p className="text-gray-600">We provide ongoing care and maintenance services for all our jewelry pieces.</p>
           </div>
         </div>
-
-        {/* Newsletter Signup */}
-        <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Join Our Newsletter
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Subscribe for updates on our latest collections and exclusive offers.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-            />
-            <button className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200">
-              Subscribe
-            </button>
-          </div>
-        </div>
       </main>
 
-     
+      
     </div>
   )
 }

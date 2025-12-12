@@ -25,12 +25,24 @@ export default function PrivacyPolicyPage() {
     content: '',
     isActive: true
   });
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api';
+
+  const getCsrfToken = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/csrf-token`, { credentials: 'include' });
+      if (!res.ok) return '';
+      const data = await res.json();
+      return data.csrfToken || '';
+    } catch {
+      return '';
+    }
+  };
 
   // Fetch privacy policies
   const fetchPrivacyPolicies = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/all`, {
+      const response = await fetch(`${apiBaseUrl}/privacy-policy/admin/all`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -104,16 +116,18 @@ export default function PrivacyPolicyPage() {
 
     try {
       const url = editingPrivacyPolicy
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/${editingPrivacyPolicy.id}`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin`;
+        ? `${apiBaseUrl}/privacy-policy/admin/${editingPrivacyPolicy.id}`
+        : `${apiBaseUrl}/privacy-policy/admin`;
 
       const method = editingPrivacyPolicy ? 'PUT' : 'POST';
 
+      const csrfToken = await getCsrfToken();
       const response = await fetch(url, {
         method,
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken
         },
         body: JSON.stringify(privacyPolicyForm)
       });
@@ -146,11 +160,13 @@ export default function PrivacyPolicyPage() {
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/${id}`, {
+      const csrfToken = await getCsrfToken();
+      const response = await fetch(`${apiBaseUrl}/privacy-policy/admin/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken
         }
       });
 
@@ -179,11 +195,13 @@ export default function PrivacyPolicyPage() {
       const privacyPolicy = privacyPolicies.find(p => p.id === id);
       if (!privacyPolicy) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/privacy-policy/admin/${id}`, {
+      const csrfToken = await getCsrfToken();
+      const response = await fetch(`${apiBaseUrl}/privacy-policy/admin/${id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-csrf-token': csrfToken
         },
         body: JSON.stringify({
           ...privacyPolicy,

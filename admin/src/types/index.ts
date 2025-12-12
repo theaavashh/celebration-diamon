@@ -141,9 +141,6 @@ export interface FAQ {
   id: string;
   question: string;
   answer: string;
-  category: string | null;
-  isActive: boolean;
-  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

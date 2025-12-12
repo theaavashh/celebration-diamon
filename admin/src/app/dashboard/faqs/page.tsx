@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Edit, Trash2, Star, Eye, EyeOff, Search, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import { apiService } from '@/lib/apiClient';
@@ -10,56 +10,37 @@ interface FAQ {
   id: string;
   question: string;
   answer: string;
-  category?: string;
-  isActive: boolean;
-  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export default function FAQsPage() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
-  const [faqSettings, setFaqSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  
 
   // Form state
   const [formData, setFormData] = useState({
     question: '',
-    answer: '',
-    category: '',
-    sortOrder: 0,
-    isActive: true
+    answer: ''
   });
 
-  // Settings form state
-  const [settingsFormData, setSettingsFormData] = useState({
-    title: '',
-    subtitle: '',
-    isActive: true
-  });
 
   // Memoized filtered FAQs
   const filteredFAQs = useMemo(() => {
     return faqs.filter(faq => {
-      const matchesSearch = 
-        faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        faq.answer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (faq.category && faq.category.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesStatus = 
-        statusFilter === 'all' || 
-        (statusFilter === 'active' && faq.isActive) ||
-        (statusFilter === 'inactive' && !faq.isActive);
-
-      return matchesSearch && matchesStatus;
+      const search = searchTerm.toLowerCase();
+      return (
+        faq.question.toLowerCase().includes(search) ||
+        faq.answer.toLowerCase().includes(search)
+      );
     });
-  }, [faqs, searchTerm, statusFilter]);
+  }, [faqs, searchTerm]);
 
   // Fetch FAQs
   const fetchFAQs = useCallback(async () => {
@@ -79,65 +60,10 @@ export default function FAQsPage() {
     }
   }, []);
 
-  // Fetch FAQ settings
-  const fetchFAQSettings = useCallback(async () => {
-    try {
-      const response = await apiService.get('/faq-settings/admin');
-      if (response.success && response.data) {
-        setFaqSettings(response.data);
-        setSettingsFormData({
-          title: (response.data as any).title || '',
-          subtitle: (response.data as any).subtitle || '',
-          isActive: (response.data as any).isActive
-        });
-      } else {
-        setFaqSettings(null);
-        setSettingsFormData({
-          title: '',
-          subtitle: '',
-          isActive: true
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching FAQ settings:', error);
-    }
-  }, []);
-
   // Initial load
   useEffect(() => {
     fetchFAQs();
-    fetchFAQSettings();
-  }, [fetchFAQs, fetchFAQSettings]);
-
-  // Handle settings form submission
-  const handleSettingsSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!settingsFormData.title.trim()) {
-      toast.error('Title is required');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setError(null);
-
-      const response = await apiService.put('/faq-settings', settingsFormData);
-      if (response.success) {
-        setFaqSettings(response.data ?? settingsFormData);
-        toast.success('FAQ settings updated successfully!');
-      } else {
-        throw new Error(response.error || 'Failed to update FAQ settings');
-      }
-    } catch (error: unknown) {
-      console.error('Error saving FAQ settings:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to save FAQ settings';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [settingsFormData]);
+  }, [fetchFAQs]);
 
   // Handle form submission
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -180,10 +106,7 @@ export default function FAQsPage() {
     setEditingFAQ(faq);
     setFormData({
       question: faq.question,
-      answer: faq.answer,
-      category: faq.category || '',
-      sortOrder: faq.sortOrder,
-      isActive: faq.isActive
+      answer: faq.answer
     });
     setShowForm(true);
   }, []);
@@ -210,32 +133,13 @@ export default function FAQsPage() {
     }
   }, [fetchFAQs]);
 
-  // Handle toggle status
-  const handleToggleStatus = useCallback(async (id: string, currentStatus: boolean) => {
-    try {
-      const response = await apiService.patch(`/faqs/${id}/toggle-status`);
-      
-      if (response.success) {
-        toast.success(`FAQ ${currentStatus ? 'deactivated' : 'activated'} successfully!`);
-        fetchFAQs();
-      } else {
-        throw new Error(response.error || 'Failed to toggle FAQ status');
-      }
-    } catch (error: unknown) {
-      console.error('Error toggling FAQ status:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to toggle FAQ status';
-      toast.error(errorMessage);
-    }
-  }, [fetchFAQs]);
+  
 
   // Reset form
   const resetForm = useCallback(() => {
     setFormData({
       question: '',
-      answer: '',
-      category: '',
-      sortOrder: 0,
-      isActive: true
+      answer: ''
     });
   }, []);
 
@@ -285,71 +189,9 @@ export default function FAQsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </select>
         </div>
 
-        {/* FAQ Settings Section */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-black mb-4">FAQ Section Settings</h2>
-          <form onSubmit={handleSettingsSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Section Title *
-                </label>
-                <input
-                  type="text"
-                  value={settingsFormData.title}
-                  onChange={(e) => setSettingsFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                  placeholder="Enter FAQ section title"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Section Subtitle
-                </label>
-                <input
-                  type="text"
-                  value={settingsFormData.subtitle}
-                  onChange={(e) => setSettingsFormData(prev => ({ ...prev, subtitle: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                  placeholder="Enter FAQ section subtitle"
-                />
-              </div>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="settingsIsActive"
-                checked={settingsFormData.isActive}
-                onChange={(e) => setSettingsFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="settingsIsActive" className="ml-2 block text-sm text-black">
-                Show FAQ section on frontend
-              </label>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isSubmitting ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
-          </form>
-        </div>
+        
 
         {/* Error Message */}
         {error && (
@@ -393,33 +235,7 @@ export default function FAQsPage() {
                     />
                   </div>
 
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-2">
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                      placeholder="e.g., General, Shipping"
-                    />
-                  </div>
-
-                  {/* Sort Order */}
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-2">
-                      Sort Order
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.sortOrder}
-                      onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-black"
-                      placeholder="0"
-                    />
-                  </div>
+                  
                 </div>
 
                 {/* Answer */}
@@ -437,19 +253,7 @@ export default function FAQsPage() {
                   />
                 </div>
 
-                {/* Active Status */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isActive" className="ml-2 block text-sm text-black">
-                    Active (visible to users)
-                  </label>
-                </div>
+                
 
                 {/* Form Actions */}
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
@@ -481,7 +285,7 @@ export default function FAQsPage() {
           
           {filteredFAQs.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-500">
-              No FAQs found. {searchTerm || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Click "Add FAQ" to get started.'}
+              No FAQs found. {searchTerm ? 'Try adjusting your filters.' : 'Click "Add FAQ" to get started.'}
           </div>
         ) : (
             <div className="overflow-x-auto">
@@ -491,15 +295,7 @@ export default function FAQsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Question
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sort Order
-                    </th>
+                    
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
@@ -512,21 +308,7 @@ export default function FAQsPage() {
                         <div className="text-sm font-medium text-black">{faq.question}</div>
                         <div className="text-sm text-gray-500 mt-1 line-clamp-2">{faq.answer}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{faq.category || 'No category'}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              faq.isActive
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                        }`}>
-                            {faq.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {faq.sortOrder}
-                      </td>
+                      
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
                         <button
@@ -534,16 +316,6 @@ export default function FAQsPage() {
                             className="text-blue-600 hover:text-blue-900 transition-colors"
                         >
                             <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => handleToggleStatus(faq.id, faq.isActive)}
-                            className={`transition-colors ${
-                            faq.isActive
-                                ? 'text-yellow-600 hover:text-yellow-900' 
-                                : 'text-green-600 hover:text-green-900'
-                          }`}
-                        >
-                            {faq.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                         <button
                           onClick={() => handleDelete(faq.id)}

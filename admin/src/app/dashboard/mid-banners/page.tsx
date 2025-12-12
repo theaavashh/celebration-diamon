@@ -98,8 +98,27 @@ export default function MidBannersPage() {
     }));
   };
 
+  const uploadBannerImage = async (side: 'left' | 'right', file: File) => {
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const resp = await apiService.post<{ imageUrl: string }>('/api/mid-banners/upload', fd);
+      const url = resp.data?.imageUrl || '';
+      setBannerForm(prev => ({
+        ...prev,
+        [side === 'left' ? 'leftImage' : 'rightImage']: url
+      }));
+      toast.success(`${side === 'left' ? 'Left' : 'Right'} image uploaded`);
+    } catch (e) {
+      toast.error('Image upload failed');
+    }
+  };
+
   // Open modal for creating new banner
   const openCreateModal = () => {
+    const nextPriority = banners && banners.length > 0
+      ? Math.max(...banners.map((b: any) => (typeof b?.priority === 'number' ? b.priority : 0))) + 1
+      : 0;
     setBannerForm({
       title: '',
       description: '',
@@ -109,7 +128,7 @@ export default function MidBannersPage() {
       backgroundColor: '#f4f4f9',
       textColor: '#000000',
       isActive: true,
-      priority: 0,
+      priority: nextPriority,
       startDate: '',
       endDate: '',
       leftImage: '',
@@ -157,11 +176,36 @@ export default function MidBannersPage() {
         rightImageHeight: Number(bannerForm.rightImageHeight) || 300
       };
 
+  const ensurePath = (val: string | null) => {
+    if (!val) return null;
+    const trimmed = val.trim();
+    if (trimmed === '') return null;
+    if (/^https?:\/\//i.test(trimmed)) {
+      try {
+        const u = new URL(trimmed);
+        const path = (u.pathname || '/') + (u.search || '') + (u.hash || '');
+        return path.startsWith('/') ? path : `/${path}`;
+      } catch {
+        return '/';
+      }
+    }
+    if (trimmed.startsWith('/')) return trimmed;
+    if (/^uploads\//i.test(trimmed)) return `/${trimmed}`;
+    return `/${trimmed}`;
+  };
+
+      const normalizedFormData = {
+        ...formData,
+        linkUrl: ensurePath(formData.linkUrl),
+        leftImage: ensurePath(formData.leftImage),
+        rightImage: ensurePath(formData.rightImage),
+      };
+
       if (editingBanner) {
-        await apiService.put<MidBanner>(`/api/mid-banners/${editingBanner.id}`, formData);
+        await apiService.put<MidBanner>(`/api/mid-banners/${editingBanner.id}`, normalizedFormData);
         toast.success('Mid banner updated successfully!');
       } else {
-        await apiService.post<MidBanner>('/api/mid-banners', formData);
+        await apiService.post<MidBanner>('/api/mid-banners', normalizedFormData);
         toast.success('Mid banner created successfully!');
       }
 
@@ -170,17 +214,29 @@ export default function MidBannersPage() {
       setEditingBanner(null);
     } catch (error: unknown) {
       console.error('Error saving mid banner:', error);
-      const err = error as { response?: { status?: number; data?: any } };
-      if (err.response?.status === 400) {
-        const errorData = err.response.data;
+      const err = error as { response?: { status?: number; data?: any } } | Error;
+      if (typeof err === 'object' && 'response' in err && (err as any).response?.status === 400) {
+        const errorData = (err as any).response.data;
         if (errorData?.errors && Array.isArray(errorData.errors)) {
-          const errorMessages = errorData.errors.map((e: any) => e.msg).join(', ');
+          const errorMessages = errorData.errors.map((e: { msg?: string }) => e.msg).filter(Boolean).join(', ');
           toast.error(`Validation error: ${errorMessages}`);
+        } else if (typeof errorData?.error === 'string') {
+          try {
+            const parsed = JSON.parse(errorData.error);
+            if (Array.isArray(parsed)) {
+              const msgs = parsed.map((e: { msg?: string }) => e?.msg).filter(Boolean).join(', ');
+              toast.error(`Validation error: ${msgs}`);
+            } else {
+              toast.error(errorData?.message || 'Validation failed');
+            }
+          } catch {
+            toast.error(errorData?.message || 'Validation failed');
+          }
         } else {
           toast.error(errorData?.message || 'Validation failed');
         }
       } else {
-        toast.error('Failed to save mid banner');
+        toast.error((err as Error)?.message || 'Failed to save mid banner');
       }
     }
   };
@@ -425,36 +481,7 @@ export default function MidBannersPage() {
               </div>
 
               <div className="space-y-6">
-                {/* Basic Info */}
-                <div>
-                  <h3 className="text-lg font-medium text-black mb-3">Basic Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-2">
-                        Title *
-                      </label>
-                      <input
-                        type="text"
-                        value={bannerForm.title}
-                        onChange={(e) => handleFormChange('title', e.target.value)}
-                        placeholder="Enter banner title"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-2">
-                        Priority
-                      </label>
-                      <input
-                        type="number"
-                        value={bannerForm.priority}
-                        onChange={(e) => handleFormChange('priority', parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-                </div>
+                {/* Basic Info removed: title and priority */}
 
                 {/* Banner Text */}
                 <div>
@@ -493,13 +520,15 @@ export default function MidBannersPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-black mb-2">
-                        Left Image URL
+                        Left Image
                       </label>
                       <input
-                        type="text"
-                        value={bannerForm.leftImage}
-                        onChange={(e) => handleFormChange('leftImage', e.target.value)}
-                        placeholder="Enter left image URL"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadBannerImage('left', f);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                       />
                       <div className="mt-2">
@@ -531,13 +560,15 @@ export default function MidBannersPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-black mb-2">
-                        Right Image URL
+                        Right Image
                       </label>
                       <input
-                        type="text"
-                        value={bannerForm.rightImage}
-                        onChange={(e) => handleFormChange('rightImage', e.target.value)}
-                        placeholder="Enter right image URL"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadBannerImage('right', f);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                       />
                       <div className="mt-2">
@@ -648,34 +679,7 @@ export default function MidBannersPage() {
                   </div>
                 </div>
 
-                {/* Schedule */}
-                <div>
-                  <h3 className="text-lg font-medium text-black mb-3">Schedule</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-2">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={bannerForm.startDate}
-                        onChange={(e) => handleFormChange('startDate', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-2">
-                        End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={bannerForm.endDate}
-                        onChange={(e) => handleFormChange('endDate', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                      />
-                    </div>
-                  </div>
-                </div>
+                {/* Schedule removed */}
 
                 {/* Status */}
                 <div className="flex items-center">

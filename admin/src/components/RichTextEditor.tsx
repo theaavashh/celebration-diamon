@@ -165,7 +165,26 @@ function InitialContentPlugin({ html }: { html: string }) {
         const nodes = $generateNodesFromDOM(editor, dom);
         const root = $getRoot();
         root.clear();
-        root.append(...nodes);
+        const topLevel: any[] = [];
+        let textBuffer: any[] = [];
+        const flush = () => {
+          if (textBuffer.length > 0) {
+            const paragraph = $createParagraphNode();
+            paragraph.append(...textBuffer);
+            topLevel.push(paragraph);
+            textBuffer = [];
+          }
+        };
+        for (const n of nodes) {
+          if (n.getType && n.getType() === 'text') {
+            textBuffer.push(n);
+          } else {
+            flush();
+            topLevel.push(n);
+          }
+        }
+        flush();
+        root.append(...topLevel);
       }, { discrete: true });
     }
     
@@ -188,7 +207,26 @@ function SyncContentOnValuePlugin({ html }: { html: string }) {
         const dom = parser.parseFromString(html, 'text/html');
         const nodes = $generateNodesFromDOM(editor, dom);
         root.clear();
-        root.append(...nodes);
+        const topLevel: any[] = [];
+        let textBuffer: any[] = [];
+        const flush = () => {
+          if (textBuffer.length > 0) {
+            const paragraph = $createParagraphNode();
+            paragraph.append(...textBuffer);
+            topLevel.push(paragraph);
+            textBuffer = [];
+          }
+        };
+        for (const n of nodes) {
+          if (n.getType && n.getType() === 'text') {
+            textBuffer.push(n);
+          } else {
+            flush();
+            topLevel.push(n);
+          }
+        }
+        flush();
+        root.append(...topLevel);
       }
     }, { discrete: true });
   }, [html, editor]);

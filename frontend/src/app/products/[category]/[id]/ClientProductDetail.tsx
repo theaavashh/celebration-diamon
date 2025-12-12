@@ -518,13 +518,13 @@ export default function ClientProductDetail({ category, id }: { category: string
                   <div className="grid grid-cols-1 gap-6">
                     <SpecGroup
                       title="General Specifications"
-                      items=[
-                        { { label: 'Category', value: getCategoryTitle(product.category) } as any,
-                          { label: 'Subcategory', value: product.subcategory },
-                          { label: 'Metal Type', value: product.metalType },
-                          { label: 'Gold Weight', value: product.goldWeight },
-                          { label: 'Order Duration', value: product.orderDuration }
-                        ] as any
+                      items={[
+                        { label: 'Category', value: getCategoryTitle(product.category) },
+                        { label: 'Subcategory', value: product.subcategory },
+                        { label: 'Metal Type', value: product.metalType },
+                        { label: 'Gold Weight', value: product.goldWeight },
+                        { label: 'Order Duration', value: product.orderDuration }
+                      ]}
                     />
                     <SpecGroupGrid
                       title="Diamond Specifications"
@@ -631,4 +631,3 @@ export default function ClientProductDetail({ category, id }: { category: string
     </div>
   );
 }
-

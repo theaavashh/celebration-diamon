@@ -12,7 +12,6 @@ import {
 // Helper function to create/update mid-banner data
 const createMidBannerData = (body: any) => {
   const {
-    title,
     description,
     text,
     linkText,
@@ -42,8 +41,8 @@ const createMidBannerData = (body: any) => {
     ? `${description}||${JSON.stringify(midBannerData)}`
     : JSON.stringify(midBannerData);
 
-  // Ensure the title indicates this is a mid banner
-  const midBannerTitle = title.includes('Mid Banner') ? title : `Mid Banner: ${title}`;
+  // Fixed title for mid banner
+  const midBannerTitle = 'Mid Banner';
 
   return {
     title: midBannerTitle,
@@ -54,9 +53,9 @@ const createMidBannerData = (body: any) => {
     backgroundColor: backgroundColor || '#f4f4f9',
     textColor: textColor || '#000000',
     isActive: isActive !== undefined ? isActive : true,
-    priority: priority || 0,
-    startDate: startDate ? new Date(startDate) : null,
-    endDate: endDate ? new Date(endDate) : null
+    priority: 0,
+    startDate: null,
+    endDate: null
   };
 };
 

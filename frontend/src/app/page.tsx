@@ -9,7 +9,7 @@ import PopupModal from '@/component/PopupModal'
 import React from 'react'
 import Image from 'next/image'
 
-import Banner from '@/component/banner'
+import AdvertisementBanner from '@/component/banner'
 import BridgePlanning from '@/component/bridge-planning'
 import CultureCollection from '@/component/CulturalTriptych'
 import HowItWorks from '@/component/how-it-works'
@@ -29,11 +29,10 @@ const HomePage = () => {
    <PopupModal />
    <HeroSection/>
    <Category/>
-   <Banner/>
-   <NewCollection/>
-    
+   <AdvertisementBanner/>
+   <NewCollection/> 
      <AboutUs/>
-     <ProductCarousel products={[]} title="Featured Products" subtitle="Explore our latest arrivals and exclusive offers." />
+     <ProductCarousel title="Featured Products" subtitle="Explore our latest arrivals and exclusive offers." />
      <WeddingPlanning/>
      <SelfExpression/>
      <VisitStore/>

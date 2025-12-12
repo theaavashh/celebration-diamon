@@ -1,6 +1,6 @@
+"use client";
 import { useParams } from 'next/navigation';
 import ClientProductDetail from './ClientProductDetail';
-"use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -9,8 +9,53 @@ import { motion } from 'framer-motion';
 import { getApiBaseUrl, getImageUrl } from '@/lib/api';
 import { Lato } from 'next/font/google';
 
-export default function Page({ params }: { params: { category: string; id: string } }) {
-  return <ClientProductDetail category={params.category} id={params.id} />;
+export default function Page() {
+  const params = useParams();
+  const category = params.category as string;
+  const id = params.id as string;
+  return <ClientProductDetail category={category} id={id} />;
+}
+
+const lato = Lato({ subsets: ['latin'], weight: ['400', '700'], display: 'swap' });
+
+interface Product {
+  id: string;
+  name: string;
+  productCode?: string;
+  category: string;
+  subcategory?: string;
+  price: number;
+  originalPrice?: number;
+  image?: string;
+  images?: ProductImage[];
+  rating: number;
+  reviews: number;
+  description: string;
+  fullDescription?: string;
+  details?: string;
+  inStock: boolean;
+  isNew?: boolean;
+  isSale?: boolean;
+  metalType?: string;
+  goldWeight?: string;
+  goldPurity?: string;
+  goldType?: string;
+  goldCraftsmanship?: string;
+  goldDesignDescription?: string;
+  goldFinishedType?: string;
+  goldStones?: string;
+  goldStoneQuality?: string;
+  diamondDetails?: string;
+  diamondQuantity?: number | string;
+  diamondSize?: string;
+  diamondWeight?: string;
+  diamondQuality?: string;
+  otherGemstones?: string;
+  orderDuration?: string;
+  platinumWeight?: string;
+  platinumType?: string;
+  silverWeight?: string;
+  silverType?: string;
 }
 
 interface ProductImage {
@@ -149,7 +194,7 @@ function ProductDetailPage() {
     return String(value);
   };
 
-  const sanitizeHtml = (html: string): string => {
+  const sanitizeHtml = (html: string | undefined): string => {
     let s = html || '';
     s = s.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
     s = s.replace(/\son\w+="[^"]*"/gi, '');

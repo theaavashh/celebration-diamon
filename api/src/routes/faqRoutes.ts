@@ -6,8 +6,7 @@ import {
   getFAQById,
   createFAQ,
   updateFAQ,
-  deleteFAQ,
-  toggleFAQStatus
+  deleteFAQ
 } from '../controllers/faqController';
 import { authMiddleware } from '../middleware/authMiddleware';
 
@@ -33,18 +32,7 @@ router.post('/',
       .withMessage('Answer is required')
       .isLength({ min: 1, max: 2000 })
       .withMessage('Answer must be between 1 and 2000 characters'),
-    body('category')
-      .optional()
-      .isLength({ max: 100 })
-      .withMessage('Category must be less than 100 characters'),
-    body('isActive')
-      .optional()
-      .isBoolean()
-      .withMessage('isActive must be a boolean'),
-    body('sortOrder')
-      .optional()
-      .isInt({ min: 0 })
-      .withMessage('sortOrder must be a non-negative integer')
+    
   ],
   createFAQ
 );
@@ -62,25 +50,13 @@ router.put('/:id',
       .withMessage('Answer is required')
       .isLength({ min: 1, max: 2000 })
       .withMessage('Answer must be between 1 and 2000 characters'),
-    body('category')
-      .optional()
-      .isLength({ max: 100 })
-      .withMessage('Category must be less than 100 characters'),
-    body('isActive')
-      .optional()
-      .isBoolean()
-      .withMessage('isActive must be a boolean'),
-    body('sortOrder')
-      .optional()
-      .isInt({ min: 0 })
-      .withMessage('sortOrder must be a non-negative integer')
+    
   ],
   updateFAQ
 );
 
 router.delete('/:id', authMiddleware, deleteFAQ);
-router.patch('/:id/toggle', authMiddleware, toggleFAQStatus);
-router.patch('/:id/toggle-status', authMiddleware, toggleFAQStatus);
+ 
 
 export default router;
 

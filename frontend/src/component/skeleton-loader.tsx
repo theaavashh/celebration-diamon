@@ -110,7 +110,7 @@ export function CategoriesSkeletonLoader() {
 // Top banner skeleton loader
 export function TopBannerSkeletonLoader() {
   return (
-    <div className="w-screen bg-[#101923] text-[#F2F8FC] py-1 sm:py-2 flex justify-center items-center fixed top-0 left-0 z-[150] h-9 sm:h-11 overflow-hidden">
+    <div className="w-screen bg-[#101923] text-[#F2F8FC] py-1 sm:py-2 flex justify-center items-center fixed top-0 left-0 z-[300] h-9 sm:h-11 overflow-hidden">
       <div className="animate-pulse">
         <div className="h-4 sm:h-5 bg-gray-400 rounded w-64 sm:w-80"></div>
       </div>

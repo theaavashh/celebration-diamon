@@ -491,8 +491,8 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
 
   useEffect(() => {
     const currentCategory = watch('category');
-    if (!editingProduct && categories.length > 0 && !currentCategory) {
-      setValue('category', categories[0].id);
+    if (!editingProduct && !currentCategory) {
+      // keep category unselected by default
     }
   }, [categories, editingProduct, setValue, watch]);
 
@@ -1105,9 +1105,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.category ? 'border-red-500' : 'border-gray-300'}`}
                       value={field.value || ''}
                     >
-                      {categories.length < 1 && (
-                        <option value="">Select Category</option>
-                      )}
+                      <option value="">Select Category</option>
                       {categories.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.title}
@@ -1130,7 +1128,7 @@ export default function ProductForm({ isOpen, onClose, editingProduct, onSuccess
                       {...field}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-black ${errors.subCategory ? 'border-red-500' : 'border-gray-300'}`}
                       value={field.value || ''}
-                      disabled={false}
+                      disabled={!watchCategory}
                     >
                       <option value="">Select Subcategory</option>
                       {filteredSubcategories.map((subcategory) => (

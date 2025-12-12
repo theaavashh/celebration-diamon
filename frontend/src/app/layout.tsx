@@ -1,7 +1,7 @@
 "use client";
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import Header from "@/component/header";
 import Footer from "@/component/footer";
@@ -12,14 +12,9 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import TopBanner from "@/component/top-banner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const publicSans = Public_Sans({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-public-sans",
 });
 
 // export const metadata: Metadata = {
@@ -51,10 +46,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning={true}
-      >
+      <body className={`${publicSans.className} antialiased`} suppressHydrationWarning={true}>
         <Loader />
         <AnimatePresence>
           {!isLoading && (

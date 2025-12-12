@@ -88,10 +88,12 @@ const TopBanner = () => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
-      // Hide banner when scrolling down, show when scrolling up
+      // Hide when scrolling down past threshold; show when scrolling up
       if (currentScrollY > lastScrollY && currentScrollY > 50) {
         setIsVisible(false);
-      } else if (currentScrollY <20) {
+      } else if (currentScrollY < lastScrollY) {
+        setIsVisible(true);
+      } else if (currentScrollY < 20) {
         setIsVisible(true);
       }
       
@@ -117,7 +119,7 @@ const TopBanner = () => {
 
   return (
     <motion.div 
-      className="w-screen bg-[#101923] text-[#F2F8FC] py-1 sm:py-2 flex justify-center items-center fixed top-0 left-0 z-[150] h-9 sm:h-11 overflow-hidden"
+      className="w-screen bg-[#101923] text-[#F2F8FC] py-1 sm:py-2 flex justify-center items-center fixed top-0 left-0 z-[300] h-9 sm:h-11 overflow-hidden"
       animate={{
         transform: isVisible ? "translateY(0)" : "translateY(-100%)"
       }}

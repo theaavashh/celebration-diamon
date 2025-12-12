@@ -5,6 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { getApiBaseUrl, getImageUrl } from "@/lib/api";
+import { Public_Sans } from "next/font/google";
+
+const publicSans = Public_Sans({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
 interface Product {
   id: string;
@@ -108,7 +111,7 @@ const NewCollection = () => {
         <div className="flex gap-4 sm:gap-6 md:gap-8 overflow-x-auto overflow-y-hidden pb-4 scroll-smooth no-scrollbar">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[450px] lg:w-[500px]">
-              <div className="w-full h-[400px] sm:h-[450px] md:h-[500px] lg:h-[550px] bg-gray-200 animate-pulse rounded-lg mb-3 sm:mb-4" />
+              <div className="w-full h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] bg-gray-200 animate-pulse rounded-lg mb-3 sm:mb-4" />
               <div className="h-4 bg-gray-200 animate-pulse rounded w-3/4 mb-2" />
               <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2" />
             </div>
@@ -123,7 +126,7 @@ const NewCollection = () => {
   }
 
   return (
-    <section className="w-full pt-2 sm:pt-3 md:pt-4 pb-8 px-4 sm:px-6 md:px-16 bg-white ">
+    <section className={`${publicSans.className} w-full pt-2 sm:pt-3 md:pt-4 pb-8 px-4 sm:px-6 md:px-16 bg-white `}>
       {/* Two-column layout */}
       <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
         {/* Left Static Information Section */}
@@ -131,7 +134,7 @@ const NewCollection = () => {
           <h2 className=" text-2xl sm:text-4xl  font-bold jimthompson text-gray-800 mb-4">
             NEW ARRIVALS
           </h2>
-          <p className="text-gray-600 text-base sm:text-lg mb-6 font-sans">
+          <p className={`${publicSans.className} text-gray-600 text-base sm:text-lg mb-6`}>
             Discover our latest collection of exquisite diamond jewelry, crafted with precision and designed to captivate.
           </p>
          
@@ -158,7 +161,7 @@ const NewCollection = () => {
             <div className="relative">
               <Link 
                 href={`/products/${item.category.toLowerCase()}/${item.id}`}
-                className="relative w-full h-[450px] sm:h-[500px] md:h-[550px] overflow-hidden mb-3 sm:mb-4 bg-gray-100 group cursor-pointer block"
+                className="relative w-full h-[360px] sm:h-[420px] md:h-[480px] overflow-hidden mb-3 sm:mb-4 bg-gray-100 group cursor-pointer block"
                 onMouseMove={(e) => handleMouseMove(e, idx)}
                 onMouseLeave={handleMouseLeave}
               >
@@ -191,7 +194,7 @@ const NewCollection = () => {
               
               {/* Title */}
               <Link href={`/products/${item.category.toLowerCase()}/${item.id}`}>
-                <h3 className="text-xs sm:text-sm font-medium text-gray-900 leading-tight hover:text-gray-600 transition-colors cursor-pointer">
+                <h3 className={`${publicSans.className} text-xs sm:text-sm font-medium text-gray-900 leading-tight hover:text-gray-600 transition-colors cursor-pointer`}>
                   {item.label}
                 </h3>
               </Link>

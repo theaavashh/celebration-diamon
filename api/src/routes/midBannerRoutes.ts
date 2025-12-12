@@ -10,17 +10,13 @@ import {
   toggleMidBannerStatus
 } from '../controllers/midBannerController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import upload from '../middleware/upload';
 
 const router = express.Router();
 
 // Validation rules
 const midBannerValidation = [
-  body('title')
-    .trim()
-    .notEmpty()
-    .withMessage('Title is required')
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Title must be between 1 and 100 characters'),
+  // Title removed from client; server uses fixed title
   
   body('description')
     .optional()
@@ -42,9 +38,16 @@ const midBannerValidation = [
     .withMessage('Link text must be less than 50 characters'),
   
   body('linkUrl')
-    .optional()
-    .isURL()
-    .withMessage('Link URL must be a valid URL'),
+    .optional({ nullable: true })
+    .custom((val) => {
+      if (val === null || val === undefined) return true;
+      if (typeof val !== 'string') return false;
+      const trimmed = val.trim();
+      if (trimmed === '') return true;
+      const isInternalPath = /^\/[A-Za-z0-9_\-\/.?&#=%]*$/i.test(trimmed);
+      return isInternalPath;
+    })
+    .withMessage('Link URL must be an internal path starting with /'),
   
   body('backgroundColor')
     .optional()
@@ -67,24 +70,40 @@ const midBannerValidation = [
     .withMessage('Priority must be a non-negative integer'),
   
   body('startDate')
-    .optional()
+    .optional({ nullable: true })
     .isISO8601()
     .withMessage('Start date must be a valid ISO 8601 date'),
   
   body('endDate')
-    .optional()
+    .optional({ nullable: true })
     .isISO8601()
     .withMessage('End date must be a valid ISO 8601 date'),
   
   body('leftImage')
-    .optional()
-    .isURL()
-    .withMessage('Left image must be a valid URL'),
+    .optional({ nullable: true })
+    .custom((val) => {
+      if (val === null || val === undefined) return true;
+      if (typeof val !== 'string') return false;
+      const trimmed = val.trim();
+      if (trimmed === '') return true;
+      const isAbsoluteUrl = /^https?:\/\//i.test(trimmed);
+      const isUploadsPath = /^\/uploads\//i.test(trimmed);
+      return isAbsoluteUrl || isUploadsPath;
+    })
+    .withMessage('Left image must be an absolute URL or /uploads path'),
   
   body('rightImage')
-    .optional()
-    .isURL()
-    .withMessage('Right image must be a valid URL'),
+    .optional({ nullable: true })
+    .custom((val) => {
+      if (val === null || val === undefined) return true;
+      if (typeof val !== 'string') return false;
+      const trimmed = val.trim();
+      if (trimmed === '') return true;
+      const isAbsoluteUrl = /^https?:\/\//i.test(trimmed);
+      const isUploadsPath = /^\/uploads\//i.test(trimmed);
+      return isAbsoluteUrl || isUploadsPath;
+    })
+    .withMessage('Right image must be an absolute URL or /uploads path'),
   
   body('leftImageHeight')
     .optional()
@@ -107,5 +126,19 @@ router.post('/', authMiddleware, midBannerValidation, createMidBanner);
 router.put('/:id', authMiddleware, midBannerValidation, updateMidBanner);
 router.delete('/:id', authMiddleware, deleteMidBanner);
 router.patch('/:id/toggle', authMiddleware, toggleMidBannerStatus);
+
+// Image upload route for mid-banners
+router.post('/upload', authMiddleware, upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No image file provided' });
+    }
+    const imageUrl = `/uploads/mid-banners/${req.file.filename}`;
+    return res.status(200).json({ success: true, data: { imageUrl } });
+  } catch (error) {
+    console.error('Mid banner image upload error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to upload image' });
+  }
+});
 
 export default router;

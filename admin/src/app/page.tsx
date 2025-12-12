@@ -158,7 +158,7 @@ export default function AdminLogin() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-lg font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-xl font-medium text-black mb-2">
                 Email
               </label>
               <input
@@ -171,7 +171,7 @@ export default function AdminLogin() {
                     message: "Please enter a valid email address",
                   },
                 })}
-                className={`w-full px-3 py-2.5 border rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                className={`w-full px-3 py-2.5 border rounded-lg text-lg ${
                   errors.email
                     ? "border-red-300"
                     : "border-gray-300"
@@ -189,7 +189,7 @@ export default function AdminLogin() {
             {/* Password Field */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label htmlFor="password" className="block text-lg font-medium text-gray-700">
+                <label htmlFor="password" className="block text-xl font-medium text-black">
                   Password
                 </label>
                 <button
@@ -212,7 +212,7 @@ export default function AdminLogin() {
                       message: "Password must be at least 6 characters",
                     },
                   })}
-                  className={`w-full px-3 py-2.5 pr-10 border rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  className={`w-full px-3 py-2.5 pr-10 border rounded-lg text-lg ${
                     errors.password
                       ? "border-red-300"
                       : "border-gray-300"
@@ -249,10 +249,10 @@ export default function AdminLogin() {
                 type="checkbox"
                 id="rememberMe"
                 {...register("rememberMe")}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
                 disabled={isLoading}
               />
-              <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
+              <label htmlFor="rememberMe" className="ml-2 block text-lg font-medium text-black">
                 Remember me
               </label>
             </div>
@@ -261,7 +261,7 @@ export default function AdminLogin() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#cca43b] hover:bg-[#b89335] text-white disabled:bg-gray-100 disabled:text-gray-900 font-medium py-2.5 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-[#cca43b] focus:ring-offset-2 disabled:cursor-not-allowed text-sm border border-[#cca43b]"
+              className="w-full bg-[#cca43b] hover:bg-[#b89335] text-white disabled:bg-gray-100 disabled:text-gray-900 font-medium py-2.5 px-4 rounded-lg disabled:cursor-not-allowed text-sm border border-[#cca43b]"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -292,7 +292,7 @@ export default function AdminLogin() {
           
             <form onSubmit={handleForgotPasswordSubmit(onForgotPasswordSubmit)} className="space-y-4">
               <div>
-                <label htmlFor="forgotPasswordEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="forgotPasswordEmail" className="block text-lg font-medium text-black mb-2">
                   Email
                 </label>
                 <input
@@ -305,7 +305,7 @@ export default function AdminLogin() {
                       message: "Please enter a valid email address",
                     },
                   })}
-                  className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                  className={`w-full px-3 py-2.5 border rounded-lg text-sm ${
                     forgotPasswordErrors.email
                       ? "border-red-300"
                       : "border-gray-300"
@@ -317,7 +317,7 @@ export default function AdminLogin() {
                   <p className="mt-1 text-sm text-red-600">{forgotPasswordErrors.email.message}</p>
                 )}
               </div>
-              
+
               <div className="flex space-x-3">
                 <button
                   type="button"
@@ -325,7 +325,7 @@ export default function AdminLogin() {
                     setShowForgotPassword(false);
                     resetForgotPassword();
                   }}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
                   disabled={isLoading}
                 >
                   Cancel
@@ -333,7 +333,7 @@ export default function AdminLogin() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 bg-[#cca43b] hover:bg-[#b89335] text-white disabled:bg-gray-100 disabled:text-gray-900 font-medium py-2.5 px-4 rounded-lg transition-colors disabled:cursor-not-allowed text-sm border border-[#cca43b]"
+                  className="flex-1 bg-[#cca43b] hover:bg-[#b89335] text-white disabled:bg-gray-100 disabled:text-gray-900 font-medium py-2.5 px-4 rounded-lg disabled:cursor-not-allowed text-sm border border-[#cca43b]"
                 >
                   {isLoading ? "Sending..." : "Send Reset Link"}
                 </button>

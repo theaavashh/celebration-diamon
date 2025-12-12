@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Category, Subcategory } from '@/types/category';
 import { categoryService } from '@/services/categoryService';
 import { Urbanist } from 'next/font/google';
+import { getImageUrl } from '@/lib/api';
 
 const urbanist = Urbanist({ subsets: ['latin'], weight: ['400', '600', '700'], display: 'swap' });
 
@@ -880,12 +881,12 @@ const CategoriesPage = () => {
                         <div className="mt-2">
                           <p className="text-sm text-gray-600 mb-2">Icon Preview:</p>
                           <img
-                            src={iconPreview}
+                            src={(iconPreview.startsWith('http') || iconPreview.startsWith('blob:') || iconPreview.startsWith('data:')) ? iconPreview : getImageUrl(iconPreview)}
                             alt="Icon Preview"
                             className="w-16 h-16 object-cover rounded-lg border border-gray-300"
                             onError={(e) => {
                               console.error('Icon preview failed to load:', iconPreview);
-                              e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Icon';
+                              e.currentTarget.src = 'https://via.placeholder.com/64x64?text=No+Icon';
                             }}
                           />
                         </div>
@@ -923,7 +924,7 @@ const CategoriesPage = () => {
                         <div className="mt-2">
                           <p className="text-sm text-gray-600 mb-2">Image Preview:</p>
                           <img
-                            src={imagePreview}
+                            src={(imagePreview.startsWith('http') || imagePreview.startsWith('blob:') || imagePreview.startsWith('data:')) ? imagePreview : getImageUrl(imagePreview)}
                             alt="Image Preview"
                             className="w-full h-48 object-cover rounded-lg border border-gray-300"
                             onError={(e) => {
@@ -971,7 +972,7 @@ const CategoriesPage = () => {
                         <div className="mt-2">
                           <p className="text-sm text-gray-600 mb-2">Navigation Image 1 Preview:</p>
                           <img
-                            src={navImage1Preview}
+                            src={(navImage1Preview.startsWith('http') || navImage1Preview.startsWith('blob:') || navImage1Preview.startsWith('data:')) ? navImage1Preview : getImageUrl(navImage1Preview)}
                             alt="Navigation Image 1 Preview"
                             className="w-full h-48 object-cover rounded-lg border border-gray-300"
                             onError={(e) => {
@@ -1019,7 +1020,7 @@ const CategoriesPage = () => {
                         <div className="mt-2">
                           <p className="text-sm text-gray-600 mb-2">Navigation Image 2 Preview:</p>
                           <img
-                            src={navImage2Preview}
+                            src={(navImage2Preview.startsWith('http') || navImage2Preview.startsWith('blob:') || navImage2Preview.startsWith('data:')) ? navImage2Preview : getImageUrl(navImage2Preview)}
                             alt="Navigation Image 2 Preview"
                             className="w-full h-48 object-cover rounded-lg border border-gray-300"
                             onError={(e) => {

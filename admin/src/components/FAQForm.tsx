@@ -10,16 +10,7 @@ interface FAQFormProps {
   isLoading?: boolean;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: '', label: 'No Category' },
-  { value: 'General', label: 'General' },
-  { value: 'Shipping', label: 'Shipping' },
-  { value: 'Custom', label: 'Custom' },
-  { value: 'Location', label: 'Location' },
-  { value: 'Certification', label: 'Certification' },
-  { value: 'Payment', label: 'Payment' },
-  { value: 'Service', label: 'Service' }
-];
+const CATEGORY_OPTIONS: never[] = [];
 
 export default function FAQForm({ 
   faq, 
@@ -29,10 +20,7 @@ export default function FAQForm({
 }: FAQFormProps) {
   const [formData, setFormData] = useState({
     question: '',
-    answer: '',
-    category: '',
-    isActive: true,
-    sortOrder: 0
+    answer: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -41,10 +29,7 @@ export default function FAQForm({
     if (faq) {
       setFormData({
         question: faq.question,
-        answer: faq.answer,
-        category: faq.category || '',
-        isActive: faq.isActive,
-        sortOrder: faq.sortOrder
+        answer: faq.answer
       });
     }
   }, [faq]);
@@ -64,13 +49,7 @@ export default function FAQForm({
       newErrors.answer = 'Answer must be less than 2000 characters';
     }
 
-    if (formData.category && formData.category.length > 100) {
-      newErrors.category = 'Category must be less than 100 characters';
-    }
-
-    if (formData.sortOrder < 0) {
-      newErrors.sortOrder = 'Sort order must be a non-negative number';
-    }
+    
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -85,10 +64,7 @@ export default function FAQForm({
 
     onSave({
       question: formData.question.trim(),
-      answer: formData.answer.trim(),
-      category: formData.category.trim() || null,
-      isActive: formData.isActive,
-      sortOrder: formData.sortOrder
+      answer: formData.answer.trim()
     });
   };
 
@@ -97,8 +73,7 @@ export default function FAQForm({
     
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
-              type === 'number' ? parseInt(value) || 0 : value
+      [name]: value
     }));
 
     // Clear error when user starts typing
@@ -182,84 +157,11 @@ export default function FAQForm({
               </p>
             </div>
 
-            {/* Category */}
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                Category (Optional)
-              </label>
-              <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.category ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={isLoading}
-              >
-                {CATEGORY_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors.category && (
-                <p className="mt-1 text-sm text-red-600">{errors.category}</p>
-              )}
-              <p className="mt-1 text-sm text-gray-500">
-                Categorize your FAQ for better organization
-              </p>
-            </div>
+            
           </div>
         </div>
 
-        {/* Settings Section */}
-        <div className="space-y-6">
-          <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Settings</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Sort Order */}
-            <div>
-              <label htmlFor="sortOrder" className="block text-sm font-medium text-gray-700 mb-2">
-                Sort Order
-              </label>
-              <input
-                type="number"
-                id="sortOrder"
-                name="sortOrder"
-                value={formData.sortOrder}
-                onChange={handleChange}
-                min="0"
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.sortOrder ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={isLoading}
-              />
-              {errors.sortOrder && (
-                <p className="mt-1 text-sm text-red-600">{errors.sortOrder}</p>
-              )}
-              <p className="mt-1 text-sm text-gray-500">
-                Lower numbers appear first
-              </p>
-            </div>
-
-            {/* Active Status */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700">
-                Active (visible to users)
-              </label>
-            </div>
-          </div>
-        </div>
+        
 
         {/* Preview Section */}
         <div className="space-y-6">
@@ -280,13 +182,7 @@ export default function FAQForm({
                   <strong>Answer:</strong> {formData.answer}
                 </div>
               )}
-              {formData.category && (
-                <div className="text-xs">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {formData.category}
-                  </span>
-                </div>
-              )}
+              
             </div>
           </div>
         </div>

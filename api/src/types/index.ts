@@ -34,10 +34,15 @@ export interface Hero {
   id: string;
   heading: string;
   subHeading: string | null;
-  description: string | null;
   ctaTitle: string | null;
   ctaLink: string | null;
   imageUrl: string | null;
+  backgroundColor: string | null;
+  textColor: string | null;
+  imageAlignment: string | null;
+  buttonBgColor: string | null;
+  buttonTextColor: string | null;
+  buttonRadius: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -393,10 +398,15 @@ export interface UpdateBannerRequest extends Partial<CreateBannerRequest> {}
 export interface CreateHeroRequest {
   heading: string;
   subHeading?: string;
-  description?: string;
   ctaTitle?: string;
   ctaLink?: string;
   imageUrl?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  imageAlignment?: 'left' | 'right';
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  buttonRadius?: number;
   isActive?: boolean;
 }
 

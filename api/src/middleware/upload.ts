@@ -27,6 +27,8 @@ const storage = multer.diskStorage({
       destination = 'uploads/hero/';
     } else if (fieldName === 'images' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {
       destination = 'uploads/products/';
+    } else if (fieldName === 'image' && (req.path.includes('/mid-banners') || req.originalUrl.includes('/mid-banners'))) {
+      destination = 'uploads/mid-banners/';
     } else if (fieldName === 'image' && (req.path.includes('/services') || req.originalUrl.includes('/services'))) {
       destination = 'uploads/services/';
     } else if (fieldName === 'image' && (req.path.includes('/testimonials') || req.originalUrl.includes('/testimonials'))) {

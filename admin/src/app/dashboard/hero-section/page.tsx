@@ -15,10 +15,15 @@ interface HeroSection {
   id: string;
   heading: string;
   subHeading: string | null;
-  description: string | null;
   ctaTitle: string | null;
   ctaLink: string | null;
   imageUrl: string | null;
+  backgroundColor: string | null;
+  textColor: string | null;
+  imageAlignment: string | null;
+  buttonBgColor: string | null;
+  buttonTextColor: string | null;
+  buttonRadius: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,9 +37,14 @@ export default function HeroSectionPage() {
   const [heroForm, setHeroForm] = useState({
     heading: '',
     subHeading: '',
-    description: '',
     ctaTitle: '',
     ctaLink: '',
+    backgroundColor: '#ffffff',
+    textColor: '#000000',
+    imageAlignment: 'left',
+    buttonBgColor: '#f59e0b',
+    buttonTextColor: '#ffffff',
+    buttonRadius: 9999,
     isActive: true
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -151,9 +161,14 @@ export default function HeroSectionPage() {
       setHeroForm({
         heading: existingHero.heading || '',
         subHeading: existingHero.subHeading || '',
-        description: existingHero.description || '',
         ctaTitle: existingHero.ctaTitle || '',
         ctaLink: existingHero.ctaLink || '',
+        backgroundColor: existingHero.backgroundColor || '#ffffff',
+        textColor: existingHero.textColor || '#000000',
+        imageAlignment: existingHero.imageAlignment || 'left',
+        buttonBgColor: existingHero.buttonBgColor || '#f59e0b',
+        buttonTextColor: existingHero.buttonTextColor || '#ffffff',
+        buttonRadius: existingHero.buttonRadius ?? 9999,
         isActive: existingHero.isActive
       });
       setSelectedImage(null);
@@ -164,9 +179,14 @@ export default function HeroSectionPage() {
       setHeroForm({
         heading: '',
         subHeading: '',
-        description: '',
         ctaTitle: '',
         ctaLink: '',
+        backgroundColor: '#ffffff',
+        textColor: '#000000',
+        imageAlignment: 'left',
+        buttonBgColor: '#f59e0b',
+        buttonTextColor: '#ffffff',
+        buttonRadius: 9999,
         isActive: true
       });
       setSelectedImage(null);
@@ -181,9 +201,14 @@ export default function HeroSectionPage() {
     setHeroForm({
       heading: hero.heading || '',
       subHeading: hero.subHeading || '',
-      description: hero.description || '',
       ctaTitle: hero.ctaTitle || '',
       ctaLink: hero.ctaLink || '',
+      backgroundColor: hero.backgroundColor || '#ffffff',
+      textColor: hero.textColor || '#000000',
+      imageAlignment: hero.imageAlignment || 'left',
+      buttonBgColor: hero.buttonBgColor || '#f59e0b',
+      buttonTextColor: hero.buttonTextColor || '#ffffff',
+      buttonRadius: hero.buttonRadius ?? 9999,
       isActive: hero.isActive
     });
     setSelectedImage(null);
@@ -264,13 +289,18 @@ export default function HeroSectionPage() {
         }
       }
 
-      // Create data object for submission
-      const data: { [key: string]: string | Blob } = {
+    // Create data object for submission
+      const data: { [key: string]: string | Blob | number } = {
         heading: heroForm.heading,
         subHeading: heroForm.subHeading || '',
-        description: heroForm.description || '',
         ctaTitle: heroForm.ctaTitle || '',
         ctaLink: ctaLink,
+        backgroundColor: heroForm.backgroundColor || '#ffffff',
+        textColor: heroForm.textColor || '#000000',
+        imageAlignment: heroForm.imageAlignment || 'left',
+        buttonBgColor: heroForm.buttonBgColor || '#f59e0b',
+        buttonTextColor: heroForm.buttonTextColor || '#ffffff',
+        buttonRadius: heroForm.buttonRadius ?? 9999,
         isActive: heroForm.isActive.toString()
       };
       
@@ -288,10 +318,15 @@ export default function HeroSectionPage() {
         formData = new FormData();
         formData.append('heading', data.heading);
         formData.append('subHeading', data.subHeading);
-        formData.append('description', data.description);
         formData.append('ctaTitle', data.ctaTitle);
         formData.append('ctaLink', data.ctaLink);
-        formData.append('isActive', data.isActive);
+        formData.append('backgroundColor', String(data.backgroundColor));
+        formData.append('textColor', String(data.textColor));
+        formData.append('imageAlignment', String(data.imageAlignment));
+        formData.append('buttonBgColor', String(data.buttonBgColor));
+        formData.append('buttonTextColor', String(data.buttonTextColor));
+        formData.append('buttonRadius', String(data.buttonRadius));
+        formData.append('isActive', String(data.isActive));
         formData.append('image', selectedImage);
         headers['Content-Type'] = 'multipart/form-data';
       } else {
@@ -327,9 +362,14 @@ export default function HeroSectionPage() {
       setHeroForm({
         heading: '',
         subHeading: '',
-        description: '',
         ctaTitle: '',
         ctaLink: '',
+        backgroundColor: '#ffffff',
+        textColor: '#000000',
+        imageAlignment: 'left',
+        buttonBgColor: '#f59e0b',
+        buttonTextColor: '#ffffff',
+        buttonRadius: 9999,
         isActive: true
       });
       setSelectedImage(null);
@@ -415,7 +455,7 @@ export default function HeroSectionPage() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-black italic">Hero Section</h1>
-            <p className="text-black font-medium">Manage your website's hero section content (only one active at a time)</p>
+            <p className="text-black font-medium">Manage hero slides; multiple active slides appear in the carousel</p>
           </div>
           <div className="flex space-x-3">
             <button
@@ -476,10 +516,13 @@ export default function HeroSectionPage() {
                       </span>
                     </div>
                     <div className="text-black text-lg">
-                      {hero.subHeading ? (hero.subHeading.length > 100 ? `${hero.subHeading.substring(0, 100)}...` : hero.subHeading) : '-'}
+                        {hero.subHeading ? (hero.subHeading.length > 100 ? `${hero.subHeading.substring(0, 100)}...` : hero.subHeading) : '-'}
                     </div>
                     <div className="text-black text-lg font-semibold">
                       {hero.ctaTitle ? `${hero.ctaTitle} →` : '-'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Button: BG {hero.buttonBgColor || '-'}, Text {hero.buttonTextColor || '-'}, Radius {hero.buttonRadius ?? '-'}
                     </div>
                    
                   </div>
@@ -535,16 +578,26 @@ export default function HeroSectionPage() {
                     />
                 </div>
 
-                {/* Description */}
-                <div>
-                  <label className="block text-xl font-medium text-black mb-2">
-                    Description
-                  </label>
-                  <RichTextEditor
-                    value={heroForm.description}
-                    onChange={(value) => handleFormChange('description', value)}
-                    height="280px"
-                  />
+                {/* Button Appearance */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xl font-medium text-black mb-2">Button BG Color</label>
+                    <input type="color" value={heroForm.buttonBgColor}
+                      onChange={(e) => handleFormChange('buttonBgColor', e.target.value)}
+                      className="w-16 h-10 p-0 border border-gray-300 rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-xl font-medium text-black mb-2">Button Text Color</label>
+                    <input type="color" value={heroForm.buttonTextColor}
+                      onChange={(e) => handleFormChange('buttonTextColor', e.target.value)}
+                      className="w-16 h-10 p-0 border border-gray-300 rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-xl font-medium text-black mb-2">Button Radius (px)</label>
+                    <input type="number" min={0} value={heroForm.buttonRadius}
+                      onChange={(e) => handleFormChange('buttonRadius', Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black" />
+                  </div>
                 </div>
 
                 {/* CTA Section */}
@@ -573,6 +626,45 @@ export default function HeroSectionPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black placeholder-gray-400"
                     />
                     <p className="text-xs text-gray-500 mt-1">Enter a single path like /products or /about</p>
+                  </div>
+                </div>
+
+                {/* Appearance Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xl font-medium text-black mb-2">
+                      Background Color
+                    </label>
+                    <input
+                      type="color"
+                      value={heroForm.backgroundColor}
+                      onChange={(e) => handleFormChange('backgroundColor', e.target.value)}
+                      className="w-16 h-10 p-0 border border-gray-300 rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xl font-medium text-black mb-2">
+                      Text Color
+                    </label>
+                    <input
+                      type="color"
+                      value={heroForm.textColor}
+                      onChange={(e) => handleFormChange('textColor', e.target.value)}
+                      className="w-16 h-10 p-0 border border-gray-300 rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xl font-medium text-black mb-2">
+                      Image Alignment
+                    </label>
+                    <select
+                      value={heroForm.imageAlignment}
+                      onChange={(e) => handleFormChange('imageAlignment', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-black"
+                    >
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select>
                   </div>
                 </div>
 

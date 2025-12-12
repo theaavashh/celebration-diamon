@@ -29,12 +29,6 @@ const heroValidation = [
     .isLength({ max: 200 })
     .withMessage('Sub-heading must be less than 200 characters'),
   
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 1000 })
-    .withMessage('Description must be less than 1000 characters'),
-  
   body('ctaTitle')
     .optional()
     .trim()
@@ -48,6 +42,34 @@ const heroValidation = [
   
   // imageUrl validation removed as we're using file upload
   
+  body('backgroundColor')
+    .optional()
+    .isString()
+    .withMessage('Background color must be a string'),
+
+  body('textColor')
+    .optional()
+    .isString()
+    .withMessage('Text color must be a string'),
+
+  body('imageAlignment')
+    .optional()
+    .isIn(['left', 'right'])
+    .withMessage('Image alignment must be either left or right'),
+
+  body('buttonBgColor')
+    .optional()
+    .isString()
+    .withMessage('Button background color must be a string'),
+  body('buttonTextColor')
+    .optional()
+    .isString()
+    .withMessage('Button text color must be a string'),
+  body('buttonRadius')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Button radius must be a non-negative integer'),
+
   body('isActive')
     .optional()
     .isBoolean()

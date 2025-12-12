@@ -89,6 +89,23 @@ export const upsertAboutUs = async (req: Request, res: Response<ApiResponse<any>
       isActive
     } = req.body;
 
+    const parseJson = (input: unknown) => {
+      try {
+        if (typeof input === 'string') {
+          return JSON.parse(input);
+        }
+        return input ?? null;
+      } catch {
+        return null;
+      }
+    };
+
+    const toBoolean = (v: unknown): boolean => {
+      if (typeof v === 'string') return v.toLowerCase() === 'true';
+      if (typeof v === 'number') return v !== 0;
+      return Boolean(v);
+    };
+
     // Handle image upload
     const imageUrl = req.file ? `/uploads/about-us/${req.file.filename}` : storyImageUrl;
 
@@ -110,13 +127,13 @@ export const upsertAboutUs = async (req: Request, res: Response<ApiResponse<any>
           missionContent,
           visionTitle,
           visionContent,
-          values: values ? JSON.parse(JSON.stringify(values)) : null,
-          whyChooseUs: whyChooseUs ? JSON.parse(JSON.stringify(whyChooseUs)) : null,
-          milestones: milestones ? JSON.parse(JSON.stringify(milestones)) : null,
+          values: parseJson(values),
+          whyChooseUs: parseJson(whyChooseUs),
+          milestones: parseJson(milestones),
           contactLocation,
           contactPhone,
           contactEmail,
-          isActive: isActive !== undefined ? isActive : true
+          isActive: isActive !== undefined ? toBoolean(isActive) : true
         }
       });
     } else {
@@ -132,13 +149,13 @@ export const upsertAboutUs = async (req: Request, res: Response<ApiResponse<any>
           missionContent,
           visionTitle,
           visionContent,
-          values: values ? JSON.parse(JSON.stringify(values)) : null,
-          whyChooseUs: whyChooseUs ? JSON.parse(JSON.stringify(whyChooseUs)) : null,
-          milestones: milestones ? JSON.parse(JSON.stringify(milestones)) : null,
+          values: parseJson(values),
+          whyChooseUs: parseJson(whyChooseUs),
+          milestones: parseJson(milestones),
           contactLocation,
           contactPhone,
           contactEmail,
-          isActive: isActive !== undefined ? isActive : true
+          isActive: isActive !== undefined ? toBoolean(isActive) : true
         }
       });
     }
@@ -183,6 +200,16 @@ export const getTeamMembers = async (req: Request, res: Response<ApiResponse<any
 export const createTeamMember = async (req: Request, res: Response<ApiResponse<any>>) => {
   try {
     const { name, role, bio, imageUrl, email, linkedin, sortOrder, isActive } = req.body;
+    const toBoolean = (v: unknown): boolean => {
+      if (typeof v === 'string') return v.toLowerCase() === 'true';
+      if (typeof v === 'number') return v !== 0;
+      return Boolean(v);
+    };
+    const toNumber = (v: unknown): number => {
+      if (typeof v === 'string') return parseInt(v, 10) || 0;
+      if (typeof v === 'number') return v;
+      return 0;
+    };
     
     // Handle image upload
     const memberImageUrl = req.file ? `/uploads/about-us/${req.file.filename}` : imageUrl;
@@ -195,8 +222,8 @@ export const createTeamMember = async (req: Request, res: Response<ApiResponse<a
         imageUrl: memberImageUrl,
         email,
         linkedin,
-        sortOrder: sortOrder || 0,
-        isActive: isActive !== undefined ? isActive : true
+        sortOrder: toNumber(sortOrder),
+        isActive: isActive !== undefined ? toBoolean(isActive) : true
       }
     });
 
@@ -220,6 +247,16 @@ export const updateTeamMember = async (req: Request, res: Response<ApiResponse<a
   try {
     const { id } = req.params;
     const { name, role, bio, imageUrl, email, linkedin, sortOrder, isActive } = req.body;
+    const toBoolean = (v: unknown): boolean => {
+      if (typeof v === 'string') return v.toLowerCase() === 'true';
+      if (typeof v === 'number') return v !== 0;
+      return Boolean(v);
+    };
+    const toNumber = (v: unknown): number => {
+      if (typeof v === 'string') return parseInt(v, 10) || 0;
+      if (typeof v === 'number') return v;
+      return 0;
+    };
     
     // Handle image upload
     const memberImageUrl = req.file ? `/uploads/about-us/${req.file.filename}` : imageUrl;
@@ -233,8 +270,8 @@ export const updateTeamMember = async (req: Request, res: Response<ApiResponse<a
         imageUrl: memberImageUrl,
         email,
         linkedin,
-        sortOrder,
-        isActive
+        sortOrder: toNumber(sortOrder),
+        isActive: toBoolean(isActive)
       }
     });
 

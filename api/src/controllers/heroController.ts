@@ -82,22 +82,18 @@ export const createHeroSection = async (req: Request<{}, ApiResponse<Hero>, Crea
     const {
       heading,
       subHeading,
-      description,
       ctaTitle,
       ctaLink,
+      backgroundColor,
+      textColor,
+      imageAlignment,
+      buttonBgColor,
+      buttonTextColor,
+      buttonRadius,
       isActive = true
     } = req.body;
 
-    // Convert isActive to boolean if it's a string
     const isActiveBoolean = isActive === 'true' || isActive === true;
-
-    // If creating an active hero, deactivate all existing heroes first
-    if (isActiveBoolean) {
-      await prisma.hero.updateMany({
-        where: { isActive: true },
-        data: { isActive: false }
-      });
-    }
 
     // Get uploaded file path
     const imageUrl = req.file ? `/uploads/hero/${req.file.filename}` : null;
@@ -106,12 +102,17 @@ export const createHeroSection = async (req: Request<{}, ApiResponse<Hero>, Crea
       data: {
         heading,
         subHeading: subHeading || null,
-        description: description || null,
         ctaTitle: ctaTitle || null,
         ctaLink: ctaLink || null,
         imageUrl,
+        backgroundColor: backgroundColor || null,
+        textColor: textColor || null,
+        imageAlignment: imageAlignment || 'left',
+        buttonBgColor: buttonBgColor || null,
+        buttonTextColor: buttonTextColor || null,
+        buttonRadius: buttonRadius !== undefined ? Number(buttonRadius) : 9999,
         isActive: isActiveBoolean
-      }
+      } as any
     });
 
     res.status(201).json({
@@ -135,19 +136,7 @@ export const updateHeroSection = async (req: Request<{ id: string }, ApiResponse
     const { id } = req.params;
     const updateData = req.body;
 
-    // Convert isActive to boolean if it's a string
     const isActiveBoolean = updateData.isActive === 'true' || updateData.isActive === true;
-
-    // If activating this hero, deactivate all other heroes first
-    if (isActiveBoolean === true) {
-      await prisma.hero.updateMany({
-        where: { 
-          isActive: true,
-          id: { not: id }
-        },
-        data: { isActive: false }
-      });
-    }
 
     // Get uploaded file path if new image is uploaded
     const imageUrl = req.file ? `/uploads/hero/${req.file.filename}` : updateData.imageUrl;
@@ -157,12 +146,17 @@ export const updateHeroSection = async (req: Request<{ id: string }, ApiResponse
       data: {
         ...updateData,
         subHeading: updateData.subHeading || null,
-        description: updateData.description || null,
         ctaTitle: updateData.ctaTitle || null,
         ctaLink: updateData.ctaLink || null,
         imageUrl: imageUrl || null,
+        backgroundColor: updateData.backgroundColor || null,
+        textColor: updateData.textColor || null,
+        imageAlignment: updateData.imageAlignment || 'left',
+        buttonBgColor: updateData.buttonBgColor || null,
+        buttonTextColor: updateData.buttonTextColor || null,
+        buttonRadius: updateData.buttonRadius !== undefined ? Number(updateData.buttonRadius) : 9999,
         isActive: isActiveBoolean
-      }
+      } as any
     });
 
     res.json({
@@ -216,17 +210,6 @@ export const toggleHeroSectionStatus = async (req: Request, res: Response<ApiRes
       return res.status(404).json({
         success: false,
         message: 'Hero section not found'
-      });
-    }
-
-    // If activating this hero, deactivate all other heroes first
-    if (!heroSection.isActive) {
-      await prisma.hero.updateMany({
-        where: { 
-          isActive: true,
-          id: { not: id }
-        },
-        data: { isActive: false }
       });
     }
 

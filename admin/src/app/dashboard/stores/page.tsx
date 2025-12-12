@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Plus, Edit, Trash2, Eye, EyeOff, X } from 'lucide-react';
+import { getApiBaseUrl, getApiUrl } from '@/lib/api';
+import { fetchCsrfToken, getCsrfToken } from '@/lib/csrfClient';
 
 interface Store {
   id: string;
@@ -51,7 +53,7 @@ export default function StoresPage() {
   const fetchStores = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores/admin/all`, {
+      const response = await fetch(`${getApiBaseUrl()}/stores/admin/all`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -158,7 +160,7 @@ export default function StoresPage() {
       isActive: store.isActive,
       sortOrder: store.sortOrder
     });
-    setPreviewImage(store.imageUrl ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${store.imageUrl}` : null);
+    setPreviewImage(store.imageUrl ? `${getApiUrl()}${store.imageUrl}` : null);
     setSelectedImage(null);
     setEditingStore(store);
     setIsModalOpen(true);
@@ -169,6 +171,8 @@ export default function StoresPage() {
     e.preventDefault();
 
     try {
+      await fetchCsrfToken();
+      const csrfToken = getCsrfToken();
       const formData = new FormData();
       formData.append('title', storeForm.title.trim());
       formData.append('location', storeForm.location.trim());
@@ -206,14 +210,17 @@ export default function StoresPage() {
       }
 
       const url = editingStore
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores/${editingStore.id}`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores`;
+        ? `${getApiBaseUrl()}/stores/${editingStore.id}`
+        : `${getApiBaseUrl()}/stores`;
 
       const method = editingStore ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
         credentials: 'include',
+        headers: {
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
+        },
         body: formData
       });
 
@@ -267,12 +274,15 @@ export default function StoresPage() {
     if (!confirm('Are you sure you want to delete this store?')) return;
 
     try {
+      await fetchCsrfToken();
+      const csrfToken = getCsrfToken();
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/stores/${id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
         }
       });
 
@@ -298,11 +308,14 @@ export default function StoresPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/stores/${id}/toggle`, {
+      await fetchCsrfToken();
+      const csrfToken = getCsrfToken();
+      const response = await fetch(`${getApiBaseUrl()}/stores/${id}/toggle`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {})
         }
       });
 
@@ -419,7 +432,7 @@ export default function StoresPage() {
                         ) : store.imageUrl ? (
                           <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
                             <img
-                              src={`${process.env.NEXT_PUBLIC_API_BASE_URL}${store.imageUrl}`}
+                              src={`${getApiUrl()}${store.imageUrl}`}
                               alt={store.title}
                               className="w-full h-full object-cover"
                             />

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Filter, Search, X } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -42,6 +42,8 @@ interface Product {
   weight?: string;
   certification?: string;
   warranty?: string;
+  design?: string;
+  gender?: string;
 }
 
 interface ApiProduct {
@@ -59,7 +61,9 @@ interface ApiProduct {
   isSale?: boolean;
   description: string;
   metalType?: string;
+  materialType?: string;
   goldWeight?: string;
+  goldPurity?: string;
   diamondDetails?: string;
   diamondQuantity?: number;
   diamondSize?: string;
@@ -127,13 +131,27 @@ export default function CategoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<string>('featured');
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
-    priceRange: [0, 100000],
     metal: [] as string[],
     purity: [] as string[],
+    subcategory: [] as string[],
+    design: [] as string[],
+    gender: [] as string[],
   });
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
+  const [showFilters, setShowFilters] = useState(false);
+  const [accordion, setAccordion] = useState({
+    metal: true,
+    purity: true,
+    category: true,
+    design: true,
+    gender: true,
+  });
+  const toggleSection = (key: 'metal' | 'purity' | 'category' | 'design' | 'gender') => {
+    setAccordion(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+  
   // Computed values
   const matchingCategory = categories.find(cat => 
     cat.title.toLowerCase() === category.toLowerCase() || 
@@ -151,11 +169,18 @@ export default function CategoryPage() {
 
   // Get unique filter options
   const getUniqueOptions = (key: keyof Product) => {
-    return [...new Set(products.map(product => product[key]))] as string[];
+    return [...new Set(
+      products
+        .map((product) => product[key])
+        .filter((v): v is string => typeof v === 'string' && v.length > 0)
+    )] as string[];
   };
 
   const metalOptions = getUniqueOptions('metal');
   const purityOptions = getUniqueOptions('purity');
+  const subcategoryOptions = getUniqueOptions('subcategory');
+  const designOptions = getUniqueOptions('design');
+  const genderOptions = getUniqueOptions('gender');
 
   // Fetch categories and products
   useEffect(() => {
@@ -230,7 +255,7 @@ export default function CategoryPage() {
             id: product.id,
             name: product.name,
             category: product.category,
-            subcategory: product.category.toLowerCase(),
+            subcategory: (product.subCategory || product.subcategory || product.category || '').toLowerCase(),
             price: product.price,
             originalPrice: product.originalPrice,
             image: product.imageUrl?.startsWith('http') 
@@ -246,7 +271,7 @@ export default function CategoryPage() {
             isNew: product.isNew || false,
             isSale: product.isSale || false,
             metal: product.metalType || 'Gold',
-            purity: '18K',
+            purity: product.goldPurity || product.materialType || '18K',
             caratWeight: '1.00 CTW',
             clarity: 'VS2',
             color: 'G',
@@ -256,7 +281,22 @@ export default function CategoryPage() {
             height: '2mm',
             weight: '3.2g',
             certification: 'GIA',
-            warranty: 'Lifetime'
+            warranty: 'Lifetime',
+            design: (() => {
+              const w = parseFloat(String(product.goldWeight || ''));
+              if (!isNaN(w)) {
+                if (w >= 10) return 'Heavy';
+                if (w >= 5) return 'Medium';
+                return 'Light';
+              }
+              return 'Standard';
+            })(),
+            gender: (() => {
+              const sub = (product.subCategory || product.subcategory || '').toLowerCase();
+              if (sub.includes('men') || sub.includes('male')) return 'Male';
+              if (sub.includes('women') || sub.includes('female') || sub.includes('ladies')) return 'Female';
+              return 'Unisex';
+            })()
           }));
           
           setProducts(mappedProducts);
@@ -320,20 +360,38 @@ export default function CategoryPage() {
     }));
   };
 
-  const handlePriceRangeChange = (min: number, max: number) => {
+  const handleSubcategoryFilterChange = (sub: string) => {
     setSelectedFilters(prev => ({
       ...prev,
-      priceRange: [min, max]
+      subcategory: prev.subcategory.includes(sub)
+        ? prev.subcategory.filter(s => s !== sub)
+        : [...prev.subcategory, sub]
     }));
   };
 
-  const clearFilters = () => {
-    setSelectedFilters({
-      priceRange: [0, 100000],
-      metal: [],
-      purity: [],
-    });
+  const handleDesignFilterChange = (design: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      design: prev.design.includes(design)
+        ? prev.design.filter(d => d !== design)
+        : [...prev.design, design]
+    }));
   };
+
+  const handleGenderFilterChange = (gender: string) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      gender: prev.gender.includes(gender)
+        ? prev.gender.filter(g => g !== gender)
+        : [...prev.gender, gender]
+    }));
+  };
+
+  
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedFilters, sortBy, searchTerm]);
 
   // Filter and sort products
   const filteredProducts = products.filter(product => 
@@ -355,11 +413,6 @@ export default function CategoryPage() {
   });
 
   const filteredAndSortedProducts = sortedProducts.filter((product: Product) => {
-    // Price filter
-    if (product.price < selectedFilters.priceRange[0] || product.price > selectedFilters.priceRange[1]) {
-      return false;
-    }
-    
     // Metal filter
     if (selectedFilters.metal.length > 0 && !selectedFilters.metal.includes(product.metal)) {
       return false;
@@ -370,8 +423,26 @@ export default function CategoryPage() {
       return false;
     }
     
+    if (selectedFilters.subcategory.length > 0 && !selectedFilters.subcategory.includes(product.subcategory)) {
+      return false;
+    }
+    
+    if (selectedFilters.design.length > 0 && (!product.design || !selectedFilters.design.includes(product.design))) {
+      return false;
+    }
+    
+    if (selectedFilters.gender.length > 0 && (!product.gender || !selectedFilters.gender.includes(product.gender))) {
+      return false;
+    }
+    
     return true;
   });
+
+  const totalCount = filteredAndSortedProducts.length;
+  const startIndex = Math.min((currentPage - 1) * pageSize + 1, totalCount);
+  const endIndex = Math.min(currentPage * pageSize, totalCount);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const paginatedProducts = filteredAndSortedProducts.slice((currentPage - 1) * pageSize, (currentPage) * pageSize);
 
   // Loading state
   if (isLoading) {
@@ -386,234 +457,234 @@ export default function CategoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      {/* Breadcrumb and Header */}
-      <div className="bg-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-2xl">
+    <div className="min-h-screen bg-white pt-18">
+      <div className="bg-white">
+        <div className="max-w-9xl mx-auto px-4 sm:px-18 text-2xl">
           <div className="flex items-center gap-2 mb-6">
-            <Link href="/products" className="text-gray-600 hover:text-gray-900 transition-colors font-light tracking-widest font-sans">
-              HOME
+            <Link href="/products" className="text-gray-600 hover:text-gray-900 transition-colors font-light  ">
+              Home
             </Link>
             <span className="text-2xl text-gray-400 font-sans">/</span>
-            <span className="text-2xl text-gray-900 font-light tracking-widest font-sans">{displayName.toUpperCase()}</span>
+            <span className="text-2xl text-gray-900 font-light">{displayName}</span>
           </div>
           <div className="text-left">
-            <h1 className="text-2xl sm:text-3xl font-light text-gray-900 tracking-widest mb-3 jimthompson">
+            <h1 className="text-2xl sm:text-3xl font-light text-gray-900 mb-3 jimthompson">
               {displayName.toUpperCase()}
             </h1>
           </div>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Main Content */}
-          <div className="w-full">
-            {/* Filter and Sorting Controls */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-              <div className="text-2xl text-gray-700 font-light font-sans">
-                {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''}
-              </div>
-              
-              <div className="flex flex-wrap gap-6">
-                <button 
-                  onClick={() => setShowFilters(true)}
-                  className="flex items-center gap-2 text-2xl font-light tracking-widest font-sans"
-                >
-                  <Filter className="w-4 h-4" />
-                  FILTER
+      <div className="max-w-9xl mx-auto px-4 sm:px-18 pt-6">
+        <div className="flex flex-col lg:flex-row gap-16">
+          <div className="hidden lg:block w-full lg:w-64 shrink-0">
+            <div className="p-4">
+              <div className="mb-6">
+                <button onClick={() => toggleSection('metal')} className="w-full flex items-center justify-between text-2xl font-medium  mb-3">
+                  <span>METAL</span>
+                  {accordion.metal ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
-                
+                {accordion.metal && (
+                  <div className="space-y-2">
+                    {metalOptions.map((metal) => (
+                      <label key={metal} className="flex items-center text-xl font-light">
+                        <input type="checkbox" checked={selectedFilters.metal.includes(metal)} onChange={() => handleMetalFilterChange(metal)} className="mr-2 h-3 w-3" />
+                        {metal}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mb-6">
+                <button onClick={() => toggleSection('purity')} className="w-full flex items-center justify-between text-2xl font-medium  mb-3">
+                  <span>PURITY</span>
+                  {accordion.purity ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {accordion.purity && (
+                  <div className="space-y-2">
+                    {purityOptions.map((purity) => (
+                      <label key={purity} className="flex items-center text-xl font-light">
+                        <input type="checkbox" checked={selectedFilters.purity.includes(purity)} onChange={() => handlePurityFilterChange(purity)} className="mr-2 h-3 w-3" />
+                        {purity}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mb-6">
+                <button onClick={() => toggleSection('category')} className="w-full flex items-center justify-between text-2xl font-medium mb-3">
+                  <span>CATEGORY</span>
+                  {accordion.category ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {accordion.category && (
+                  <div className="space-y-2">
+                    {subcategoryOptions.map((sub) => (
+                      <label key={sub} className="flex items-center text-xl font-light">
+                        <input type="checkbox" checked={selectedFilters.subcategory.includes(sub)} onChange={() => handleSubcategoryFilterChange(sub)} className="mr-2 h-3 w-3" />
+                        {sub}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mb-6">
+                <button onClick={() => toggleSection('design')} className="w-full flex items-center justify-between text-2xl font-medium  mb-3">
+                  <span>DESIGN</span>
+                  {accordion.design ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {accordion.design && (
+                  <div className="space-y-2">
+                    {designOptions.map((design) => (
+                      <label key={design} className="flex items-center text-xl font-light">
+                        <input type="checkbox" checked={selectedFilters.design.includes(design)} onChange={() => handleDesignFilterChange(design)} className="mr-2 h-3 w-3" />
+                        {design}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mb-2">
+                <button onClick={() => toggleSection('gender')} className="w-full flex items-center justify-between text-2xl font-medium mb-3">
+                  <span>GENDER</span>
+                  {accordion.gender ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </button>
+                {accordion.gender && (
+                  <div className="space-y-2">
+                    {genderOptions.map((gender) => (
+                      <label key={gender} className="flex items-center text-xl font-light">
+                        <input type="checkbox" checked={selectedFilters.gender.includes(gender)} onChange={() => handleGenderFilterChange(gender)} className="mr-2 h-3 w-3" />
+                        {gender}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="w-full">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+              <div className="text-2xl text-gray-700 font-light">
+                {totalCount === 0 ? 'No products' : `Showing ${startIndex}-${endIndex} of ${totalCount} results`}
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setShowFilters(true)} className="lg:hidden flex items-center gap-2 text-sm font-light tracking-widest">
+                  <Filter className="w-4 h-4" />
+                  Filter
+                </button>
                 <div className="relative">
-                  <select 
-                    value={sortBy}
-                    onChange={(e) => handleSortChange(e.target.value)}
-                    className="appearance-none bg-transparent border-none py-1 pl-0 pr-4 text-sm focus:outline-none focus:border-black font-light cursor-pointer font-sans"
-                  >
-                    {SORT_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value} className="font-sans">
-                        {option.label}
-                      </option>
+                  <select value={sortBy} onChange={(e) => handleSortChange(e.target.value)} className="appearance-none bg-transparent border-none py-1 pl-0 pr-4 text-sm focus:outline-none font-light cursor-pointer">
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-700">
-                    <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
+                    <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Products Grid */}
-            {filteredAndSortedProducts.length === 0 ? (
+            {paginatedProducts.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-gray-200 mb-6">
                   <Search className="w-12 h-12 mx-auto" />
                 </div>
-                <h3 className="text-lg font-light text-gray-900 mb-3 tracking-widest font-sans">NO PRODUCTS FOUND</h3>
-                <p className="text-gray-600 text-sm font-light tracking-widest font-sans">PLEASE TRY DIFFERENT FILTERS</p>
+                <h3 className="text-lg font-light text-gray-900 mb-3 tracking-widest">NO PRODUCTS FOUND</h3>
+                <p className="text-gray-600 text-sm font-light tracking-widest">PLEASE TRY DIFFERENT FILTERS</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredAndSortedProducts.map((product: Product) => (
-                  <Link 
-                    href={`/products/${category}/${product.id}`}
-                    key={product.id} 
-                    className="group cursor-pointer"
-                  >
-                    <div className="relative overflow-hidden bg-gray-50 aspect-square">
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                      {product.isNew && (
-                        <div className="absolute top-3 left-3 bg-white text-black px-2 py-1 text-xs font-light tracking-widest font-sans">
-                          NEW
-                        </div>
-                      )}
-                      {product.isSale && (
-                        <div className="absolute top-3 right-3 bg-black text-white px-2 py-1 text-xs font-light tracking-widest font-sans">
-                          SALE
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="mt-4">
-                      <h3 className="font-light text-sm text-gray-900 group-hover:text-gray-700 transition-colors tracking-wide font-sans">
-                        {product.name}
-                      </h3>
-                      <div className="mt-1">
-                        <span className="text-sm font-light text-gray-900 font-sans">
-                          ${product.price.toLocaleString()}
-                          {product.originalPrice && product.originalPrice > product.price && (
-                            <span className="text-xs text-gray-500 line-through ml-2 font-sans">
-                              ${product.originalPrice.toLocaleString()}
-                            </span>
-                          )}
-                        </span>
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-10">
+                  {paginatedProducts.map((product: Product) => (
+                    <Link href={`/products/${category}/${product.id}`} key={product.id} className="group cursor-pointer">
+                      <div className="relative overflow-hidden bg-gray-50 aspect-square">
+                        <Image src={product.image} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                        {product.isNew && (
+                          <div className="absolute top-3 left-3 bg-white text-black px-2 py-1 text-xs font-light">NEW</div>
+                        )}
+                        {product.isSale && (
+                          <div className="absolute top-3 right-3 bg-black text-white px-2 py-1 text-xs font-light">SALE</div>
+                        )}
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                     
+                    </Link>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mt-8">
+                  <button disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className={`px-4 py-2 text-sm border ${currentPage <= 1 ? 'text-gray-400 border-gray-200' : 'text-gray-900 border-gray-300 hover:border-gray-400'}`}>Prev</button>
+                  <div className="text-sm text-gray-600">Page {currentPage} of {totalPages}</div>
+                  <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className={`px-4 py-2 text-sm border ${currentPage >= totalPages ? 'text-gray-400 border-gray-200' : 'text-gray-900 border-gray-300 hover:border-gray-400'}`}>Next</button>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Filter Modal */}
       {showFilters && (
-        <div className="fixed inset-0 z-[9999] overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Background overlay */}
-            <div 
-              className="absolute inset-0 bg-black/30 transition-opacity"
-              onClick={() => setShowFilters(false)}
-            />
-            
-            {/* Filter panel */}
-            <div className="absolute inset-y-0 right-0 max-w-full flex z-[10000]">
-              <div className="relative w-screen max-w-md">
-                <div className="h-full flex flex-col bg-white shadow-xl">
-                  <div className="flex-1 overflow-y-auto py-6 px-4 sm:px-6">
-                    <div className="flex items-start justify-between">
-                      <h2 className="text-lg font-light tracking-widest font-sans">FILTERS</h2>
-                      <button 
-                        onClick={() => setShowFilters(false)}
-                        className="ml-3 h-7 flex items-center justify-center"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-
-                    <div className="mt-8">
-                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-sm font-light tracking-widest font-sans">FILTERS</h3>
-                        <button 
-                          onClick={clearFilters}
-                          className="text-xs text-gray-600 hover:text-gray-900 font-light font-sans"
-                        >
-                          Clear all
-                        </button>
-                      </div>
-
-                      {/* Price Range Filter */}
-                      <div className="mb-6">
-                        <h3 className="text-xs font-light tracking-widest mb-3 font-sans">PRICE RANGE</h3>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            value={selectedFilters.priceRange[0]}
-                            onChange={(e) => handlePriceRangeChange(Number(e.target.value), selectedFilters.priceRange[1])}
-                            className="border border-gray-300 p-1 text-xs w-20 font-sans"
-                            placeholder="Min"
-                          />
-                          <span className="text-xs font-sans">-</span>
-                          <input
-                            type="number"
-                            value={selectedFilters.priceRange[1]}
-                            onChange={(e) => handlePriceRangeChange(selectedFilters.priceRange[0], Number(e.target.value))}
-                            className="border border-gray-300 p-1 text-xs w-20 font-sans"
-                            placeholder="Max"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Metal Filter */}
-                      <div className="mb-6">
-                        <h3 className="text-xs font-light tracking-widest mb-3 font-sans">METAL</h3>
-                        <div className="space-y-2">
-                          {metalOptions.map(metal => (
-                            <div key={metal} className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id={`metal-${metal}`}
-                                checked={selectedFilters.metal.includes(metal)}
-                                onChange={() => handleMetalFilterChange(metal)}
-                                className="mr-2 h-3 w-3"
-                              />
-                              <label htmlFor={`metal-${metal}`} className="text-xs font-light font-sans">
-                                {metal}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Purity Filter */}
-                      <div className="mb-6">
-                        <h3 className="text-xs font-light tracking-widest mb-3 font-sans">PURITY</h3>
-                        <div className="space-y-2">
-                          {purityOptions.map(purity => (
-                            <div key={purity} className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id={`purity-${purity}`}
-                                checked={selectedFilters.purity.includes(purity)}
-                                onChange={() => handlePurityFilterChange(purity)}
-                                className="mr-2 h-3 w-3"
-                              />
-                              <label htmlFor={`purity-${purity}`} className="text-xs font-light font-sans">
-                                {purity}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+        <div className="fixed inset-0 z-[9999]">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowFilters(false)} />
+          <div className="absolute inset-y-0 left-0 max-w-full flex">
+            <div className="relative w-screen max-w-md">
+              <div className="h-full flex flex-col bg-white shadow-xl">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="text-lg font-light tracking-widest">FILTERS</div>
+                  <button onClick={() => setShowFilters(false)} className="h-7 flex items-center justify-center">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-2">
+                  <div className="mb-6">
+                    <div className="text-lg font-light tracking-widest mb-3">METAL</div>
+                    <div className="space-y-2">
+                      {metalOptions.map((metal) => (
+                        <label key={metal} className="flex items-center text-sm font-light">
+                          <input type="checkbox" checked={selectedFilters.metal.includes(metal)} onChange={() => handleMetalFilterChange(metal)} className="mr-2 h-3 w-3" />
+                          {metal}
+                        </label>
+                      ))}
                     </div>
                   </div>
-                  
-                  <div className="border-t border-gray-200 py-4 px-4 sm:px-6">
-                    <button
-                      type="button"
-                      className="w-full bg-black text-white py-3 text-sm font-light tracking-widest font-sans"
-                      onClick={() => setShowFilters(false)}
-                    >
-                      APPLY FILTERS
-                    </button>
+                  <div className="mb-6">
+                    <div className="text-lg font-light tracking-widest mb-3">PURITY</div>
+                    <div className="space-y-2">
+                      {purityOptions.map((purity) => (
+                        <label key={purity} className="flex items-center text-sm font-light">
+                          <input type="checkbox" checked={selectedFilters.purity.includes(purity)} onChange={() => handlePurityFilterChange(purity)} className="mr-2 h-3 w-3" />
+                          {purity}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mb-6">
+                    <div className="text-lg font-light tracking-widest mb-3">CATEGORY</div>
+                    <div className="space-y-2">
+                      {subcategoryOptions.map((sub) => (
+                        <label key={sub} className="flex items-center text-sm font-light">
+                          <input type="checkbox" checked={selectedFilters.subcategory.includes(sub)} onChange={() => handleSubcategoryFilterChange(sub)} className="mr-2 h-3 w-3" />
+                          {sub}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mb-6">
+                    <div className="text-lg font-light tracking-widest mb-3">DESIGN</div>
+                    <div className="space-y-2">
+                      {designOptions.map((design) => (
+                        <label key={design} className="flex items-center text-sm font-light">
+                          <input type="checkbox" checked={selectedFilters.design.includes(design)} onChange={() => handleDesignFilterChange(design)} className="mr-2 h-3 w-3" />
+                          {design}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <div className="text-lg font-light tracking-widest mb-3">GENDER</div>
+                    <div className="space-y-2">
+                      {genderOptions.map((gender) => (
+                        <label key={gender} className="flex items-center text-sm font-light">
+                          <input type="checkbox" checked={selectedFilters.gender.includes(gender)} onChange={() => handleGenderFilterChange(gender)} className="mr-2 h-3 w-3" />
+                          {gender}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import RichTextEditor from '@/components/RichTextEditor';
 import { getApiBaseUrl } from '@/lib/api';
 import { Save, Eye, EyeOff, Plus, Edit, Trash2, X } from 'lucide-react';
+import { apiGet, apiPost, apiPut, apiDelete, handleAuthError } from '@/lib/apiClient';
 
 interface TermsAndConditions {
   id: string;
@@ -31,29 +32,13 @@ export default function TermsPage() {
   const fetchTerms = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${getApiBaseUrl()}/terms/admin/all`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setTerms(data.data || []);
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
+      const res = await apiGet<TermsAndConditions[]>(`${getApiBaseUrl()}/terms/admin/all`);
+      if (res.success) {
+        setTerms(res.data || []);
       } else {
-        console.error('Failed to fetch terms, status:', response.status);
-        toast.error('Failed to fetch terms and conditions');
+        if (!handleAuthError(res.message)) {
+          toast.error('Failed to fetch terms and conditions');
+        }
       }
     } catch (error) {
       console.error('Error fetching terms:', error);
@@ -107,39 +92,20 @@ export default function TermsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       const apiBaseUrl = getApiBaseUrl();
       const url = editingTerms
         ? `${apiBaseUrl}/terms/admin/${editingTerms.id}`
         : `${apiBaseUrl}/terms/admin`;
 
-      const method = editingTerms ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(termsForm)
-      });
-
-      if (response.ok) {
+      const res = editingTerms ? await apiPut(url, termsForm) : await apiPost(url, termsForm);
+      if (res.success) {
         toast.success(editingTerms ? 'Terms updated successfully' : 'Terms created successfully');
         setIsModalOpen(false);
         fetchTerms();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.message || 'Failed to save terms');
+        if (!handleAuthError(res.message)) {
+          toast.error(res.message || 'Failed to save terms');
+        }
       }
     } catch (error) {
       console.error('Error saving terms:', error);
@@ -154,28 +120,14 @@ export default function TermsPage() {
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${getApiBaseUrl()}/terms/admin/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
-
-      if (response.ok) {
+      const res = await apiDelete(`${getApiBaseUrl()}/terms/admin/${id}`);
+      if (res.success) {
         toast.success('Terms deleted successfully');
         fetchTerms();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
       } else {
-        toast.error('Failed to delete terms');
+        if (!handleAuthError(res.message)) {
+          toast.error('Failed to delete terms');
+        }
       }
     } catch (error) {
       console.error('Error deleting terms:', error);
@@ -189,33 +141,17 @@ export default function TermsPage() {
       const termsItem = terms.find(t => t.id === id);
       if (!termsItem) return;
 
-      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-      const response = await fetch(`${getApiBaseUrl()}/terms/admin/${id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify({
-          ...termsItem,
-          isActive: !termsItem.isActive
-        })
+      const res = await apiPut(`${getApiBaseUrl()}/terms/admin/${id}`, {
+        ...termsItem,
+        isActive: !termsItem.isActive
       });
-
-      if (response.ok) {
+      if (res.success) {
         toast.success('Status updated successfully');
         fetchTerms();
-      } else if (response.status === 401) {
-        console.error('Authentication failed. Session may be expired or invalid.');
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('adminToken');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
       } else {
-        toast.error('Failed to update status');
+        if (!handleAuthError(res.message)) {
+          toast.error('Failed to update status');
+        }
       }
     } catch (error) {
       console.error('Error updating status:', error);
