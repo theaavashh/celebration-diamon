@@ -1,243 +1,92 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
-import { ApiResponse, Service, CreateServiceRequest, UpdateServiceRequest } from '../types';
 
-// Get all services (public)
-export const getAllServices = async (req: Request, res: Response<ApiResponse<Service[]>>) => {
+export const listServices = async (req: Request, res: Response) => {
   try {
-    const services = await prisma.service.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' }
-    });
+    const page = parseInt((req.query.page as string) || '1');
+    const limit = parseInt((req.query.limit as string) || '20');
+    const skip = (page - 1) * limit;
+    const search = (req.query.search as string) || '';
 
-    res.json({
+    const where = search ? { title: { contains: search, mode: 'insensitive' } } : {};
+    const items = await (prisma as any).service.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit });
+    const total = await (prisma as any).service.count({ where });
+
+    res.status(200).json({
       success: true,
-      data: services,
-      count: services.length
+      data: items.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        imageUrl: s.imageUrl,
+        isActive: s.isActive,
+        createdAt: s.createdAt,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: skip + items.length < total,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
-    console.error('Error fetching services:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch services',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
-// Get all services (admin)
-export const getAdminServices = async (req: Request, res: Response<ApiResponse<Service[]>>) => {
+export const createService = async (req: Request, res: Response) => {
   try {
-    const services = await prisma.service.findMany({
-      orderBy: { sortOrder: 'asc' }
-    });
-
-    res.json({
-      success: true,
-      data: services,
-      count: services.length
-    });
-  } catch (error) {
-    console.error('Error fetching services:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch services',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
-// Get service by ID
-export const getServiceById = async (req: Request, res: Response<ApiResponse<Service>>) => {
-  try {
-    const { id } = req.params;
-    const service = await prisma.service.findUnique({
-      where: { id }
-    });
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
+    const { title, link } = req.body as { title: string; link?: string };
+    let imageUrl: string | null = null;
+    if (req.file) {
+      imageUrl = `/uploads/services/${req.file.filename}`;
     }
 
-    res.json({
-      success: true,
-      data: service
+    const created = await (prisma as any).service.create({
+      data: { title, link: link ?? null, imageUrl, isActive: true, sortOrder: 0 },
     });
+    const item = { id: created.id, title: created.title, imageUrl: created.imageUrl, isActive: created.isActive, createdAt: created.createdAt };
+    res.status(201).json({ success: true, data: item, message: 'Service created' });
   } catch (error) {
-    console.error('Error fetching service:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch service',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
-// Create service
-export const createService = async (req: Request<{}, ApiResponse<Service>, CreateServiceRequest>, res: Response<ApiResponse<Service>>) => {
+export const updateService = async (req: Request, res: Response) => {
   try {
-    const {
-      title,
-      description,
-      link,
-      isActive = true,
-      sortOrder = 0
-    } = req.body;
+    const id = req.params.id;
+    const { title, link, isActive } = req.body as { title?: string; link?: string; isActive?: boolean };
+    const existing = await (prisma as any).service.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Not found' });
 
-    // Convert string boolean to actual boolean
-    const isActiveBoolean = isActive === 'true' || isActive === true;
-    
-    // Convert string to number for sortOrder
-    const sortOrderNumber = typeof sortOrder === 'string' ? parseInt(sortOrder, 10) : sortOrder || 0;
-
-    // Get uploaded file path
-    const imageUrl = req.file ? `/uploads/services/${req.file.filename}` : null;
-
-    const service = await prisma.service.create({
-      data: {
-        title,
-        description,
-        imageUrl,
-        link: link || null,
-        isActive: isActiveBoolean,
-        sortOrder: sortOrderNumber
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Service created successfully',
-      data: service
-    });
-  } catch (error) {
-    console.error('Error creating service:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create service',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
-// Update service
-export const updateService = async (req: Request<{ id: string }, ApiResponse<Service>, UpdateServiceRequest>, res: Response<ApiResponse<Service>>) => {
-  try {
-    const { id } = req.params;
-    const updateData: any = { ...req.body };
-
-    // Convert string boolean to actual boolean if present
-    if (updateData.isActive !== undefined) {
-      updateData.isActive = updateData.isActive === 'true' || updateData.isActive === true;
-    }
-    
-    // Convert string to number for sortOrder
-    if (updateData.sortOrder !== undefined) {
-      updateData.sortOrder = typeof updateData.sortOrder === 'string' ? parseInt(updateData.sortOrder, 10) : updateData.sortOrder;
+    let imageUrl: string | undefined;
+    if (req.file) {
+      imageUrl = `/uploads/services/${req.file.filename}`;
     }
 
-    // Get uploaded file path if new image is uploaded
-    const imageUrl = req.file ? `/uploads/services/${req.file.filename}` : updateData.imageUrl;
+    const data: any = {};
+    if (typeof title !== 'undefined') data.title = title;
+    if (typeof link !== 'undefined') data.link = link;
+    if (typeof isActive !== 'undefined') data.isActive = isActive;
+    if (typeof imageUrl !== 'undefined') data.imageUrl = imageUrl;
 
-    const service = await prisma.service.update({
-      where: { id },
-      data: {
-        ...updateData,
-        imageUrl: imageUrl || null,
-        link: updateData.link || null
-      }
-    });
-
-    res.json({
-      success: true,
-      message: 'Service updated successfully',
-      data: service
-    });
+    const updated = await (prisma as any).service.update({ where: { id }, data });
+    const item = { id: updated.id, title: updated.title, imageUrl: updated.imageUrl, isActive: updated.isActive, createdAt: updated.createdAt };
+    res.status(200).json({ success: true, data: item, message: 'Updated' });
   } catch (error) {
-    console.error('Error updating service:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update service',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
-// Delete service
-export const deleteService = async (req: Request, res: Response<ApiResponse<null>>) => {
+export const deleteService = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-
-    await prisma.service.delete({
-      where: { id }
-    });
-
-    res.json({
-      success: true,
-      message: 'Service deleted successfully'
-    });
+    const id = req.params.id;
+    const existingDel = await (prisma as any).service.findUnique({ where: { id } });
+    if (!existingDel) return res.status(404).json({ success: false, message: 'Not found' });
+    await (prisma as any).service.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Deleted' });
   } catch (error) {
-    console.error('Error deleting service:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete service',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
-
-// Toggle service status
-export const toggleServiceStatus = async (req: Request, res: Response<ApiResponse<Service>>) => {
-  try {
-    const { id } = req.params;
-
-    const service = await prisma.service.findUnique({
-      where: { id }
-    });
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service not found'
-      });
-    }
-
-    const updatedService = await prisma.service.update({
-      where: { id },
-      data: { isActive: !service.isActive }
-    });
-
-    res.json({
-      success: true,
-      message: `Service ${updatedService.isActive ? 'activated' : 'deactivated'} successfully`,
-      data: updatedService
-    });
-  } catch (error) {
-    console.error('Error toggling service status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to toggle service status',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

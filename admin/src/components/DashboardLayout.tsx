@@ -32,6 +32,7 @@ import {
   Image as SliderIcon,
   Newspaper as ArticleIcon,
   Info as AboutIcon,
+  Video,
   ChevronRight,
   ChevronLeft,
   ChevronDown,
@@ -105,34 +106,6 @@ export default function DashboardLayout({
     fetchCsrfToken().catch(() => {});
   }, []);
 
-  // Auto-expand content management section when on content management pages
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      if (path.includes('/dashboard/categories') || 
-          path.includes('/dashboard/services') || 
-          path.includes('/dashboard/stores') ||
-        path.includes('/dashboard/terms') ||
-        path.includes('/dashboard/privacy-policy') ||
-        path.includes('/dashboard/help-center') ||
-        path.includes('/dashboard/return-policy') ||
-          path.includes('/dashboard/quotes') || 
-          path.includes('/dashboard/wedding-planners') ||
-          path.includes('/dashboard/cultures') ||
-          path.includes('/dashboard/ring-customizations') ||
-          path.includes('/dashboard/diamond-certifications') ||
-          path.includes('/dashboard/celebration-processes') ||
-          path.includes('/dashboard/faqs') ||
-          path.includes('/dashboard/galleries') ||
-          path.includes('/dashboard/mid-banners') ||
-          path.includes('/dashboard/promotional-banners')) {
-        setExpandedSections(prev => 
-          prev.includes('content-management') ? prev : [...prev, 'content-management']
-        );
-      }
-    }
-  }, []);
-
   const handleLogout = () => {
     logout();
   };
@@ -148,29 +121,11 @@ export default function DashboardLayout({
     dashboard: '/dashboard',
     categories: '/dashboard/categories',
     'attribute-options': '/dashboard/attribute-options',
-    services: '/dashboard/services',
-    stores: '/dashboard/stores',
-    terms: '/dashboard/terms',
-    'privacy-policy': '/dashboard/privacy-policy',
-    'help-center': '/dashboard/help-center',
-    'return-policy': '/dashboard/return-policy',
-    quotes: '/dashboard/quotes',
-    'wedding-planners': '/dashboard/wedding-planners',
-    cultures: '/dashboard/cultures',
-    'ring-customizations': '/dashboard/ring-customizations',
-    'diamond-certifications': '/dashboard/diamond-certifications',
-    'celebration-processes': '/dashboard/celebration-processes',
-    faqs: '/dashboard/faqs',
-    galleries: '/dashboard/galleries',
     products: '/dashboard/products',
     'site-settings': '/dashboard/settings',
     configuration: '/dashboard/settings/configuration',
     users: '/dashboard/users',
     password: '/dashboard/settings/password',
-    'top-banner': '/dashboard?tab=top-banner',
-    'hero-section': '/dashboard/hero-section',
-    'promotional-banners': '/dashboard/promotional-banners',
-    'mid-banners': '/dashboard/mid-banners',
     analytics: '/dashboard/analytics',
     'sales-analytics': '/dashboard/sales-analytics',
     'product-performance': '/dashboard/product-performance',
@@ -181,11 +136,13 @@ export default function DashboardLayout({
     refunds: '/dashboard/orders/refunds',
     cancellations: '/dashboard/orders/cancellations',
     reviews: '/dashboard/reviews',
-    media: '/dashboard/media',
-    'media-category': '/dashboard/categories',
-    sliders: '/dashboard/sliders',
-    articles: '/dashboard/articles',
-    about: '/dashboard/about'
+    'hero-section': '/dashboard/content/hero-section',
+    'email-subscriptions': '/dashboard/email-subscriptions',
+    testimonials: '/dashboard/content/testimonials',
+    services: '/dashboard/content/services',
+    videos: '/dashboard/content/videos',
+    banners: '/dashboard/content/banners',
+    about: '/dashboard/content/about',
   };
 
   const handleNavigation = (itemId: string, parentId?: string) => {
@@ -222,45 +179,6 @@ export default function DashboardLayout({
         { id: "quick-insights", label: "Quick Insights", icon: TrendingUp }
       ]
     },
-    {
-      id: "content-management",
-      label: "Content Management",
-      icon: ContentIcon,
-      children: [
-        { id: "top-banner", label: "Top Banner", icon: SliderIcon },
-        { id: "hero-section", label: "Hero Section", icon: SliderIcon },
-        { id: "promotional-banners", label: "Promotional Banners", icon: SliderIcon },
-        { id: "mid-banners", label: "Advertisement Banners", icon: SliderIcon },
-        { id: "testimonials", label: "Testimonials", icon: MessageSquare },
-        { id: "services", label: "Services", icon: Utensils },
-        { id: "stores", label: "Stores", icon: Store },
-        { id: "terms", label: "Terms & Conditions", icon: FileCheck },
-        { id: "privacy-policy", label: "Privacy Policy", icon: FileCheck },
-        { id: "help-center", label: "Help Center", icon: FileCheck },
-        { id: "return-policy", label: "Return Policy", icon: FileCheck },
-        { id: "quotes", label: "Quotes", icon: MessageSquare },
-        { id: "wedding-planners", label: "Wedding Planners", icon: Gift },
-        { id: "cultures", label: "Culture Collection", icon: Star },
-        { id: "ring-customizations", label: "Ring Customization", icon: Package },
-        { id: "diamond-certifications", label: "Diamond Certification", icon: Award },
-        { id: "celebration-processes", label: "Celebration Process", icon: Target },
-        { id: "faqs", label: "FAQ", icon: MessageSquare },
-        { id: "galleries", label: "Gallery", icon: Heart },
-        { id: "popup-banner", label: "Pop-up Banner", icon: SliderIcon },
-        { id: "popup-management", label: "Popup Management", icon: SliderIcon },
-        { 
-          id: "media", 
-          label: "Media", 
-          icon: SliderIcon,
-          children: [
-            { id: "media-category", label: "Category", icon: FolderOpen }
-          ]
-        },
-        { id: "sliders", label: "Sliders", icon: SliderIcon },
-        { id: "articles", label: "Articles", icon: ArticleIcon },
-        { id: "about", label: "About", icon: AboutIcon }
-      ]
-    },
     
     {
       id: "categories",
@@ -271,7 +189,12 @@ export default function DashboardLayout({
       id: "products",
       label: "Products",
       icon: Package,
-     
+      
+    },
+    {
+      id: "email-subscriptions",
+      label: "Email Subscriptions",
+      icon: Mail
     },
     {
       id: "orders",
@@ -297,7 +220,21 @@ export default function DashboardLayout({
       children: [
         { id: "discounts", label: "Discounts", icon: Percent },
         { id: "promotions", label: "Promotions", icon: Gift },
-        { id: "email-marketing", label: "Email Marketing", icon: Mail }
+        { id: "email-marketing", label: "Email Marketing", icon: Mail },
+        { id: "email-subscriptions", label: "Email Subscriptions", icon: Mail }
+      ]
+    },
+    {
+      id: "content",
+      label: "Content",
+      icon: Layers,
+      children: [
+        { id: "hero-section", label: "Hero Section", icon: SliderIcon },
+        { id: "testimonials", label: "Testimonials", icon: Star },
+        { id: "services", label: "Services", icon: SliderIcon },
+        { id: "videos", label: "Videos", icon: Video },
+        { id: "banners", label: "Banners", icon: SliderIcon }
+        ,{ id: "about", label: "About", icon: AboutIcon }
       ]
     },
     {

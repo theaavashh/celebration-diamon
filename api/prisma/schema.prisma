@@ -48,25 +48,6 @@ model AdminRole {
   @@map("admin_roles")
 }
 
-model Banner {
-  id              String    @id @default(cuid())
-  title           String
-  description     String?
-  text            String
-  linkText        String?
-  linkUrl         String?
-  backgroundColor String?   @default("#ffffff")
-  textColor       String?   @default("#000000")
-  isActive        Boolean   @default(true)
-  priority        Int       @default(0)
-  startDate       DateTime?
-  endDate         DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  @@map("banners")
-}
-
 model Product {
   id               String         @id @default(cuid())
   productCode      String         @unique // CD-001, etc.
@@ -141,7 +122,6 @@ model Product {
   updatedAt     DateTime       @updatedAt
   images        ProductImage[]
   savedProducts SavedProduct[]
-  quoteRequests QuoteRequest[]
   reviews       Review[]
 
   @@map("products")
@@ -159,21 +139,6 @@ model ProductImage {
   updatedAt DateTime @updatedAt
 
   @@map("product_images")
-}
-
-model QuoteRequest {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  name      String
-  email     String
-  phone     String?
-  message   String
-  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("quote_requests")
 }
 
 model Collection {
@@ -199,26 +164,6 @@ model SavedProduct {
 
   @@unique([productId, collectionId])
   @@map("saved_products")
-}
-
-model Hero {
-  id          String   @id @default(cuid())
-  heading     String
-  subHeading  String?
-  ctaTitle    String?
-  ctaLink     String?
-  imageUrl    String?
-  backgroundColor String? @default("#ffffff")
-  textColor       String? @default("#000000")
-  imageAlignment  String? @default("left")
-  buttonBgColor   String? @default("#f59e0b")
-  buttonTextColor String? @default("#ffffff")
-  buttonRadius    Int?    @default(9999)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("hero")
 }
 
 model Category {
@@ -250,187 +195,6 @@ model Subcategory {
   updatedAt  DateTime @updatedAt
 
   @@map("subcategories")
-}
-
-model Service {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  imageUrl    String?
-  link        String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("services")
-}
-
-model Quote {
-  id        String   @id @default(cuid())
-  text      String // The quote text
-  author    String? // Optional author name
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("quotes")
-}
-
-model WeddingPlanner {
-  id           String   @id @default(cuid())
-  title        String // "YOURS WEDDING JEWELRY PLANNER"
-  description  String // Main description text
-  ctaText      String // "SCHEDULE CONSULTATION"
-  ctaLink      String? // Link for the CTA button
-  imageUrl     String? // Background/featured image
-  badgeText    String? // "BRIDE PLANNING"
-  badgeSubtext String? // "Expert Service"
-  isActive     Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@map("wedding_planners")
-}
-
-model Culture {
-  id          String   @id @default(cuid())
-  name        String   // Unique identifier (e.g., "newari", "brahmin-chhetri")
-  title       String   // Display title (e.g., "Newari")
-  subtitle    String   // Short description
-  description String   // Detailed description
-  ctaText     String   // Call to action text
-  ctaLink     String?  // Call to action link
-  imageUrl    String?  // Background image URL
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("cultures")
-}
-
-model RingCustomization {
-  id              String   @id @default(cuid())
-  title           String   // Main title
-  description     String   // Description text
-  ctaText         String   // Call to action text
-  ctaLink         String?  // Call to action link
-  processImageUrl String?  // Process diagram/image
-  example1Title   String?  // First example title
-  example1Desc    String?  // First example description
-  example1ImageUrl String? // First example image
-  example2Title   String?  // Second example title
-  example2Desc    String?  // Second example description
-  example2ImageUrl String? // Second example image
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("ring_customizations")
-}
-
-model DiamondCertification {
-  id          String   @id @default(cuid())
-  title       String   // Title
-  description String   // Description text
-  ctaText     String   // Call to action text
-  ctaLink     String?  // Call to action link
-  imageUrl    String?  // Image URL
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("diamond_certifications")
-}
-
-model CelebrationProcess {
-  id          String                  @id @default(cuid())
-  title       String                  // Main title
-  description String?                 // Optional description
-  imageUrl    String?                 // Main image
-  isActive    Boolean                 @default(true)
-  sortOrder   Int                     @default(0)
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
-  steps       CelebrationProcessStep[]
-
-  @@map("celebration_processes")
-}
-
-model CelebrationProcessStep {
-  id                  String             @id @default(cuid())
-  celebrationProcessId String
-  celebrationProcess   CelebrationProcess @relation(fields: [celebrationProcessId], references: [id], onDelete: Cascade)
-  title               String             // Step title
-  description         String             // Step description
-  icon                String             // Icon identifier/class
-  order               Int                @default(0)
-  isActive            Boolean            @default(true)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-
-  @@map("celebration_process_steps")
-}
-
-model FAQ {
-  id       String   @id @default(cuid())
-  question String   // Question text
-  answer   String   // Answer text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("faqs")
-}
-
-model Gallery {
-  id          String        @id @default(cuid())
-  title       String        // Gallery title
-  subtitle    String        // Gallery subtitle
-  isActive    Boolean       @default(true)
-  sortOrder   Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  galleryItems GalleryItem[]
-
-  @@map("galleries")
-}
-
-model GalleryItem {
-  id          String   @id @default(cuid())
-  galleryId   String
-  gallery     Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  imageUrl    String?  // Legacy field for backward compatibility
-  fileName    String?  // Uploaded file name (image or video)
-  originalName String? // Original file name when uploaded
-  fileType    String?  // "image" or "video"
-  fileSize    Int?     // File size in bytes
-  mimeType    String?  // MIME type (image/jpeg, video/mp4, etc.)
-  filePath    String?  // Path to the uploaded file
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("gallery_items")
-}
-
-model PopupImage {
-  id          String   @id @default(cuid())
-  fileName    String   // Uploaded file name
-  originalName String  // Original file name when uploaded
-  filePath    String   // Path to the uploaded file
-  mimeType    String   // MIME type (image/jpeg, video/mp4, etc.)
-  fileSize    Int      // File size in bytes
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("popup_images")
 }
 
 model Review {
@@ -471,63 +235,104 @@ model SiteSetting {
   @@map("site_settings")
 }
 
-model Store {
-  id          String   @id @default(cuid())
-  title       String
-  location    String
-  phone       String?
-  email       String?
-  hours       String?
-  latitude    Float?
-  longitude   Float?
-  description String?
-  mediaType   String   @default("image")
-  imageUrl    String?
-  videoUrl    String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("stores")
-}
-
-model AboutUs {
-  id             String   @id @default(cuid())
-  heroTitle      String
-  heroSubtitle   String?
-  storyTitle     String
-  storyContent   String
-  storyImageUrl  String?
-  missionTitle   String
-  missionContent String
-  visionTitle    String
-  visionContent  String
-  values         Json?
-  whyChooseUs    Json?
-  milestones     Json?
-  contactLocation String?
-  contactPhone    String?
-  contactEmail    String?
+model HeroSection {
+  id              String   @id @default(cuid())
+  leftContentType String   // "image" or "description"
+  rightContentType String  // "image" or "description"
+  leftContent     String
+  rightContent    String
+  leftBg          String
+  rightBg         String
+  leftWidth       String
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@map("about_us")
+  @@map("hero_sections")
 }
 
-model TeamMember {
+model NewsletterSubscription {
   id        String   @id @default(cuid())
-  name      String
-  role      String
-  bio       String
-  imageUrl  String?
-  email     String?
-  linkedin  String?
-  sortOrder Int      @default(0)
+  email     String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("team_members")
+  @@map("newsletter_subscriptions")
 }
+
+model Testimonial {
+  id         String   @id @default(cuid())
+  clientName String
+  clientTitle String?
+  company    String?
+  content    String
+  rating     Int?
+  imageUrl   String?
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+model TestimonialSection {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonial_sections")
+}
+
+model Service {
+  id        String   @id @default(cuid())
+  title     String
+  imageUrl  String?
+  link      String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("services")
+}
+
+model Video {
+  id        String   @id @default(cuid())
+  title     String?
+  videoUrl  String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("videos")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("banners")
+}
+
+model AboutPage {
+  id         String   @id @default(cuid())
+  title      String
+  description String
+  ctaLink    String?
+  ctaTitle   String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("about_pages")
+}
+

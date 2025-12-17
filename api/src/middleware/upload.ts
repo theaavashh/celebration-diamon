@@ -25,10 +25,14 @@ const storage = multer.diskStorage({
       destination = 'uploads/categories/nav-images/';
     } else if (fieldName === 'image' && (req.path.includes('/hero') || req.originalUrl.includes('/hero'))) {
       destination = 'uploads/hero/';
+    } else if ((fieldName === 'leftImage' || fieldName === 'rightImage' || fieldName === 'leftBgImage' || fieldName === 'rightBgImage') && (req.path.includes('/hero-section') || req.originalUrl.includes('/hero-section'))) {
+      destination = 'uploads/hero-section/';
     } else if (fieldName === 'images' && (req.path.includes('/products') || req.originalUrl.includes('/products'))) {
       destination = 'uploads/products/';
     } else if (fieldName === 'image' && (req.path.includes('/mid-banners') || req.originalUrl.includes('/mid-banners'))) {
       destination = 'uploads/mid-banners/';
+    } else if (fieldName === 'image' && (req.path.includes('/banners') || req.originalUrl.includes('/banners'))) {
+      destination = 'uploads/banners/';
     } else if (fieldName === 'image' && (req.path.includes('/services') || req.originalUrl.includes('/services'))) {
       destination = 'uploads/services/';
     } else if (fieldName === 'image' && (req.path.includes('/testimonials') || req.originalUrl.includes('/testimonials'))) {
@@ -37,7 +41,9 @@ const storage = multer.diskStorage({
       destination = 'uploads/about-us/';
     } else if (fieldName === 'image' && (req.path.includes('/stores') || req.originalUrl.includes('/stores'))) {
       destination = 'uploads/stores/';
-    } else if (fieldName === 'images') {
+  } else if (fieldName === 'video' && (req.path.includes('/videos') || req.originalUrl.includes('/videos'))) {
+      destination = 'uploads/videos/';
+  } else if (fieldName === 'images') {
       // Default for product images
       destination = 'uploads/products/';
     } else {

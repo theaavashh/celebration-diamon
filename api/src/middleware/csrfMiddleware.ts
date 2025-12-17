@@ -67,7 +67,7 @@ export const csrfGenerate = (req: Request, res: Response, next: NextFunction) =>
 // Middleware to validate CSRF tokens - this is the main protection middleware
 export const csrfValidate = (req: Request, res: Response, next: NextFunction) => {
   // Skip CSRF validation for auth routes and health check
-  if (req.path.startsWith('/api/auth/') || req.path === '/health') {
+  if (req.path.startsWith('/api/auth/') || req.path === '/health' || req.path.startsWith('/api/newsletter')) {
     return next();
   }
   

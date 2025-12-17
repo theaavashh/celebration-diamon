@@ -7,29 +7,12 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import { setupQuoteWebSocket } from './websocket/quoteWebSocket';
 
 // Import routes
-import bannerRoutes from './routes/bannerRoutes';
-import midBannerRoutes from './routes/midBannerRoutes';
-import heroRoutes from './routes/heroRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import productRoutes from './routes/productRoutes';
-import serviceRoutes from './routes/serviceRoutes';
-import quoteRoutes from './routes/quoteRoutes';
-import weddingPlannerRoutes from './routes/weddingPlannerRoutes';
-import cultureRoutes from './routes/cultureRoutes';
-import ringCustomizationRoutes from './routes/ringCustomizationRoutes';
-import diamondCertificationRoutes from './routes/diamondCertificationRoutes';
-import celebrationProcessRoutes from './routes/celebrationProcessRoutes';
-import faqRoutes from './routes/faqRoutes';
-import galleryRoutes from './routes/galleryRoutes';
-import popupRoutes from './routes/popupRoutes';
-import testimonialRoutes from './routes/testimonialRoutes';
-import testimonialSettingsRoutes from './routes/testimonialSettingsRoutes';
-import faqSettingsRoutes from './routes/faqSettingsRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import seoRoutes from './routes/seoRoutes';
@@ -37,14 +20,15 @@ import reviewRoutes from './routes/reviewRoutes';
 import roleRoutes from './routes/roleRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import retailerRoutes from './routes/retailerRoutes';
-import aboutUsRoutes from './routes/aboutUsRoutes';
-import storeRoutes from './routes/storeRoutes';
-import termsRoutes from './routes/termsRoutes';
-import privacyPolicyRoutes from './routes/privacyPolicyRoutes';
-import helpCenterRoutes from './routes/helpCenterRoutes';
-import returnPolicyRoutes from './routes/returnPolicyRoutes';
 import attributeOptionRoutes from './routes/attributeOptionRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import heroSectionRoutes from './routes/heroSectionRoutes';
+import newsletterRoutes from './routes/newsletterRoutes';
+import testimonialRoutes from './routes/testimonialRoutes';
+import serviceRoutes from './routes/serviceRoutes';
+import videoRoutes from './routes/videoRoutes';
+import bannerRoutes from './routes/bannerRoutes';
+import aboutRoutes from './routes/aboutRoutes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -139,26 +123,9 @@ app.get('/api/csrf-token', csrfGenerate, (req, res) => {
 });
 
 // API routes
-app.use('/api/banners', bannerRoutes);
-app.use('/api/mid-banners', midBannerRoutes);
-app.use('/api/hero', heroRoutes);
-
 app.use('/api/auth', authRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/quotes', quoteRoutes);
-app.use('/api/wedding-planners', weddingPlannerRoutes);
-app.use('/api/cultures', cultureRoutes);
-app.use('/api/ring-customizations', ringCustomizationRoutes);
-app.use('/api/diamond-certifications', diamondCertificationRoutes);
-app.use('/api/celebration-processes', celebrationProcessRoutes);
-app.use('/api/faqs', faqRoutes);
-app.use('/api/galleries', galleryRoutes);
-app.use('/api/popup', popupRoutes);
-app.use('/api/testimonials', testimonialRoutes);
-app.use('/api/testimonial-settings', testimonialSettingsRoutes);
-app.use('/api/faq-settings', faqSettingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/seo', seoRoutes);
@@ -166,14 +133,15 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/retailers', retailerRoutes);
-app.use('/api/about-us', aboutUsRoutes);
-app.use('/api/stores', storeRoutes);
-app.use('/api/terms', termsRoutes);
-app.use('/api/privacy-policy', privacyPolicyRoutes);
-app.use('/api/help-center', helpCenterRoutes);
-app.use('/api/return-policy', returnPolicyRoutes);
 app.use('/api/attribute-options', attributeOptionRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/hero-section', heroSectionRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/testimonials', testimonialRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/videos', videoRoutes);
+app.use('/api/banners', bannerRoutes);
+app.use('/api/about', aboutRoutes);
 
 // Add category routes
 app.use('/api/categories', categoryRoutes);
@@ -201,9 +169,6 @@ app.use(errorHandler);
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Setup WebSocket
-setupQuoteWebSocket(httpServer);
-
 // Start server
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
@@ -214,4 +179,5 @@ httpServer.listen(PORT, () => {
   console.log(`   - /api/admins`);
   console.log(`   - /api/roles`);
   console.log(`   - /api/attribute-options`);
+  console.log(`   - /api/newsletter`);
 });

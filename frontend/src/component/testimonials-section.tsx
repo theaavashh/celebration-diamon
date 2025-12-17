@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Quote } from "lucide-react";
-import { getImageUrl } from "@/lib/api";
+import { getApiBaseUrl, getImageUrl } from "@/lib/api";
 
 interface Testimonial {
   id: string;
@@ -25,37 +25,8 @@ interface TestimonialSection {
 
 const AUTOPLAY_INTERVAL = 6500;
 
-const DEMO_TESTIMONIALS: Testimonial[] = [
-  {
-    id: "t1",
-    clientName: "Aisha",
-    clientTitle: "Student",
-    company: null,
-    content:
-      "It was so nice to get to know my teammates and talk about what we’re all going through. It really helped me deal with my anxiety and pressure to please other people. Also, the sessions were so real.",
-    rating: null,
-    imageUrl: null,
-    isActive: true,
-  },
-  {
-    id: "t2",
-    clientName: "Rahul",
-    clientTitle: "Designer",
-    company: null,
-    content:
-      "The guidance was practical and honest. No fluff, just insights that made a difference for me and my team.",
-    rating: null,
-    imageUrl: null,
-    isActive: true,
-  },
-];
-
-const DEMO_SECTION: TestimonialSection = {
-  id: "demo",
-  title: "Hear what our clients have to say",
-  subtitle: null,
-  isActive: true,
-};
+const DEMO_TESTIMONIALS: Testimonial[] = [];
+const DEMO_SECTION: TestimonialSection = { id: "demo", title: "Hear what our clients have to say", subtitle: null, isActive: true };
 
 const TestimonialsSection = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -64,9 +35,38 @@ const TestimonialsSection = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTestimonials(DEMO_TESTIMONIALS);
-    setSection(DEMO_SECTION);
-    setLoading(false);
+    const fetchTestimonials = async () => {
+      setLoading(true);
+      try {
+        const base = getApiBaseUrl();
+        const res = await fetch(`${base}/testimonials/public`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            const mapped: Testimonial[] = json.data
+              .filter((t: any) => t.isActive !== false)
+              .map((t: any) => ({
+                id: t.id,
+                clientName: t.clientName ?? t.customerName ?? "",
+                clientTitle: t.clientTitle ?? null,
+                company: t.company ?? null,
+                content: t.content ?? t.description ?? "",
+                rating: typeof t.rating === "number" ? t.rating : null,
+                imageUrl: t.imageUrl ?? null,
+                isActive: t.isActive !== false,
+              }));
+            setTestimonials(mapped);
+            setSection(DEMO_SECTION);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+      setTestimonials(DEMO_TESTIMONIALS);
+      setSection(DEMO_SECTION);
+      setLoading(false);
+    };
+    fetchTestimonials();
   }, []);
 
   // Auto-advance when multiple testimonials are available
